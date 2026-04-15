@@ -1,10 +1,33 @@
-<<<<<<< HEAD
 # score-now-admin-fe
 스코어나우 어드민페이지 프론트
-=======
-# Vue 3 + Vite
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## Tech Stack
+- Vue 3
+- Vite
+- Pinia (State Management)
+- Axios (HTTP Client)
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
->>>>>>> f4521f8 (init:)
+## Project Structure
+```text
+src/
+├── api/         # axios 설정 및 API 모듈
+├── router/      # 라우팅 설정
+├── stores/      # Pinia 상태관리
+├── views/       # 페이지 (Login, Admin)
+└── App.vue
+```
+
+## Getting Started
+```
+npm install
+npm run dev
+```
+
+
+
+
+Access:
+http://localhost:5173
+
+## Backend 
+score-now-server(springboot) api 서버와 연동
