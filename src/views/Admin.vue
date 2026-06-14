@@ -13,32 +13,28 @@
   </div>
 </template>
 
-<script>
-import { getAdminData } from '../api/admin';
-import { useAuthStore } from '../stores/auth';
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { getAdminData } from '../api/admin'
+import { useAuthStore } from '../stores/auth'
 
-export default {
-  data() {
-    return {
-      data: []
-    }
-  },
-  methods: {
-    async loadData() {
-      try {
-        const res = await getAdminData();
-        this.data = res.data;
-      } catch (e) {
-        alert('인증 실패');
-        this.$router.push('/');
-      }
-    },
+const router = useRouter()
+const authStore = useAuthStore()
+const data = ref([])
 
-    logout() {
-      const authStore = useAuthStore();
-      authStore.logout();
-      this.$router.push('/');
-    }
+async function loadData() {
+  try {
+    const res = await getAdminData()
+    data.value = res.data
+  } catch (e) {
+    alert('인증 실패')
+    router.push('/')
   }
+}
+
+function logout() {
+  authStore.logout()
+  router.push('/')
 }
 </script>
