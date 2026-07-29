@@ -40,7 +40,8 @@ const sidebarItems = [
 .page-wrap {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 52px);
+  min-height: 0;
   background-color: #f9fafb;
   font-size: 13px;
   color: #1f2937;
@@ -50,6 +51,7 @@ const sidebarItems = [
 .body-wrap {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -57,6 +59,8 @@ const sidebarItems = [
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
 }
 

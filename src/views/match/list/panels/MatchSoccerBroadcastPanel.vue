@@ -405,14 +405,17 @@ const props = defineProps({
 defineEmits(['close'])
 
 const statusOptions = [
-  { value: 'scheduled', label: '경기전' },
-  { value: 'live', label: '경기중' },
-  { value: 'ended', label: '경기종료' },
-  { value: 'delayed', label: '경기지연' },
-  { value: 'interrupted', label: '경기중지' },
-  { value: 'suspended', label: '서스펜디드' },
-  { value: 'rainout', label: '우천중지' },
-  { value: 'canceled', label: '경기취소' },
+  { value: 'NOT_STARTED', label: '경기전' },
+  { value: 'IN_PLAY', label: '진행중' },
+  { value: 'TO_BE_FIXED', label: '수정예정' },
+  { value: 'ENDED', label: '종료' },
+  { value: 'POSTPONED', label: '연기' },
+  { value: 'CANCELLED', label: '취소' },
+  { value: 'WALKOVER', label: '부전승' },
+  { value: 'INTERRUPTED', label: '중지' },
+  { value: 'ABANDONED', label: '취소' },
+  { value: 'RETIRED', label: '기권' },
+  { value: 'REMOVED', label: '삭제' },
 ]
 
 const soccerClockStateOptions = [
@@ -493,7 +496,7 @@ function defaultTimeForm() {
   return {
     startDate: props.match?.startDate || '',
     startTime: props.match?.startTime || '',
-    status: props.match?.status || 'scheduled',
+    status: props.match?.status || 'NOT_STARTED',
     clockState: props.match?.soccerClockState || '',
     extraTime: {
       firstHalf: 0,
@@ -760,14 +763,17 @@ function statusLabel(status) {
 
 function statusBadgeVariant(status) {
   return {
-    scheduled: 'gray',
-    live: 'green',
-    ended: 'blue',
-    delayed: 'yellow',
-    interrupted: 'red',
-    suspended: 'yellow',
-    rainout: 'blue',
-    canceled: 'red',
+    NOT_STARTED: 'gray',
+    IN_PLAY: 'green',
+    TO_BE_FIXED: 'yellow',
+    ENDED: 'blue',
+    POSTPONED: 'yellow',
+    CANCELLED: 'red',
+    WALKOVER: 'blue',
+    INTERRUPTED: 'red',
+    ABANDONED: 'red',
+    RETIRED: 'red',
+    REMOVED: 'gray',
   }[status] || 'gray'
 }
 

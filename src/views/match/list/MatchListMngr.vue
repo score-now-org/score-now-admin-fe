@@ -90,8 +90,13 @@
         </div>
 
         <div class="filter-item filter-btns">
-          <BaseButton variant="primary" size="md" @click="doSearch">
-            검색
+          <BaseButton
+            variant="primary"
+            size="md"
+            :disabled="matchesLoading"
+            @click="doSearch"
+          >
+            {{ matchesLoading ? '검색중' : '검색' }}
           </BaseButton>
           <BaseButton
             variant="secondary"
@@ -116,7 +121,7 @@
     <div class="table-wrap">
       <div class="toolbar">
         <span class="total-count">
-          총 <strong>{{ filteredMatches.length }}</strong>건
+          총 <strong>{{ totalMatches }}</strong>건
         </span>
         <div class="toolbar-right">
           <span class="toolbar-hint">
@@ -125,16 +130,16 @@
           <BaseButton
             variant="outline"
             size="sm"
-            :disabled="page === 1"
-            @click="page--"
+            :disabled="matchesLoading || page === 1"
+            @click="changePage(page - 1)"
           >
             이전
           </BaseButton>
           <BaseButton
             variant="outline"
             size="sm"
-            :disabled="page === maxPage"
-            @click="page++"
+            :disabled="matchesLoading || page === maxPage"
+            @click="changePage(page + 1)"
           >
             다음
           </BaseButton>
@@ -170,7 +175,7 @@
               <th>저장</th>
               <th>홈팀</th>
               <th>원정팀</th>
-              <th>노출</th>
+              <th>사용 유무</th>
               <th>중계</th>
               <th>부가관리</th>
             </tr>
@@ -316,7 +321,13 @@
               </td>
             </tr>
 
-            <tr v-if="visibleMatches.length === 0">
+            <tr v-if="matchesLoading">
+              <td colspan="13" class="empty">경기 목록을 불러오는 중입니다.</td>
+            </tr>
+            <tr v-else-if="matchListError">
+              <td colspan="13" class="empty error-empty">{{ matchListError }}</td>
+            </tr>
+            <tr v-else-if="visibleMatches.length === 0">
               <td colspan="13" class="empty">검색 결과가 없습니다.</td>
             </tr>
           </tbody>
@@ -371,21 +382,20 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { getAdminMatches, getMatchSearchOptions } from '../../../api/match'
 import MatchCreateModal from './modals/MatchCreateModal.vue'
 import MatchStadiumModal from './modals/MatchStadiumModal.vue'
 import MatchSoccerBroadcastPanel from './panels/MatchSoccerBroadcastPanel.vue'
 import MatchBaseballBroadcastPanel from './panels/MatchBaseballBroadcastPanel.vue'
 
-const sportOptions = [
+const fallbackSportOptions = [
   { value: '', label: '전체' },
   { value: 'soccer', label: '축구' },
   { value: 'baseball', label: '야구' },
 ]
 
-const sportOptionsWithoutAll = sportOptions.filter((sport) => sport.value)
-
-const leagueOptions = [
+const fallbackLeagueOptions = [
   { id: 'epl', sport: 'soccer', name: '잉글랜드 프리미어 리그' },
   { id: 'kleague1', sport: 'soccer', name: 'K리그1' },
   { id: 'laliga', sport: 'soccer', name: '라리가' },
@@ -394,39 +404,44 @@ const leagueOptions = [
   { id: 'npb', sport: 'baseball', name: 'NPB' },
 ]
 
-const statusOptions = [
+const fallbackStatusOptions = [
   { value: '', label: '전체' },
-  { value: 'scheduled', label: '경기전' },
-  { value: 'live', label: '경기중' },
-  { value: 'ended', label: '경기종료' },
-  { value: 'delayed', label: '경기지연' },
-  { value: 'interrupted', label: '경기중지' },
-  { value: 'suspended', label: '서스펜디드' },
-  { value: 'rainout', label: '우천중지' },
-  { value: 'canceled', label: '경기취소' },
+  { value: 'NOT_STARTED', label: '경기전' },
+  { value: 'IN_PLAY', label: '진행중' },
+  { value: 'TO_BE_FIXED', label: '수정예정' },
+  { value: 'ENDED', label: '종료' },
+  { value: 'POSTPONED', label: '연기' },
+  { value: 'CANCELLED', label: '취소' },
+  { value: 'WALKOVER', label: '부전승' },
+  { value: 'INTERRUPTED', label: '중지' },
+  { value: 'ABANDONED', label: '취소' },
+  { value: 'RETIRED', label: '기권' },
+  { value: 'REMOVED', label: '삭제' },
 ]
 
-const rowStatusOptions = [
-  { value: 'scheduled', label: '경기전' },
-  { value: 'live', label: '경기중' },
-  { value: 'ended', label: '경기종료' },
-  { value: 'delayed', label: '경기지연' },
-  { value: 'interrupted', label: '경기중지' },
-  { value: 'suspended', label: '서스펜디드' },
-  { value: 'rainout', label: '우천중지' },
-  { value: 'canceled', label: '경기취소' },
-]
-
-const useStatusOptions = [
+const fallbackUseStatusOptions = [
   { value: '', label: '전체' },
   { value: 'active', label: '사용중' },
   { value: 'inactive', label: '미사용중' },
 ]
 
+const sportOptions = ref([...fallbackSportOptions])
+const leagueOptions = ref([...fallbackLeagueOptions])
+const statusOptions = ref([...fallbackStatusOptions])
+const useStatusOptions = ref([...fallbackUseStatusOptions])
+const isManualOptions = ref([])
+
+const sportOptionsWithoutAll = computed(() => sportOptions.value.filter((sport) => sport.value))
+const rowStatusOptions = computed(() => statusOptions.value.filter((status) => status.value))
+
 const pageSizeOptions = [10, 20, 50]
 const pageSize = ref('10')
 const page = ref(1)
+const totalMatches = ref(0)
+const totalPages = ref(1)
 const saveStates = ref({})
+const matchesLoading = ref(false)
+const matchListError = ref('')
 
 const defaultSearchForm = () => ({
   sport: '',
@@ -440,112 +455,21 @@ const defaultSearchForm = () => ({
 const searchForm = ref(defaultSearchForm())
 const appliedFilter = ref(defaultSearchForm())
 
-const matches = ref([
-  createMatch({
-    id: 'EB924924924',
-    sport: 'soccer',
-    leagueId: 'epl',
-    matchType: 'A',
-    startDate: '2025-12-31',
-    startTime: '12:59',
-    status: 'scheduled',
-    useStatus: 'active',
-    dataSource: { type: 'external', name: 'Sports API' },
-    homeTeam: makeTeam('맨유', 'MU', '#ef4444'),
-    awayTeam: makeTeam('맨시티', 'MC', '#60a5fa'),
-  }),
-  createMatch({
-    id: 'EB824824824',
-    sport: 'soccer',
-    leagueId: 'epl',
-    matchType: 'A',
-    startDate: '2025-12-31',
-    startTime: '12:59',
-    status: 'scheduled',
-    useStatus: 'active',
-    dataSource: { type: 'manual', name: '수동' },
-    homeTeam: makeTeam('아스널', 'ARS', '#dc2626'),
-    awayTeam: makeTeam('첼시', 'CHE', '#2563eb'),
-  }),
-  createMatch({
-    id: 'KB102410240',
-    sport: 'baseball',
-    leagueId: 'kbo',
-    matchType: 'A',
-    startDate: '2025-12-31',
-    startTime: '18:30',
-    status: 'scheduled',
-    useStatus: 'active',
-    dataSource: { type: 'external', name: 'KBO API' },
-    homeTeam: makeTeam('LG', 'LG', '#c81e1e'),
-    awayTeam: makeTeam('KIA', 'KIA', '#1f2937'),
-  }),
-  createMatch({
-    id: 'KL512300011',
-    sport: 'soccer',
-    leagueId: 'kleague1',
-    matchType: 'A',
-    startDate: '2026-01-03',
-    startTime: '15:00',
-    status: 'live',
-    useStatus: 'active',
-    dataSource: { type: 'external', name: 'League API' },
-    homeTeam: makeTeam('서울', 'SEO', '#ef4444'),
-    awayTeam: makeTeam('울산', 'USN', '#0ea5e9'),
-  }),
-  createMatch({
-    id: 'ML200077731',
-    sport: 'baseball',
-    leagueId: 'mlb',
-    matchType: 'A',
-    startDate: '2026-01-04',
-    startTime: '09:10',
-    status: 'ended',
-    useStatus: 'inactive',
-    dataSource: { type: 'external', name: 'Stats API' },
-    homeTeam: makeTeam('LAD', 'LAD', '#2563eb'),
-    awayTeam: makeTeam('NYY', 'NYY', '#111827'),
-  }),
-])
+const matches = ref([])
 
 const filteredLeagueOptions = computed(() => {
   const sport = searchForm.value.sport
   const keyword = searchForm.value.leagueKeyword.trim().toLowerCase()
 
-  return leagueOptions.filter((league) => {
+  return leagueOptions.value.filter((league) => {
     if (sport && league.sport !== sport) return false
     if (keyword && !league.name.toLowerCase().includes(keyword)) return false
     return true
   })
 })
 
-const filteredMatches = computed(() => {
-  const filter = appliedFilter.value
-  const keyword = filter.leagueKeyword.trim().toLowerCase()
-
-  return matches.value.filter((match) => {
-    const league = leagueName(match.leagueId)
-
-    if (filter.sport && match.sport !== filter.sport) return false
-    if (filter.leagueId && match.leagueId !== filter.leagueId) return false
-    if (keyword && !league.toLowerCase().includes(keyword)) return false
-    if (filter.status && match.status !== filter.status) return false
-    if (filter.useStatus && match.useStatus !== filter.useStatus) return false
-    if (filter.matchDate && match.startDate !== filter.matchDate) return false
-
-    return true
-  })
-})
-
-const maxPage = computed(() => (
-  Math.max(1, Math.ceil(filteredMatches.value.length / Number(pageSize.value)))
-))
-
-const visibleMatches = computed(() => {
-  const size = Number(pageSize.value)
-  const start = (page.value - 1) * size
-  return filteredMatches.value.slice(start, start + size)
-})
+const maxPage = computed(() => Math.max(1, totalPages.value))
+const visibleMatches = computed(() => matches.value)
 
 const createModalVisible = ref(false)
 const broadcastPanel = ref({ visible: false, match: null })
@@ -564,6 +488,11 @@ const useStatusConfirmVariant = computed(() => (
   useStatusConfirm.value.nextStatus === 'active' ? 'primary' : 'danger'
 ))
 
+onMounted(async () => {
+  await loadSearchOptions()
+  await fetchMatches()
+})
+
 watch(
   () => searchForm.value.sport,
   () => {
@@ -572,31 +501,215 @@ watch(
   },
 )
 
-watch(pageSize, () => {
+watch(pageSize, async () => {
   page.value = 1
+  await fetchMatches()
 })
 
-watch(maxPage, (value) => {
-  if (page.value > value) page.value = value
-})
-
-function doSearch() {
+async function doSearch() {
   appliedFilter.value = { ...searchForm.value }
   page.value = 1
+  await fetchMatches()
 }
 
-function resetSearch() {
+async function resetSearch() {
   searchForm.value = defaultSearchForm()
   appliedFilter.value = defaultSearchForm()
   page.value = 1
+  await fetchMatches()
+}
+
+async function changePage(nextPage) {
+  if (nextPage < 1 || nextPage > maxPage.value || nextPage === page.value) return
+
+  page.value = nextPage
+  await fetchMatches()
 }
 
 function openCreateModal() {
   createModalVisible.value = true
 }
 
+async function loadSearchOptions() {
+  try {
+    const options = normalizeSearchOptions(await getMatchSearchOptions())
+
+    if (options.sports.length) sportOptions.value = withAllOption(options.sports)
+    if (options.leagues.length) leagueOptions.value = options.leagues
+    if (options.statusOptions.length) statusOptions.value = withAllOption(options.statusOptions)
+    if (options.isActiveOptions.length) useStatusOptions.value = withAllOption(options.isActiveOptions)
+    isManualOptions.value = options.isManualOptions
+  } catch (error) {
+    console.error('경기 목록 검색 옵션 조회에 실패했습니다.', error)
+  }
+}
+
+async function fetchMatches() {
+  matchesLoading.value = true
+  matchListError.value = ''
+  matches.value = []
+
+  try {
+    const result = await getAdminMatches(buildMatchSearchParams())
+    const content = ensureArray(result?.content)
+
+    matches.value = content.map(mapMatchResponse)
+    totalMatches.value = Number(result?.totalElements ?? content.length)
+    totalPages.value = Math.max(1, Number(result?.totalPages ?? 1))
+
+    if (Number.isFinite(Number(result?.number))) {
+      page.value = Number(result.number) + 1
+    }
+  } catch (error) {
+    console.error('경기 목록 조회에 실패했습니다.', error)
+    matches.value = []
+    totalMatches.value = 0
+    totalPages.value = 1
+    matchListError.value = '경기 목록 조회에 실패했습니다.'
+  } finally {
+    matchesLoading.value = false
+  }
+}
+
+function buildMatchSearchParams() {
+  const filter = appliedFilter.value
+  const sportOption = sportOptions.value.find((sport) => sport.value === filter.sport)
+  const useStatusOption = useStatusOptions.value.find((option) => option.value === filter.useStatus)
+
+  return compactQueryParams({
+    sportId: sportOption?.serverValue,
+    leagueId: filter.leagueId,
+    leagueName: filter.leagueKeyword.trim(),
+    status: filter.status,
+    isActive: useStatusOption?.serverValue,
+    date: formatSearchDate(filter.matchDate),
+    page: Math.max(0, page.value - 1),
+    size: Number(pageSize.value),
+  })
+}
+
+function mapMatchResponse(match) {
+  const startAt = splitStartAt(match.startAt)
+  const isManual = match.isManual ?? match.manual ?? false
+  const isActive = match.isActive ?? match.active ?? false
+  const sport = sportValueFromServer(match.sportId, match.sportName)
+
+  return createMatch({
+    id: String(match.id),
+    sport,
+    sportId: match.sportId,
+    sportName: match.sportName,
+    leagueId: match.leagueId,
+    leagueName: match.leagueName,
+    matchType: match.matchType || 'A',
+    startDate: startAt.date,
+    startTime: startAt.time,
+    status: match.statusCode,
+    statusName: match.statusName,
+    useStatus: isActive ? 'active' : 'inactive',
+    dataSource: {
+      type: isManual ? 'manual' : 'external',
+      name: isManual ? '수동' : '자동',
+    },
+    homeScore: match.homeScore ?? 0,
+    awayScore: match.awayScore ?? 0,
+    teamDisplayOrder: match.teamDisplayOrder || [],
+    homeTeam: makeTeamFromResponse(match.homeId, match.homeName, match.homeImageUrl, '#ef4444'),
+    awayTeam: makeTeamFromResponse(match.awayId, match.awayName, match.awayImageUrl, '#2563eb'),
+  })
+}
+
+function normalizeSearchOptions(options = {}) {
+  const sports = normalizeSports(options.sports)
+  const sportValueById = new Map(sports.map((sport) => [String(sport.id), sport.value]))
+
+  return {
+    sports,
+    leagues: normalizeLeagues(options.leagues, sportValueById),
+    statusOptions: normalizeStatusOptions(options.statusOptions),
+    isActiveOptions: normalizeBooleanOptions(options.isActiveOptions, {
+      trueValue: 'active',
+      falseValue: 'inactive',
+    }),
+    isManualOptions: normalizeBooleanOptions(options.isManualOptions, {
+      trueValue: 'manual',
+      falseValue: 'external',
+    }),
+  }
+}
+
+function normalizeSports(sports) {
+  return ensureArray(sports)
+    .map((sport) => {
+      const label = optionLabel(sport)
+      const id = sport.id ?? sport.value
+
+      return {
+        id,
+        value: sportValueFromLabel(label, id),
+        label,
+        serverValue: id,
+      }
+    })
+    .filter((sport) => sport.id != null && sport.label)
+}
+
+function normalizeLeagues(leagues, sportValueById) {
+  return ensureArray(leagues)
+    .map((league) => {
+      const id = league.id ?? league.value
+      const sportId = league.sportId
+      const label = optionLabel(league)
+
+      return {
+        id,
+        sportId,
+        sport: sportValueById.get(String(sportId)) || String(sportId ?? ''),
+        name: label,
+        label,
+        serverValue: id,
+      }
+    })
+    .filter((league) => league.id != null && league.label)
+}
+
+function normalizeStatusOptions(statuses) {
+  return ensureArray(statuses)
+    .map((status) => {
+      const serverValue = optionValue(status)
+
+      return {
+        value: serverValue,
+        label: optionLabel(status),
+        serverValue,
+      }
+    })
+    .filter((status) => status.value && status.label)
+}
+
+function normalizeBooleanOptions(options, values) {
+  return ensureArray(options)
+    .map((option) => {
+      const serverValue = optionValue(option)
+      const boolValue = toBoolean(serverValue)
+
+      if (boolValue == null) return null
+
+      return {
+        value: boolValue ? values.trueValue : values.falseValue,
+        label: optionLabel(option),
+        serverValue: boolValue,
+      }
+    })
+    .filter(Boolean)
+}
+
+function withAllOption(options) {
+  return [{ value: '', label: '전체' }, ...options]
+}
+
 function addMatch(payload) {
-  const league = leagueOptions.find((item) => item.id === payload.leagueId)
+  const league = leagueOptions.value.find((item) => isSameOptionValue(item.id, payload.leagueId))
   const nextNumber = matches.value.length + 1
 
   matches.value.unshift(createMatch({
@@ -739,6 +852,16 @@ function makeTeam(name, code, color) {
   }
 }
 
+function makeTeamFromResponse(id, name, imageUrl, fallbackColor) {
+  const teamName = name || '-'
+
+  return {
+    id,
+    name: teamName,
+    emblemUrl: imageUrl || makeEmblem(teamName.slice(0, 3), fallbackColor),
+  }
+}
+
 function makeEmblem(text, color) {
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
@@ -752,7 +875,7 @@ function makeEmblem(text, color) {
 }
 
 function sportLabel(sport) {
-  return sportOptions.find((item) => item.value === sport)?.label || sport
+  return sportOptions.value.find((item) => item.value === sport)?.label || sport
 }
 
 function sportVariant(sport) {
@@ -760,11 +883,86 @@ function sportVariant(sport) {
 }
 
 function leagueName(leagueId) {
-  return leagueOptions.find((league) => league.id === leagueId)?.name || '-'
+  return matches.value.find((match) => isSameOptionValue(match.leagueId, leagueId))?.leagueName
+    || leagueOptions.value.find((league) => isSameOptionValue(league.id, leagueId))?.name
+    || fallbackLeagueOptions.find((league) => isSameOptionValue(league.id, leagueId))?.name
+    || '-'
 }
 
 function defaultDataProviderName(sport) {
   return sport === 'baseball' ? 'KBO API' : 'Sports API'
+}
+
+function optionValue(option) {
+  return option?.value ?? option?.code ?? option?.id ?? ''
+}
+
+function optionLabel(option) {
+  return option?.label
+    ?? option?.name
+    ?? option?.kName
+    ?? option?.eName
+    ?? option?.sName
+    ?? String(optionValue(option))
+}
+
+function ensureArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
+function compactQueryParams(params) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== '' && value != null && !Number.isNaN(value)),
+  )
+}
+
+function formatSearchDate(date) {
+  return date ? date.replaceAll('-', '') : ''
+}
+
+function splitStartAt(startAt) {
+  if (!startAt) {
+    return { date: '', time: '' }
+  }
+
+  const normalized = String(startAt).replace(' ', 'T')
+  const [date = '', time = ''] = normalized.split('T')
+
+  return {
+    date,
+    time: time.slice(0, 5),
+  }
+}
+
+function sportValueFromLabel(label, fallbackValue) {
+  const normalizedLabel = String(label || '').toLowerCase()
+
+  if (normalizedLabel.includes('축구') || normalizedLabel.includes('soccer') || normalizedLabel.includes('football')) {
+    return 'soccer'
+  }
+
+  if (normalizedLabel.includes('야구') || normalizedLabel.includes('baseball')) {
+    return 'baseball'
+  }
+
+  return String(fallbackValue ?? '')
+}
+
+function sportValueFromServer(sportId, sportName) {
+  return sportOptions.value.find((sport) => isSameOptionValue(sport.serverValue, sportId))?.value
+    || sportValueFromLabel(sportName, sportId)
+}
+
+function toBoolean(value) {
+  if (typeof value === 'boolean') return value
+  if (value === 'true') return true
+  if (value === 'false') return false
+
+  return null
+}
+
+function isSameOptionValue(left, right) {
+  return String(left) === String(right)
 }
 
 function normalizeTime(value) {
@@ -785,7 +983,8 @@ function normalizeTime(value) {
   display: flex;
   flex: 1;
   flex-direction: column;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tab-bar {
@@ -805,6 +1004,7 @@ function normalizeTime(value) {
 }
 
 .search-box {
+  flex: 0 0 auto;
   margin: 12px 12px 8px;
   padding: 14px 16px;
   background: #fff;
@@ -880,6 +1080,10 @@ function normalizeTime(value) {
 }
 
 .table-wrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   margin: 0 12px 12px;
   overflow: hidden;
   background: #fff;
@@ -889,6 +1093,7 @@ function normalizeTime(value) {
 
 .toolbar {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
@@ -917,7 +1122,9 @@ function normalizeTime(value) {
 }
 
 .table-scroll {
-  overflow-x: auto;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 table {
@@ -1192,6 +1399,10 @@ td {
   padding: 40px;
   color: #9ca3af;
   text-align: center;
+}
+
+.error-empty {
+  color: #dc2626;
 }
 
 @media (max-width: 960px) {

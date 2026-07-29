@@ -133,7 +133,7 @@ const defaultForm = () => ({
   matchType: 'A',
   startDate: '',
   startTime: '',
-  status: 'scheduled',
+  status: 'NOT_STARTED',
   homeTeamName: '',
   awayTeamName: '',
   useStatus: 'active',
