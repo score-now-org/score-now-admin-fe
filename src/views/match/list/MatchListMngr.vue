@@ -151,33 +151,31 @@
           <colgroup>
             <col class="col-match-id" />
             <col class="col-sport" />
-            <col class="col-data" />
             <col class="col-league" />
             <col class="col-type" />
+            <col class="col-team" />
+            <col class="col-team" />
+            <col class="col-data" />
             <col class="col-date-time" />
             <col class="col-status" />
-            <col class="col-save" />
-            <col class="col-team" />
-            <col class="col-team" />
             <col class="col-exposure" />
-            <col class="col-broadcast" />
-            <col class="col-sub-actions" />
+            <col class="col-save" />
+            <col class="col-detail-actions" />
           </colgroup>
           <thead>
             <tr>
               <th>경기 ID</th>
               <th>종목</th>
-              <th>데이터</th>
               <th>리그</th>
               <th>타입</th>
-              <th>날짜/시간</th>
-              <th>경기상태</th>
-              <th>저장</th>
               <th>홈팀</th>
               <th>원정팀</th>
-              <th>사용 유무</th>
-              <th>중계</th>
-              <th>부가관리</th>
+              <th>데이터 관리</th>
+              <th>날짜/시간</th>
+              <th>경기상태</th>
+              <th>앱 노출</th>
+              <th>저장</th>
+              <th class="action-area-start">상세 관리</th>
             </tr>
           </thead>
           <tbody>
@@ -192,6 +190,28 @@
                   {{ sportLabel(match.sport) }}
                 </BaseBadge>
               </td>
+              <td class="league-cell">{{ leagueName(match.leagueId) }}</td>
+              <td class="center">{{ match.matchType }}</td>
+              <td>
+                <div class="team-cell">
+                  <img
+                    class="team-emblem"
+                    :src="match.homeTeam.emblemUrl"
+                    :alt="`${match.homeTeam.name} 엠블럼`"
+                  />
+                  <span class="team-name">{{ match.homeTeam.name }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="team-cell">
+                  <img
+                    class="team-emblem"
+                    :src="match.awayTeam.emblemUrl"
+                    :alt="`${match.awayTeam.name} 엠블럼`"
+                  />
+                  <span class="team-name">{{ match.awayTeam.name }}</span>
+                </div>
+              </td>
               <td class="data-source-cell">
                 <div
                   class="data-mode-toggle"
@@ -200,7 +220,8 @@
                 >
                   <button
                     class="data-mode-option auto"
-                    :class="{ active: match.dataSource.type === 'external' }"
+                    :class="{ active: match.editDataSourceType === 'external' }"
+                    :disabled="isSaving(match)"
                     type="button"
                     @click="setDataSourceType(match, 'external')"
                   >
@@ -208,7 +229,8 @@
                   </button>
                   <button
                     class="data-mode-option manual"
-                    :class="{ active: match.dataSource.type === 'manual' }"
+                    :class="{ active: match.editDataSourceType === 'manual' }"
+                    :disabled="isSaving(match)"
                     type="button"
                     @click="setDataSourceType(match, 'manual')"
                   >
@@ -216,8 +238,6 @@
                   </button>
                 </div>
               </td>
-              <td class="league-cell">{{ leagueName(match.leagueId) }}</td>
-              <td class="center">{{ match.matchType }}</td>
               <td>
                 <div class="date-time-editor">
                   <input
@@ -243,6 +263,32 @@
                   </option>
                 </BaseSelect>
               </td>
+              <td class="exposure-cell">
+                <div
+                  class="exposure-mode-toggle"
+                  role="group"
+                  :aria-label="`${match.id} 앱 노출 여부`"
+                >
+                  <button
+                    class="exposure-mode-option visible"
+                    :class="{ active: match.editUseStatus === 'active' }"
+                    :disabled="isSaving(match)"
+                    type="button"
+                    @click="setUseStatus(match, 'active')"
+                  >
+                    노출
+                  </button>
+                  <button
+                    class="exposure-mode-option inactive"
+                    :class="{ active: match.editUseStatus === 'inactive' }"
+                    :disabled="isSaving(match)"
+                    type="button"
+                    @click="setUseStatus(match, 'inactive')"
+                  >
+                    숨김
+                  </button>
+                </div>
+              </td>
               <td class="save-cell">
                 <BaseButton
                   variant="primary"
@@ -257,51 +303,16 @@
                   {{ saveButtonLabel(match) }}
                 </BaseButton>
               </td>
-              <td>
-                <div class="team-cell">
-                  <img
-                    class="team-emblem"
-                    :src="match.homeTeam.emblemUrl"
-                    :alt="`${match.homeTeam.name} 엠블럼`"
-                  />
-                  <span class="team-name">{{ match.homeTeam.name }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="team-cell">
-                  <img
-                    class="team-emblem"
-                    :src="match.awayTeam.emblemUrl"
-                    :alt="`${match.awayTeam.name} 엠블럼`"
-                  />
-                  <span class="team-name">{{ match.awayTeam.name }}</span>
-                </div>
-              </td>
-              <td class="exposure-cell">
-                <BaseButton
-                  variant="outline"
-                  size="sm"
-                  :class="[
-                    'match-action-btn',
-                    match.useStatus === 'active' ? 'action-use-active' : 'action-use-inactive',
-                  ]"
-                  @click="requestUseStatusChange(match)"
-                >
-                  {{ match.useStatus === 'active' ? '사용중' : '미사용중' }}
-                </BaseButton>
-              </td>
-              <td class="broadcast-cell">
-                <BaseButton
-                  variant="secondary"
-                  size="sm"
-                  class="match-action-btn action-broadcast"
-                  @click="openBroadcastModal(match)"
-                >
-                  중계
-                </BaseButton>
-              </td>
-              <td class="sub-actions-cell">
-                <div class="sub-action-row">
+              <td class="detail-actions-cell action-area-start">
+                <div class="detail-action-row">
+                  <BaseButton
+                    variant="secondary"
+                    size="sm"
+                    class="match-action-btn action-broadcast"
+                    @click="openBroadcastModal(match)"
+                  >
+                    중계
+                  </BaseButton>
                   <BaseButton
                     variant="outline"
                     size="sm"
@@ -322,13 +333,13 @@
             </tr>
 
             <tr v-if="matchesLoading">
-              <td colspan="13" class="empty">경기 목록을 불러오는 중입니다.</td>
+              <td colspan="12" class="empty">경기 목록을 불러오는 중입니다.</td>
             </tr>
             <tr v-else-if="matchListError">
-              <td colspan="13" class="empty error-empty">{{ matchListError }}</td>
+              <td colspan="12" class="empty error-empty">{{ matchListError }}</td>
             </tr>
             <tr v-else-if="visibleMatches.length === 0">
-              <td colspan="13" class="empty">검색 결과가 없습니다.</td>
+              <td colspan="12" class="empty">검색 결과가 없습니다.</td>
             </tr>
           </tbody>
         </table>
@@ -359,31 +370,12 @@
       v-model="stadiumModal.visible"
       :match="stadiumModal.match"
     />
-
-    <BaseModal
-      v-model="useStatusConfirm.visible"
-      title="사용 상태 변경"
-      width="360px"
-    >
-      <p class="confirm-message">
-        {{ useStatusConfirmMessage }}
-      </p>
-
-      <template #footer>
-        <BaseButton variant="outline" @click="closeUseStatusConfirm">
-          취소
-        </BaseButton>
-        <BaseButton :variant="useStatusConfirmVariant" @click="confirmUseStatusChange">
-          확인
-        </BaseButton>
-      </template>
-    </BaseModal>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { getAdminMatches, getMatchSearchOptions } from '../../../api/match'
+import { getAdminMatches, getMatchSearchOptions, updateAdminMatch } from '../../../api/match'
 import MatchCreateModal from './modals/MatchCreateModal.vue'
 import MatchStadiumModal from './modals/MatchStadiumModal.vue'
 import MatchSoccerBroadcastPanel from './panels/MatchSoccerBroadcastPanel.vue'
@@ -474,19 +466,6 @@ const visibleMatches = computed(() => matches.value)
 const createModalVisible = ref(false)
 const broadcastPanel = ref({ visible: false, match: null })
 const stadiumModal = ref({ visible: false, match: null })
-const useStatusConfirm = ref({ visible: false, match: null, nextStatus: null })
-
-const useStatusConfirmMessage = computed(() => {
-  if (useStatusConfirm.value.nextStatus === 'active') {
-    return '확인을 누르면 해당 경기가 앱에 다시 노출됩니다.'
-  }
-
-  return '확인을 누르면 해당 경기가 앱에 보이지 않게 변경됩니다.'
-})
-
-const useStatusConfirmVariant = computed(() => (
-  useStatusConfirm.value.nextStatus === 'active' ? 'primary' : 'danger'
-))
 
 onMounted(async () => {
   await loadSearchOptions()
@@ -734,29 +713,50 @@ function addMatch(payload) {
 }
 
 async function saveMatch(match) {
+  const normalizedDate = normalizeDate(match.editDate)
   const normalizedTime = normalizeTime(match.editTime)
+
+  if (!normalizedDate) {
+    alert('날짜는 YYYY-MM-DD 형식으로 입력해주세요.')
+    return
+  }
 
   if (!normalizedTime) {
     alert('시간은 24시간 형식(HH:MM)으로 입력해주세요.')
     return
   }
 
+  if (!match.editStatus) {
+    alert('경기 상태를 선택해주세요.')
+    return
+  }
+
   setSaveState(match.id, 'saving')
 
-  // TODO: 실제 API 연결 시 저장 요청으로 교체
-  await new Promise((resolve) => window.setTimeout(resolve, 500))
+  try {
+    await updateAdminMatch(match.id, {
+      startAt: `${normalizedDate}T${normalizedTime}:00`,
+      statusCode: match.editStatus,
+      isManual: match.editDataSourceType === 'manual',
+      isActive: match.editUseStatus === 'active',
+    })
 
-  match.startDate = match.editDate
-  match.editTime = normalizedTime
-  match.startTime = normalizedTime
-  match.status = match.editStatus
-  setSaveState(match.id, 'saved')
-
-  window.setTimeout(() => {
-    if (saveStates.value[match.id] === 'saved') {
-      clearSaveState(match.id)
-    }
-  }, 1400)
+    match.startDate = normalizedDate
+    match.editDate = normalizedDate
+    match.editTime = normalizedTime
+    match.startTime = normalizedTime
+    match.status = match.editStatus
+    match.statusName = statusLabel(match.editStatus)
+    match.useStatus = match.editUseStatus
+    match.dataSource = makeDataSourceByType(match, match.editDataSourceType)
+    setSaveState(match.id, 'saved')
+    scheduleSaveStateClear(match.id)
+  } catch (error) {
+    console.error('경기 정보 저장에 실패했습니다.', error)
+    setSaveState(match.id, 'error')
+    scheduleSaveStateClear(match.id)
+    alert(extractApiErrorMessage(error, '경기 정보 저장에 실패했습니다.'))
+  }
 }
 
 function setSaveState(matchId, state) {
@@ -780,6 +780,7 @@ function saveButtonLabel(match) {
   const state = saveStates.value[match.id]
   if (state === 'saving') return '저장중'
   if (state === 'saved') return '저장 완료'
+  if (state === 'error') return '저장 실패'
   return '저장'
 }
 
@@ -787,41 +788,24 @@ function saveButtonClass(match) {
   const state = saveStates.value[match.id]
   if (state === 'saving') return 'action-save-loading'
   if (state === 'saved') return 'action-save-done'
+  if (state === 'error') return 'action-save-error'
   return 'action-save'
 }
 
-function requestUseStatusChange(match) {
-  useStatusConfirm.value = {
-    visible: true,
-    match,
-    nextStatus: match.useStatus === 'active' ? 'inactive' : 'active',
-  }
-}
-
-function closeUseStatusConfirm() {
-  useStatusConfirm.value = { visible: false, match: null, nextStatus: null }
-}
-
-function confirmUseStatusChange() {
-  if (useStatusConfirm.value.match) {
-    useStatusConfirm.value.match.useStatus = useStatusConfirm.value.nextStatus
-  }
-
-  closeUseStatusConfirm()
+function scheduleSaveStateClear(matchId) {
+  window.setTimeout(() => {
+    if (saveStates.value[matchId] === 'saved' || saveStates.value[matchId] === 'error') {
+      clearSaveState(matchId)
+    }
+  }, 1400)
 }
 
 function setDataSourceType(match, type) {
-  if (match.dataSource.type === type) return
+  match.editDataSourceType = type
+}
 
-  const providerName = match.dataSource.providerName
-    || (match.dataSource.name !== '수동' ? match.dataSource.name : defaultDataProviderName(match.sport))
-
-  match.dataSource = {
-    ...match.dataSource,
-    type,
-    name: type === 'manual' ? '수동' : providerName,
-    providerName,
-  }
+function setUseStatus(match, useStatus) {
+  match.editUseStatus = useStatus
 }
 
 function openBroadcastModal(match) {
@@ -842,6 +826,20 @@ function createMatch(match) {
     editDate: match.startDate,
     editTime: match.startTime,
     editStatus: match.status,
+    editDataSourceType: match.dataSource?.type || 'external',
+    editUseStatus: match.useStatus || 'inactive',
+  }
+}
+
+function makeDataSourceByType(match, type) {
+  const providerName = match.dataSource?.providerName
+    || (match.dataSource?.name && match.dataSource.name !== '수동' ? match.dataSource.name : defaultDataProviderName(match.sport))
+
+  return {
+    ...match.dataSource,
+    type,
+    name: type === 'manual' ? '수동' : providerName,
+    providerName,
   }
 }
 
@@ -880,6 +878,10 @@ function sportLabel(sport) {
 
 function sportVariant(sport) {
   return { soccer: 'green', baseball: 'yellow' }[sport] || 'gray'
+}
+
+function statusLabel(status) {
+  return rowStatusOptions.value.find((item) => item.value === status)?.label || status
 }
 
 function leagueName(leagueId) {
@@ -965,6 +967,16 @@ function isSameOptionValue(left, right) {
   return String(left) === String(right)
 }
 
+function normalizeDate(value) {
+  const date = String(value || '').trim()
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return null
+  }
+
+  return date
+}
+
 function normalizeTime(value) {
   const match = String(value || '').trim().match(/^(\d{1,2}):(\d{1,2})$/)
   if (!match) return null
@@ -975,6 +987,30 @@ function normalizeTime(value) {
   if (hour > 23 || minute > 59) return null
 
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+function extractApiErrorMessage(error, fallbackMessage) {
+  const responseData = error?.response?.data
+
+  return toErrorMessage(responseData?.message)
+    || toErrorMessage(responseData?.error?.message)
+    || toErrorMessage(responseData?.error?.details)
+    || toErrorMessage(responseData?.error)
+    || toErrorMessage(error?.message)
+    || fallbackMessage
+}
+
+function toErrorMessage(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    return value.map(toErrorMessage).filter(Boolean).join('\n')
+  }
+  if (typeof value === 'object') {
+    return Object.values(value).map(toErrorMessage).filter(Boolean).join('\n')
+  }
+
+  return String(value)
 }
 </script>
 
@@ -1144,9 +1180,8 @@ table {
 .col-status { width: 118px; }
 .col-save { width: 92px; }
 .col-team { width: 120px; }
-.col-exposure { width: 96px; }
-.col-broadcast { width: 84px; }
-.col-sub-actions { width: 156px; }
+.col-exposure { width: 116px; }
+.col-detail-actions { width: 220px; }
 
 thead tr {
   background: #f3f4f6;
@@ -1159,6 +1194,11 @@ th {
   font-weight: 600;
   text-align: center;
   white-space: nowrap;
+}
+
+th.action-area-start,
+td.action-area-start {
+  border-left: 1px solid #cbd5e1;
 }
 
 tbody tr {
@@ -1204,7 +1244,13 @@ td {
   padding-left: 8px;
 }
 
-.data-mode-toggle {
+.exposure-cell {
+  padding-right: 16px;
+  padding-left: 16px;
+}
+
+.data-mode-toggle,
+.exposure-mode-toggle {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px;
@@ -1215,7 +1261,8 @@ td {
   border-radius: 6px;
 }
 
-.data-mode-option {
+.data-mode-option,
+.exposure-mode-option {
   height: 26px;
   padding: 0;
   color: #6b7280;
@@ -1228,9 +1275,16 @@ td {
   cursor: pointer;
 }
 
-.data-mode-option:hover {
+.data-mode-option:hover,
+.exposure-mode-option:hover {
   color: #111827;
   background: #e5e7eb;
+}
+
+.data-mode-option:disabled,
+.exposure-mode-option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .data-mode-option.active.auto {
@@ -1242,6 +1296,16 @@ td {
   color: #374151;
   background: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.exposure-mode-option.active.visible {
+  color: #075985;
+  background: #e0f2fe;
+}
+
+.exposure-mode-option.active.inactive {
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
 .center {
@@ -1280,27 +1344,21 @@ td {
 }
 
 .save-cell,
-.exposure-cell,
-.broadcast-cell {
+.exposure-cell {
   width: 92px;
   text-align: center;
 }
 
-.sub-actions-cell {
-  min-width: 150px;
+.detail-actions-cell {
+  min-width: 210px;
+  padding-right: 12px;
+  padding-left: 12px;
 }
 
-.sub-action-row {
+.detail-action-row {
   display: flex;
   justify-content: center;
   gap: 6px;
-}
-
-.confirm-message {
-  margin: 0;
-  color: #374151;
-  font-size: 13px;
-  line-height: 1.6;
 }
 
 :deep(.base-btn.match-action-btn) {
@@ -1310,17 +1368,17 @@ td {
   width: 100%;
 }
 
-.sub-action-row :deep(.base-btn.match-action-btn) {
+.detail-action-row :deep(.base-btn.match-action-btn) {
   flex: 1;
   min-width: 0;
 }
 
 :deep(.base-btn.match-action-btn.action-save) {
-  background: #4f46e5;
+  background: #1C67FF;
 }
 
 :deep(.base-btn.match-action-btn.action-save:hover:not(.disabled)) {
-  background: #4338ca;
+  background: #1450cc;
 }
 
 :deep(.base-btn.match-action-btn.action-save-loading) {
@@ -1331,24 +1389,8 @@ td {
   background: #059669;
 }
 
-:deep(.base-btn.match-action-btn.action-use-active) {
-  background: #16a34a;
-}
-
-:deep(.base-btn.match-action-btn.action-use-active:hover:not(.disabled)) {
-  background: #15803d;
-}
-
-:deep(.base-btn.match-action-btn.action-use-inactive) {
-  color: #fff !important;
-  background: #dc2626 !important;
-  border: none !important;
-  box-shadow: none;
-}
-
-:deep(.base-btn.match-action-btn.action-use-inactive:hover:not(.disabled)) {
-  color: #fff !important;
-  background: #b91c1c !important;
+:deep(.base-btn.match-action-btn.action-save-error) {
+  background: #dc2626;
 }
 
 :deep(.base-btn.match-action-btn.action-broadcast) {
