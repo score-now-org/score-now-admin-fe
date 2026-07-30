@@ -182,7 +182,7 @@
             <tr
               v-for="(match, idx) in visibleMatches"
               :key="match.id"
-              :class="{ 'row-even': idx % 2 === 1 }"
+              :class="['match-row', { 'row-even': idx % 2 === 1 }]"
             >
               <td class="match-id">{{ match.id }}</td>
               <td>
@@ -333,14 +333,30 @@
             </tr>
 
             <tr v-if="matchesLoading">
-              <td colspan="12" class="empty">경기 목록을 불러오는 중입니다.</td>
+              <td colspan="12" class="empty" :style="{ height: emptyResultHeight }">
+                경기 목록을 불러오는 중입니다.
+              </td>
             </tr>
             <tr v-else-if="matchListError">
-              <td colspan="12" class="empty error-empty">{{ matchListError }}</td>
+              <td colspan="12" class="empty error-empty" :style="{ height: emptyResultHeight }">
+                {{ matchListError }}
+              </td>
             </tr>
             <tr v-else-if="visibleMatches.length === 0">
-              <td colspan="12" class="empty">검색 결과가 없습니다.</td>
+              <td colspan="12" class="empty" :style="{ height: emptyResultHeight }">
+                검색 결과가 없습니다.
+              </td>
             </tr>
+            <template v-else>
+              <tr
+                v-for="rowIndex in placeholderRowCount"
+                :key="`placeholder-${rowIndex}`"
+                class="result-placeholder-row"
+                aria-hidden="true"
+              >
+                <td colspan="12" class="result-placeholder-cell">&nbsp;</td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -348,9 +364,9 @@
 
     <MatchCreateModal
       v-model="createModalVisible"
+      :saving="createSaving"
       :sport-options="sportOptionsWithoutAll"
       :league-options="leagueOptions"
-      :status-options="rowStatusOptions"
       @save="addMatch"
     />
 
@@ -375,7 +391,12 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { getAdminMatches, getMatchSearchOptions, updateAdminMatch } from '../../../api/match'
+import {
+  createAdminMatch,
+  getAdminMatches,
+  getMatchSearchOptions,
+  updateAdminMatch,
+} from '../../../api/match'
 import MatchCreateModal from './modals/MatchCreateModal.vue'
 import MatchStadiumModal from './modals/MatchStadiumModal.vue'
 import MatchSoccerBroadcastPanel from './panels/MatchSoccerBroadcastPanel.vue'
@@ -426,6 +447,7 @@ const isManualOptions = ref([])
 const sportOptionsWithoutAll = computed(() => sportOptions.value.filter((sport) => sport.value))
 const rowStatusOptions = computed(() => statusOptions.value.filter((status) => status.value))
 
+const RESULT_ROW_HEIGHT = 78
 const pageSizeOptions = [10, 20, 50]
 const pageSize = ref('10')
 const page = ref(1)
@@ -433,6 +455,7 @@ const totalMatches = ref(0)
 const totalPages = ref(1)
 const saveStates = ref({})
 const matchesLoading = ref(false)
+const createSaving = ref(false)
 const matchListError = ref('')
 
 const defaultSearchForm = () => ({
@@ -462,6 +485,13 @@ const filteredLeagueOptions = computed(() => {
 
 const maxPage = computed(() => Math.max(1, totalPages.value))
 const visibleMatches = computed(() => matches.value)
+const pageSizeNumber = computed(() => Number(pageSize.value) || pageSizeOptions[0])
+const placeholderRowCount = computed(() => {
+  if (matchesLoading.value || matchListError.value || visibleMatches.value.length === 0) return 0
+
+  return Math.max(0, pageSizeNumber.value - visibleMatches.value.length)
+})
+const emptyResultHeight = computed(() => `${pageSizeNumber.value * RESULT_ROW_HEIGHT}px`)
 
 const createModalVisible = ref(false)
 const broadcastPanel = ref({ visible: false, match: null })
@@ -469,7 +499,6 @@ const stadiumModal = ref({ visible: false, match: null })
 
 onMounted(async () => {
   await loadSearchOptions()
-  await fetchMatches()
 })
 
 watch(
@@ -687,29 +716,64 @@ function withAllOption(options) {
   return [{ value: '', label: '전체' }, ...options]
 }
 
-function addMatch(payload) {
-  const league = leagueOptions.value.find((item) => isSameOptionValue(item.id, payload.leagueId))
-  const nextNumber = matches.value.length + 1
+async function addMatch(payload) {
+  if (createSaving.value) return
 
-  matches.value.unshift(createMatch({
-    id: `MN${String(Date.now()).slice(-8)}${nextNumber}`,
-    sport: payload.sport,
-    leagueId: payload.leagueId,
-    matchType: payload.matchType,
-    startDate: payload.startDate,
-    startTime: payload.startTime,
-    status: payload.status,
-    useStatus: payload.useStatus,
-    dataSource: { type: payload.dataSourceType, name: payload.dataSourceName },
-    homeTeam: makeTeam(payload.homeTeamName, payload.homeTeamName.slice(0, 3), '#1c67ff'),
-    awayTeam: makeTeam(payload.awayTeamName, payload.awayTeamName.slice(0, 3), '#6b7280'),
-  }))
+  const requestPayload = buildCreateMatchPayload(payload)
 
-  if (league && searchForm.value.sport && searchForm.value.sport !== league.sport) {
-    searchForm.value.sport = ''
+  if (!requestPayload) return
+
+  createSaving.value = true
+
+  try {
+    await createAdminMatch(requestPayload)
+    createModalVisible.value = false
+    await fetchMatches()
+  } catch (error) {
+    console.error('경기 등록에 실패했습니다.', error)
+    alert(extractApiErrorMessage(error, '경기 등록에 실패했습니다.'))
+  } finally {
+    createSaving.value = false
+  }
+}
+
+function buildCreateMatchPayload(payload) {
+  const normalizedDate = normalizeDate(payload.startDate)
+  const normalizedTime = normalizeTime(payload.startTime)
+  const requestPayload = {
+    sportId: toLongId(payload.sportId),
+    leagueId: toLongId(payload.leagueId),
+    homeId: toLongId(payload.homeId),
+    awayId: toLongId(payload.awayId),
+    startAt: normalizedDate && normalizedTime ? `${normalizedDate}T${normalizedTime}:00` : '',
   }
 
-  doSearch()
+  if (
+    requestPayload.sportId == null
+      || requestPayload.leagueId == null
+      || requestPayload.homeId == null
+      || requestPayload.awayId == null
+  ) {
+    alert('경기 등록에 필요한 ID 값이 올바르지 않습니다.')
+    return null
+  }
+
+  if (!requestPayload.startAt) {
+    alert('경기 시작 날짜와 시간을 확인해주세요.')
+    return null
+  }
+
+  return requestPayload
+}
+
+function toLongId(value) {
+  const numericValue = Number(value)
+
+  if (!Number.isSafeInteger(numericValue) || numericValue <= 0) {
+    return null
+  }
+
+  return numericValue
 }
 
 async function saveMatch(match) {
@@ -1116,6 +1180,8 @@ function toErrorMessage(value) {
 }
 
 .table-wrap {
+  --match-row-height: 78px;
+
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -1206,6 +1272,11 @@ tbody tr {
   transition: background 0.1s;
 }
 
+tbody tr.match-row,
+tbody tr.result-placeholder-row {
+  height: var(--match-row-height);
+}
+
 tbody tr:hover {
   background: #eff6ff;
 }
@@ -1216,6 +1287,10 @@ tbody tr.row-even {
 
 tbody tr.row-even:hover {
   background: #eff6ff;
+}
+
+tbody tr.result-placeholder-row:hover {
+  background: transparent;
 }
 
 td {
@@ -1441,6 +1516,12 @@ td {
   padding: 40px;
   color: #9ca3af;
   text-align: center;
+}
+
+.result-placeholder-cell {
+  padding: 0;
+  color: transparent;
+  pointer-events: none;
 }
 
 .error-empty {

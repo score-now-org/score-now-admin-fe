@@ -14,9 +14,23 @@ export const getAdminMatches = async (params) => {
   return response.data?.data ?? response.data;
 };
 
+// 경기 등록 API
+export const createAdminMatch = async (payload) => {
+  const response = await client.post('/api/v1/admin/matches', payload);
+
+  return response.data?.data ?? response.data;
+};
+
 // 경기 정보 업데이트 API
 export const updateAdminMatch = async (matchId, payload) => {
   const response = await client.patch(`/api/v1/admin/matches/${matchId}`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 경기 등록 팀 후보 검색 API
+export const getMatchTeamCandidates = async (params) => {
+  const response = await client.get('/api/v1/admin/matches/team-candidates', { params });
 
   return response.data?.data ?? response.data;
 };
