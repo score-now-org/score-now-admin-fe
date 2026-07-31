@@ -23,7 +23,7 @@ defineEmits(['close'])
 
 const homeTeamName = computed(() => props.match?.homeTeam?.name || '홈팀')
 const awayTeamName = computed(() => props.match?.awayTeam?.name || '원정팀')
-const matchLeague = computed(() => props.match?.leagueId?.toUpperCase?.() || '-')
+const matchLeague = computed(() => props.match?.leagueName || props.match?.leagueId || '-')
 </script>
 
 <style scoped>

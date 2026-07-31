@@ -380,6 +380,7 @@
       v-else-if="broadcastPanel.visible"
       :match="broadcastPanel.match"
       @close="closeBroadcastPanel"
+      @match-updated="applyMatchUpdate"
     />
 
     <MatchStadiumModal
@@ -878,6 +879,38 @@ function openBroadcastModal(match) {
 
 function closeBroadcastPanel() {
   broadcastPanel.value = { visible: false, match: null }
+}
+
+function applyMatchUpdate({ matchId, patch = {} }) {
+  const match = matches.value.find((item) => item.id === String(matchId))
+  if (!match) return
+
+  if (patch.startDate) {
+    match.startDate = patch.startDate
+    match.editDate = patch.startDate
+  }
+
+  if (patch.startTime) {
+    match.startTime = patch.startTime
+    match.editTime = patch.startTime
+  }
+
+  if (patch.status) {
+    match.status = patch.status
+    match.editStatus = patch.status
+  }
+
+  if (patch.statusName) {
+    match.statusName = patch.statusName
+  }
+
+  if (patch.homeScore != null) {
+    match.homeScore = patch.homeScore
+  }
+
+  if (patch.awayScore != null) {
+    match.awayScore = patch.awayScore
+  }
 }
 
 function openStadiumModal(match) {

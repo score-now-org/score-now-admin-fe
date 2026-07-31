@@ -12,16 +12,18 @@
         <BaseButton
           variant="outline"
           size="sm"
-          :disabled="loading.refresh"
+          :disabled="isWorking('detail') || isWorking('refresh')"
           @click="refreshMatch"
         >
-          {{ loading.refresh ? '새로고침중' : '새로고침' }}
+          {{ isWorking('refresh') ? '새로고침중' : '새로고침' }}
         </BaseButton>
         <button class="panel-close" type="button" @click="$emit('close')">×</button>
       </div>
     </div>
 
     <div class="panel-body">
+      <p v-if="detailError" class="panel-error">{{ detailError }}</p>
+
       <section class="work-section">
         <div class="section-head">
           <div>
@@ -227,7 +229,7 @@
         <div class="section-head">
           <div>
             <h4 class="section-title">중계 멘트</h4>
-            <p class="section-desc">텍스트와 이미지를 등록하고 필요 시 푸시를 발송합니다.</p>
+            <p class="section-desc">중계 멘트를 등록하고 현재 등록된 멘트를 확인합니다.</p>
           </div>
           <div class="section-actions">
             <BaseButton
@@ -253,6 +255,27 @@
         </div>
 
         <div
+          class="current-comment-summary"
+          :class="{
+            empty: !currentComment,
+            highlighted: currentComment?.highlight,
+          }"
+        >
+          <div class="current-comment-meta-row">
+            <span class="current-comment-label">최근 멘트</span>
+          </div>
+          <p
+            v-if="currentComment"
+            class="current-comment-message"
+          >
+              {{ currentComment.message }}
+          </p>
+          <p v-else class="current-comment-message muted">
+            등록된 멘트가 없습니다.
+          </p>
+        </div>
+
+        <div
           class="comment-box"
           :class="{ highlighted: commentForm.highlight }"
         >
@@ -263,17 +286,14 @@
             rows="4"
           />
           <div class="comment-tools">
-            <label class="upload-btn">
+            <button
+              class="upload-btn"
+              type="button"
+              @click="notifyUnsupportedFeature('사진 추가')"
+            >
               사진 추가
-              <input
-                class="file-input"
-                type="file"
-                accept="image/*"
-                multiple
-                @change="handleImageUpload"
-              />
-            </label>
-            <span class="upload-summary">{{ uploadSummary }}</span>
+            </button>
+            <span class="upload-summary">이미지 서버 구축 후 제공됩니다.</span>
           </div>
         </div>
 
@@ -289,10 +309,9 @@
           <BaseButton
             variant="warn"
             size="sm"
-            :disabled="isWorking('commentPush')"
-            @click="requestAction('commentPush')"
+            @click="notifyUnsupportedFeature('푸시 발송')"
           >
-            {{ buttonLabel('commentPush', '멘트 저장 & 푸시 발송') }}
+            멘트 저장 & 푸시 발송
           </BaseButton>
         </div>
       </section>
@@ -366,20 +385,26 @@
     </BaseModal>
 
     <BaseModal v-model="commentHistoryModalVisible" title="중계글 모음" width="680px">
-      <ul class="modal-list">
-        <li v-for="comment in commentHistory" :key="comment.id" class="comment-history-item">
+      <p v-if="commentHistoryLoading" class="modal-empty">
+        중계글 모음을 불러오는 중입니다.
+      </p>
+      <p v-else-if="commentHistoryError" class="modal-empty error">
+        {{ commentHistoryError }}
+      </p>
+      <ul v-else-if="visibleCommentHistory.length" class="modal-list">
+        <li v-for="comment in visibleCommentHistory" :key="comment.id" class="comment-history-item">
           <div class="history-meta">
-            <span>{{ comment.time }}</span>
+            <span v-if="comment.time">{{ comment.time }}</span>
             <BaseBadge :variant="comment.highlight ? 'red' : 'gray'">
               {{ comment.highlight ? '강조' : '일반' }}
-            </BaseBadge>
-            <BaseBadge :variant="comment.pushed ? 'blue' : 'gray'">
-              {{ comment.pushed ? '푸시' : '미발송' }}
             </BaseBadge>
           </div>
           <p>{{ comment.message }}</p>
         </li>
       </ul>
+      <p v-else class="modal-empty">
+        중계글 모음에 표시할 멘트가 없습니다.
+      </p>
       <template #footer>
         <BaseButton variant="outline" @click="commentHistoryModalVisible = false">닫기</BaseButton>
       </template>
@@ -397,12 +422,17 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import {
+  createMatchCommentary,
+  getAdminMatchDetail,
+  getMatchCommentaries,
+} from '../../../../api/match'
 
 const props = defineProps({
   match: { type: Object, default: null },
 })
 
-defineEmits(['close'])
+const emit = defineEmits(['close', 'match-updated'])
 
 const statusOptions = [
   { value: 'NOT_STARTED', label: '경기전' },
@@ -454,28 +484,32 @@ const scoreForm = ref(defaultScoreForm())
 const commentForm = ref(defaultCommentForm())
 const statsForm = ref(defaultStatsForm())
 const loading = ref({})
-const uploadedImages = ref([])
 const chatModalVisible = ref(false)
 const commentHistoryModalVisible = ref(false)
 const confirmModal = ref(defaultConfirmModal())
 const chats = ref([])
+const currentCommentary = ref(null)
 const commentHistory = ref([])
+const commentHistoryLoading = ref(false)
+const commentHistoryError = ref('')
+const commentHistoryRequestId = ref(0)
+const detailError = ref('')
+const detailRequestId = ref(0)
 
 const homeTeamName = computed(() => props.match?.homeTeam?.name || '홈팀')
 const awayTeamName = computed(() => props.match?.awayTeam?.name || '원정팀')
-const matchLeague = computed(() => props.match?.leagueId?.toUpperCase?.() || '-')
-const uploadSummary = computed(() => {
-  if (!uploadedImages.value.length) return '첨부된 사진 없음'
-  return `${uploadedImages.value.length}개 첨부됨`
-})
+const matchLeague = computed(() => props.match?.leagueName || props.match?.leagueId || '-')
 const clockStatePreview = computed(() => {
   return soccerClockStateOptions.find((item) => item.value === timeForm.value.clockState)?.label || '선택된 문구 없음'
 })
+const currentComment = computed(() => currentCommentary.value)
+const visibleCommentHistory = computed(() => commentHistory.value)
 
 watch(
   () => props.match?.id,
   () => {
     resetPanelState()
+    fetchMatchDetail('detail')
   },
   { immediate: true },
 )
@@ -485,10 +519,13 @@ function resetPanelState() {
   scoreForm.value = defaultScoreForm()
   commentForm.value = defaultCommentForm()
   statsForm.value = defaultStatsForm()
-  uploadedImages.value = []
   loading.value = {}
   chats.value = makeMockChats()
-  commentHistory.value = makeMockCommentHistory()
+  currentCommentary.value = null
+  commentHistory.value = []
+  commentHistoryLoading.value = false
+  commentHistoryError.value = ''
+  detailError.value = ''
   closeConfirmModal()
 }
 
@@ -509,8 +546,8 @@ function defaultTimeForm() {
 
 function defaultScoreForm() {
   return {
-    homeScore: 0,
-    awayScore: 0,
+    homeScore: Number(props.match?.homeScore ?? 0),
+    awayScore: Number(props.match?.awayScore ?? 0),
     penaltyVisible: false,
     homePenaltyScore: 0,
     awayPenaltyScore: 0,
@@ -566,16 +603,138 @@ function openChatModal() {
   chatModalVisible.value = true
 }
 
-function openCommentHistoryModal() {
+async function openCommentHistoryModal() {
   commentHistoryModalVisible.value = true
+  await fetchCommentHistory()
+}
+
+async function fetchCommentHistory() {
+  if (!props.match?.id) return
+
+  const requestId = commentHistoryRequestId.value + 1
+  commentHistoryRequestId.value = requestId
+  commentHistoryError.value = ''
+  commentHistoryLoading.value = true
+
+  try {
+    const comments = await getMatchCommentaries(props.match.id)
+
+    if (requestId !== commentHistoryRequestId.value) return
+
+    commentHistory.value = normalizeCommentaries(comments)
+  } catch (error) {
+    if (requestId !== commentHistoryRequestId.value) return
+
+    console.error('중계글 모음 조회에 실패했습니다.', error)
+    commentHistory.value = []
+    commentHistoryError.value = extractApiErrorMessage(error, '중계글 모음을 불러오지 못했습니다.')
+  } finally {
+    if (requestId === commentHistoryRequestId.value) {
+      commentHistoryLoading.value = false
+    }
+  }
 }
 
 async function refreshMatch() {
-  setLoading('refresh', true)
-  // TODO: 실제 경기 상세 재조회 API 연결
-  await delay(500)
-  timeForm.value = defaultTimeForm()
-  setLoading('refresh', false)
+  await fetchMatchDetail('refresh', true)
+}
+
+async function fetchMatchDetail(loadingKey = 'detail', showAlert = false) {
+  if (!props.match?.id) return
+
+  const requestId = detailRequestId.value + 1
+  detailRequestId.value = requestId
+  detailError.value = ''
+  setLoading(loadingKey, true)
+
+  try {
+    const detail = await getAdminMatchDetail(props.match.id)
+
+    if (requestId !== detailRequestId.value) return
+
+    applyMatchDetail(detail)
+  } catch (error) {
+    if (requestId !== detailRequestId.value) return
+
+    console.error('중계 패널 상세 조회에 실패했습니다.', error)
+    detailError.value = '중계 상세 정보를 불러오지 못했습니다.'
+    if (showAlert) {
+      alert(extractApiErrorMessage(error, '중계 상세 정보를 불러오지 못했습니다.'))
+    }
+  } finally {
+    if (requestId === detailRequestId.value) {
+      setLoading(loadingKey, false)
+    }
+  }
+}
+
+function applyMatchDetail(detail = {}) {
+  const startAt = splitDateTime(detail.startAt)
+  const nextStatus = detail.statusCode || timeForm.value.status
+  const nextHomeScore = Number(detail.homeScore ?? scoreForm.value.homeScore ?? 0)
+  const nextAwayScore = Number(detail.awayScore ?? scoreForm.value.awayScore ?? 0)
+
+  timeForm.value = {
+    ...timeForm.value,
+    startDate: startAt.date || timeForm.value.startDate,
+    startTime: startAt.time || timeForm.value.startTime,
+    status: nextStatus,
+  }
+
+  scoreForm.value = {
+    ...scoreForm.value,
+    homeScore: nextHomeScore,
+    awayScore: nextAwayScore,
+  }
+
+  currentCommentary.value = normalizeCurrentComment(detail)
+
+  emit('match-updated', {
+    matchId: props.match?.id,
+    patch: {
+      startDate: startAt.date,
+      startTime: startAt.time,
+      status: nextStatus,
+      statusName: detail.statusName || statusLabel(nextStatus),
+      homeScore: nextHomeScore,
+      awayScore: nextAwayScore,
+    },
+  })
+}
+
+function normalizeCurrentComment(detail = {}) {
+  if (!detail.currentCommentary) return null
+
+  return {
+    id: `current-${props.match?.id}`,
+    message: detail.currentCommentary,
+    highlight: Boolean(detail.currentCommentaryHighlighted),
+    recorded: true,
+  }
+}
+
+function normalizeSavedCommentary(commentary = {}, fallback = {}) {
+  const content = commentary.content
+    || commentary.commentary
+    || commentary.currentCommentary
+    || fallback.content
+
+  return {
+    id: commentary.id || commentary.commentaryId || `saved-${Date.now()}`,
+    time: formatHistoryDateTime(commentary.createdAt),
+    message: content,
+    highlight: commentary.highlighted ?? commentary.highlight ?? fallback.highlighted ?? false,
+    recorded: commentary.recordEnabled ?? commentary.recorded ?? fallback.recordEnabled ?? true,
+  }
+}
+
+function normalizeCommentaries(comments) {
+  return ensureArray(comments).map((comment, index) => ({
+    id: comment.id || comment.commentaryId || `${comment.createdAt || 'comment'}-${index}`,
+    time: formatHistoryDateTime(comment.createdAt),
+    message: comment.content || '',
+    highlight: Boolean(comment.highlighted),
+  }))
 }
 
 function requestAction(action) {
@@ -599,27 +758,46 @@ async function confirmAction() {
 
   closeConfirmModal()
   setLoading(action, true)
-  await delay(500)
 
-  if (action === 'currentTime') {
-    const serverNow = getMockServerNow()
-    timeForm.value.startDate = serverNow.date
-    timeForm.value.startTime = serverNow.time
+  try {
+    if (action === 'comment') {
+      await saveCommentary()
+      return
+    }
+
+    await delay(500)
+
+    if (action === 'currentTime') {
+      const serverNow = getMockServerNow()
+      timeForm.value.startDate = serverNow.date
+      timeForm.value.startTime = serverNow.time
+    }
+  } catch (error) {
+    console.error('중계 패널 작업 처리에 실패했습니다.', error)
+    alert(extractApiErrorMessage(error, '작업 처리에 실패했습니다.'))
+  } finally {
+    setLoading(action, false)
+  }
+}
+
+async function saveCommentary() {
+  const requestPayload = {
+    content: commentForm.value.message.trim(),
+    recordEnabled: commentForm.value.recordEnabled,
+    highlighted: commentForm.value.highlight,
   }
 
-  if (action === 'comment' || action === 'commentPush') {
-    commentHistory.value.unshift({
-      id: Date.now(),
-      time: formatPanelDateTime(new Date()),
-      message: commentForm.value.message,
-      highlight: commentForm.value.highlight,
-      pushed: action === 'commentPush',
-    })
-    commentForm.value.message = ''
-    uploadedImages.value = []
-  }
+  const response = await createMatchCommentary(props.match.id, requestPayload)
+  const savedComment = normalizeSavedCommentary(response, requestPayload)
 
-  setLoading(action, false)
+  currentCommentary.value = savedComment
+  if (savedComment.recorded !== false) {
+    commentHistory.value = [
+      savedComment,
+      ...commentHistory.value.filter((comment) => String(comment.id) !== String(savedComment.id)),
+    ]
+  }
+  commentForm.value.message = ''
 }
 
 function closeConfirmModal() {
@@ -637,9 +815,14 @@ function validateAction(action) {
     return false
   }
 
-  if (action === 'comment' || action === 'commentPush') {
-    if (!commentForm.value.message.trim() && uploadedImages.value.length === 0) {
-      alert('중계 멘트 또는 사진을 입력해주세요.')
+  if (action === 'comment') {
+    if (!props.match?.id) {
+      alert('경기 정보를 확인할 수 없습니다.')
+      return false
+    }
+
+    if (!commentForm.value.message.trim()) {
+      alert('중계 멘트를 입력해주세요.')
       return false
     }
   }
@@ -688,11 +871,6 @@ function actionConfig(action) {
       title: '멘트 저장',
       message: '작성한 중계 멘트를 저장합니다.',
       variant: 'primary',
-    },
-    commentPush: {
-      title: '멘트 저장 및 푸시 발송',
-      message: '중계 멘트를 저장하고 관심 경기 유저에게 푸시를 발송합니다.',
-      variant: 'warn',
     },
     stats: {
       title: '스탯 저장',
@@ -750,11 +928,8 @@ function buttonLabel(key, label) {
   return isWorking(key) ? '저장중' : label
 }
 
-function handleImageUpload(event) {
-  uploadedImages.value = Array.from(event.target.files || []).map((file) => ({
-    name: file.name,
-    size: file.size,
-  }))
+function notifyUnsupportedFeature(featureName) {
+  alert(`${featureName} 기능은 아직 지원하지 않습니다.`)
 }
 
 function statusLabel(status) {
@@ -804,6 +979,54 @@ function formatPanelDateTime(date) {
   return `${formatDateInput(date)} ${formatTimeInput(date)}`
 }
 
+function formatHistoryDateTime(value) {
+  if (!value) return ''
+
+  return String(value).replace('T', ' ').slice(0, 16)
+}
+
+function splitDateTime(value) {
+  if (!value) {
+    return { date: '', time: '' }
+  }
+
+  const normalized = String(value).replace(' ', 'T')
+  const [date = '', time = ''] = normalized.split('T')
+
+  return {
+    date,
+    time: time.slice(0, 5),
+  }
+}
+
+function extractApiErrorMessage(error, fallbackMessage) {
+  const responseData = error?.response?.data
+
+  return toErrorMessage(responseData?.message)
+    || toErrorMessage(responseData?.error?.message)
+    || toErrorMessage(responseData?.error?.details)
+    || toErrorMessage(responseData?.error)
+    || toErrorMessage(error?.message)
+    || fallbackMessage
+}
+
+function toErrorMessage(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    return value.map(toErrorMessage).filter(Boolean).join('\n')
+  }
+  if (typeof value === 'object') {
+    return Object.values(value).map(toErrorMessage).filter(Boolean).join('\n')
+  }
+
+  return String(value)
+}
+
+function ensureArray(value) {
+  return Array.isArray(value) ? value : []
+}
+
 function delay(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -816,12 +1039,6 @@ function makeMockChats() {
   ]
 }
 
-function makeMockCommentHistory() {
-  return [
-    { id: 1, time: '2026-07-27 18:55', message: '양 팀 선수들이 입장했습니다.', highlight: false, pushed: false },
-    { id: 2, time: '2026-07-27 19:02', message: '전반전이 시작됐습니다.', highlight: true, pushed: true },
-  ]
-}
 </script>
 
 <style scoped>
@@ -926,6 +1143,16 @@ function makeMockCommentHistory() {
   flex: 1;
   overflow: auto;
   padding: 14px 16px 18px;
+}
+
+.panel-error {
+  margin: 0 0 12px;
+  padding: 9px 10px;
+  color: #b91c1c;
+  font-size: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
 }
 
 .work-section {
@@ -1416,6 +1643,7 @@ function makeMockCommentHistory() {
   height: 26px;
   padding: 0 10px;
   color: #374151;
+  font-family: inherit;
   font-size: 12px;
   font-weight: 600;
   background: #fff;
@@ -1428,13 +1656,60 @@ function makeMockCommentHistory() {
   background: #f3f4f6;
 }
 
-.file-input {
-  display: none;
-}
-
 .upload-summary {
   color: #9ca3af;
   font-size: 12px;
+}
+
+.current-comment-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.current-comment-summary.highlighted {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.current-comment-summary.empty {
+  background: #f9fafb;
+}
+
+.current-comment-meta-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.current-comment-label {
+  flex: 0 0 auto;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.current-comment-message {
+  width: 100%;
+  margin: 0;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.current-comment-message.muted {
+  color: #9ca3af;
+  font-weight: 500;
 }
 
 .stats-table {
@@ -1555,6 +1830,18 @@ function makeMockCommentHistory() {
   color: #374151;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.modal-empty {
+  margin: 0;
+  padding: 28px 0;
+  color: #9ca3af;
+  font-size: 12px;
+  text-align: center;
+}
+
+.modal-empty.error {
+  color: #dc2626;
 }
 
 .history-meta {
