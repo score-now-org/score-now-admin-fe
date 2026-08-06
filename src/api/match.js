@@ -21,6 +21,13 @@ export const getAdminMatchDetail = async (matchId) => {
   return response.data?.data ?? response.data;
 };
 
+// 축구 중계 상세 정보 업데이트 API
+export const updateFootballMatchDetail = async (matchId, payload) => {
+  const response = await client.patch(`/api/v1/admin/matches/${matchId}/detail/football`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
 // 중계 멘트 등록 API
 export const createMatchCommentary = async (matchId, payload) => {
   const formData = new FormData();

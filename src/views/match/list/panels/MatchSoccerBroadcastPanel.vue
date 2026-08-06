@@ -426,6 +426,7 @@ import {
   createMatchCommentary,
   getAdminMatchDetail,
   getMatchCommentaries,
+  updateFootballMatchDetail,
 } from '../../../../api/match'
 
 const props = defineProps({
@@ -452,12 +453,12 @@ const soccerClockStateOptions = [
   { value: 'FIRST_HALF', label: '전반' },
   { value: 'HALF_TIME', label: '하프타임' },
   { value: 'SECOND_HALF', label: '후반' },
-  { value: 'EXTRA_TIME_PENDING', label: '연장대기' },
+  { value: 'EXTRA_TIME_WAITING', label: '연장 대기' },
   { value: 'EXTRA_FIRST_HALF', label: '연장 전반' },
   { value: 'EXTRA_SECOND_HALF', label: '연장 후반' },
   { value: 'PENALTY_SHOOTOUT', label: '승부차기' },
-  { value: 'EXTRA_TIME_ENDED', label: '연장종료' },
-  { value: 'MATCH_ENDED', label: '경기종료' },
+  { value: 'EXTRA_TIME_ENDED', label: '연장 종료' },
+  { value: 'FULL_TIME', label: '경기 종료' },
 ]
 
 const extraTimeFields = [
@@ -564,28 +565,22 @@ function defaultCommentForm() {
 
 function defaultStatsForm() {
   return {
-    home: {
-      shots: 3,
-      shotsOnTarget: 1,
-      possession: 47,
-      corners: 4,
-      freeKicks: 15,
-      offsides: 0,
-      fouls: 7,
-      yellowCards: 0,
-      redCards: 0,
-    },
-    away: {
-      shots: 5,
-      shotsOnTarget: 2,
-      possession: 53,
-      corners: 2,
-      freeKicks: 14,
-      offsides: 1,
-      fouls: 9,
-      yellowCards: 1,
-      redCards: 0,
-    },
+    home: defaultFootballStats(),
+    away: defaultFootballStats(),
+  }
+}
+
+function defaultFootballStats() {
+  return {
+    shots: 0,
+    shotsOnTarget: 0,
+    possession: 0,
+    corners: 0,
+    freeKicks: 0,
+    offsides: 0,
+    fouls: 0,
+    yellowCards: 0,
+    redCards: 0,
   }
 }
 
@@ -670,21 +665,37 @@ async function fetchMatchDetail(loadingKey = 'detail', showAlert = false) {
 
 function applyMatchDetail(detail = {}) {
   const startAt = splitDateTime(detail.startAt)
+  const footballDetail = detail.footballDetail || {}
   const nextStatus = detail.statusCode || timeForm.value.status
   const nextHomeScore = Number(detail.homeScore ?? scoreForm.value.homeScore ?? 0)
   const nextAwayScore = Number(detail.awayScore ?? scoreForm.value.awayScore ?? 0)
+  const nextClockState = resolveFootballPhaseCode(footballDetail, detail)
+  const nextExtraTime = mergeExtraTime(timeForm.value.extraTime, footballDetail.additionalTime)
+  const nextPenaltyScore = pickPenaltyScore(footballDetail.shootOutScore)
+  const nextHomeStats = mergeStats(statsForm.value.home, footballDetail.homeStats)
+  const nextAwayStats = mergeStats(statsForm.value.away, footballDetail.awayStats)
 
   timeForm.value = {
     ...timeForm.value,
     startDate: startAt.date || timeForm.value.startDate,
     startTime: startAt.time || timeForm.value.startTime,
     status: nextStatus,
+    clockState: nextClockState || '',
+    extraTime: nextExtraTime,
   }
 
   scoreForm.value = {
     ...scoreForm.value,
     homeScore: nextHomeScore,
     awayScore: nextAwayScore,
+    penaltyVisible: scoreForm.value.penaltyVisible || nextPenaltyScore.visible,
+    homePenaltyScore: nextPenaltyScore.homeScore ?? scoreForm.value.homePenaltyScore,
+    awayPenaltyScore: nextPenaltyScore.awayScore ?? scoreForm.value.awayPenaltyScore,
+  }
+
+  statsForm.value = {
+    home: nextHomeStats,
+    away: nextAwayStats,
   }
 
   currentCommentary.value = normalizeCurrentComment(detail)
@@ -765,19 +776,21 @@ async function confirmAction() {
       return
     }
 
-    await delay(500)
-
-    if (action === 'currentTime') {
-      const serverNow = getMockServerNow()
-      timeForm.value.startDate = serverNow.date
-      timeForm.value.startTime = serverNow.time
-    }
+    await saveFootballDetail(action)
   } catch (error) {
     console.error('중계 패널 작업 처리에 실패했습니다.', error)
     alert(extractApiErrorMessage(error, '작업 처리에 실패했습니다.'))
   } finally {
     setLoading(action, false)
   }
+}
+
+async function saveFootballDetail(action) {
+  const payload = buildFootballDetailUpdatePayload(action)
+  if (!payload) return
+
+  await updateFootballMatchDetail(props.match.id, payload)
+  applyFootballDetailUpdatePayload(payload)
 }
 
 async function saveCommentary() {
@@ -800,27 +813,159 @@ async function saveCommentary() {
   commentForm.value.message = ''
 }
 
+function buildFootballDetailUpdatePayload(action) {
+  if (action === 'currentTime') {
+    const kstNow = getKstNowDateTime()
+
+    return {
+      startAt: `${kstNow.date}T${kstNow.time}:00`,
+    }
+  }
+
+  if (action === 'manualTime') {
+    return {
+      startAt: buildStartAt(timeForm.value.startDate, timeForm.value.startTime),
+    }
+  }
+
+  if (action === 'status') {
+    return {
+      status: timeForm.value.status,
+    }
+  }
+
+  if (action === 'clockState') {
+    return {
+      phase: timeForm.value.clockState || null,
+    }
+  }
+
+  if (action === 'extraTime') {
+    return {
+      firstHalf: toNonNegativeInteger(timeForm.value.extraTime.firstHalf),
+      secondHalf: toNonNegativeInteger(timeForm.value.extraTime.secondHalf),
+      extraFirstHalf: toNonNegativeInteger(timeForm.value.extraTime.extraFirstHalf),
+      extraSecondHalf: toNonNegativeInteger(timeForm.value.extraTime.extraSecondHalf),
+    }
+  }
+
+  if (action === 'score') {
+    const payload = {
+      homeScore: toNonNegativeInteger(scoreForm.value.homeScore),
+      awayScore: toNonNegativeInteger(scoreForm.value.awayScore),
+    }
+
+    if (scoreForm.value.penaltyVisible) {
+      payload.homeShootOutScore = toNonNegativeInteger(scoreForm.value.homePenaltyScore)
+      payload.awayShootOutScore = toNonNegativeInteger(scoreForm.value.awayPenaltyScore)
+    }
+
+    return payload
+  }
+
+  if (action === 'stats') {
+    return {
+      homeStats: buildStatsPayload(statsForm.value.home),
+      awayStats: buildStatsPayload(statsForm.value.away),
+    }
+  }
+
+  return null
+}
+
+function applyFootballDetailUpdatePayload(payload) {
+  const listPatch = {}
+
+  if (payload.startAt) {
+    const startAt = splitDateTime(payload.startAt)
+    timeForm.value.startDate = startAt.date
+    timeForm.value.startTime = startAt.time
+    listPatch.startDate = startAt.date
+    listPatch.startTime = startAt.time
+  }
+
+  if (payload.status) {
+    timeForm.value.status = payload.status
+    listPatch.status = payload.status
+    listPatch.statusName = statusLabel(payload.status)
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'phase')) {
+    timeForm.value.clockState = payload.phase || timeForm.value.clockState
+  }
+
+  extraTimeFields.forEach((field) => {
+    if (payload[field.key] != null) {
+      timeForm.value.extraTime[field.key] = payload[field.key]
+    }
+  })
+
+  if (payload.homeScore != null) {
+    scoreForm.value.homeScore = payload.homeScore
+    listPatch.homeScore = payload.homeScore
+  }
+
+  if (payload.awayScore != null) {
+    scoreForm.value.awayScore = payload.awayScore
+    listPatch.awayScore = payload.awayScore
+  }
+
+  if (payload.homeShootOutScore != null) {
+    scoreForm.value.homePenaltyScore = payload.homeShootOutScore
+  }
+
+  if (payload.awayShootOutScore != null) {
+    scoreForm.value.awayPenaltyScore = payload.awayShootOutScore
+  }
+
+  if (payload.homeStats) {
+    statsForm.value.home = {
+      ...statsForm.value.home,
+      ...payload.homeStats,
+    }
+  }
+
+  if (payload.awayStats) {
+    statsForm.value.away = {
+      ...statsForm.value.away,
+      ...payload.awayStats,
+    }
+  }
+
+  if (Object.keys(listPatch).length) {
+    emit('match-updated', {
+      matchId: props.match?.id,
+      patch: listPatch,
+    })
+  }
+}
+
 function closeConfirmModal() {
   confirmModal.value = defaultConfirmModal()
 }
 
 function validateAction(action) {
-  if ((action === 'manualTime' || action === 'currentTime') && !timeForm.value.startDate) {
+  if (!props.match?.id) {
+    alert('경기 정보를 확인할 수 없습니다.')
+    return false
+  }
+
+  if (action === 'manualTime' && !timeForm.value.startDate) {
     alert('경기 시작 예정일자를 입력해주세요.')
     return false
   }
 
-  if ((action === 'manualTime' || action === 'currentTime') && !timeForm.value.startTime) {
+  if (action === 'manualTime' && !timeForm.value.startTime) {
     alert('경기 시작 예정시각을 입력해주세요.')
     return false
   }
 
-  if (action === 'comment') {
-    if (!props.match?.id) {
-      alert('경기 정보를 확인할 수 없습니다.')
-      return false
-    }
+  if (action === 'manualTime' && !buildStartAt(timeForm.value.startDate, timeForm.value.startTime)) {
+    alert('경기 시작 날짜와 시간 형식을 확인해주세요.')
+    return false
+  }
 
+  if (action === 'comment') {
     if (!commentForm.value.message.trim()) {
       alert('중계 멘트를 입력해주세요.')
       return false
@@ -832,6 +977,16 @@ function validateAction(action) {
     return false
   }
 
+  if (action === 'score' && !isValidScore()) {
+    alert('점수는 0 이상의 숫자로 입력해주세요.')
+    return false
+  }
+
+  if (action === 'stats' && !isValidStats()) {
+    alert('경기 스탯은 0 이상의 숫자로 입력해주세요.')
+    return false
+  }
+
   return true
 }
 
@@ -839,7 +994,7 @@ function actionConfig(action) {
   return {
     currentTime: {
       title: '현재 시간 저장',
-      message: '서버 기준 현재 시간으로 경기 시작 예정 시간을 저장합니다.',
+      message: '확인 시점의 KST 현재 시간으로 경기 시작 예정 시간을 저장합니다.',
       variant: 'primary',
     },
     manualTime: {
@@ -882,7 +1037,7 @@ function actionConfig(action) {
 
 function clockStateSaveMessage() {
   if (clockStatePreview.value === '선택된 문구 없음') {
-    return '앱에 노출되는 중계 상태 문구를 비운 상태로 저장합니다.'
+    return '선택된 중계 상태 문구가 없으면 현재 서버 값이 유지됩니다.'
   }
 
   return `앱에 노출되는 중계 상태 문구를 "${clockStatePreview.value}" 상태로 저장합니다.`
@@ -906,11 +1061,176 @@ function scoreSaveMessage() {
 }
 
 function isValidExtraTime() {
-  return extraTimeFields.every((field) => {
-    const value = Number(timeForm.value.extraTime[field.key])
+  return extraTimeFields.every((field) => isNonNegativeIntegerValue(timeForm.value.extraTime[field.key]))
+}
 
-    return Number.isFinite(value) && value >= 0
-  })
+function isValidScore() {
+  const regularScoreValid = isNonNegativeIntegerValue(scoreForm.value.homeScore)
+    && isNonNegativeIntegerValue(scoreForm.value.awayScore)
+
+  if (!regularScoreValid) return false
+  if (!scoreForm.value.penaltyVisible) return true
+
+  return isNonNegativeIntegerValue(scoreForm.value.homePenaltyScore)
+    && isNonNegativeIntegerValue(scoreForm.value.awayPenaltyScore)
+}
+
+function isValidStats() {
+  return statFields.every((stat) => (
+    isNonNegativeIntegerValue(statsForm.value.home[stat.key])
+      && isNonNegativeIntegerValue(statsForm.value.away[stat.key])
+  ))
+}
+
+function buildStartAt(date, time) {
+  const normalizedDate = normalizeDateInput(date)
+  const normalizedTime = normalizeTimeInput(time)
+
+  if (!normalizedDate || !normalizedTime) return ''
+
+  return `${normalizedDate}T${normalizedTime}:00`
+}
+
+function getKstNowDateTime() {
+  const kstDate = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const isoString = kstDate.toISOString()
+
+  return {
+    date: isoString.slice(0, 10),
+    time: isoString.slice(11, 16),
+  }
+}
+
+function buildStatsPayload(stats) {
+  return statFields.reduce((payload, stat) => {
+    payload[stat.key] = toNonNegativeInteger(stats[stat.key])
+    return payload
+  }, {})
+}
+
+function resolveFootballPhaseCode(footballDetail, detail) {
+  const phaseCode = normalizeFootballPhaseCode(
+    footballDetail.phaseCode
+      || footballDetail.phase
+      || footballDetail.clockState
+      || footballDetail.clock?.phaseCode
+      || footballDetail.clock?.phase
+      || detail.phaseCode
+      || detail.phase
+      || detail.clockState,
+  )
+
+  if (phaseCode) return phaseCode
+
+  return findFootballPhaseCodeByName(footballDetail.phaseName)
+    || timeForm.value.clockState
+}
+
+function normalizeFootballPhaseCode(value) {
+  if (!value) return ''
+
+  const normalizedValue = String(value).trim().toUpperCase()
+
+  return soccerClockStateOptions.some((option) => option.value === normalizedValue)
+    ? normalizedValue
+    : ''
+}
+
+function findFootballPhaseCodeByName(value) {
+  if (!value) return ''
+
+  const normalizedName = String(value).trim().replaceAll(' ', '')
+
+  return soccerClockStateOptions.find((option) => (
+    option.label.replaceAll(' ', '') === normalizedName
+  ))?.value || ''
+}
+
+function mergeExtraTime(currentExtraTime, additionalTime) {
+  if (!additionalTime) return { ...currentExtraTime }
+
+  return extraTimeFields.reduce((nextExtraTime, field) => {
+    if (additionalTime[field.key] != null) {
+      nextExtraTime[field.key] = Number(additionalTime[field.key])
+    }
+
+    return nextExtraTime
+  }, { ...currentExtraTime })
+}
+
+function pickPenaltyScore(shootOutScore) {
+  if (!shootOutScore) {
+    return {
+      visible: false,
+      homeScore: null,
+      awayScore: null,
+    }
+  }
+
+  const homeScore = firstDefined(
+    shootOutScore.homeScore,
+    shootOutScore.homeShootOutScore,
+    shootOutScore.homeShootoutScore,
+    shootOutScore.homePenaltyScore,
+  )
+  const awayScore = firstDefined(
+    shootOutScore.awayScore,
+    shootOutScore.awayShootOutScore,
+    shootOutScore.awayShootoutScore,
+    shootOutScore.awayPenaltyScore,
+  )
+
+  return {
+    visible: homeScore != null || awayScore != null,
+    homeScore: homeScore == null ? null : Number(homeScore),
+    awayScore: awayScore == null ? null : Number(awayScore),
+  }
+}
+
+function mergeStats(currentStats, nextStats) {
+  if (!nextStats) return { ...currentStats }
+
+  return statFields.reduce((mergedStats, stat) => {
+    if (nextStats[stat.key] != null) {
+      mergedStats[stat.key] = Number(nextStats[stat.key])
+    }
+
+    return mergedStats
+  }, { ...currentStats })
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value != null)
+}
+
+function normalizeDateInput(value) {
+  const date = String(value || '').trim()
+
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''
+}
+
+function normalizeTimeInput(value) {
+  const match = String(value || '').trim().match(/^(\d{1,2}):(\d{1,2})$/)
+  if (!match) return ''
+
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+
+  if (hour > 23 || minute > 59) return ''
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
+function isNonNegativeIntegerValue(value) {
+  if (value === '' || value == null) return false
+
+  const numberValue = Number(value)
+
+  return Number.isInteger(numberValue) && numberValue >= 0
+}
+
+function toNonNegativeInteger(value) {
+  return Number(value)
 }
 
 function setLoading(key, value) {
@@ -950,33 +1270,6 @@ function statusBadgeVariant(status) {
     RETIRED: 'red',
     REMOVED: 'gray',
   }[status] || 'gray'
-}
-
-function getMockServerNow() {
-  const now = new Date()
-  return {
-    date: formatDateInput(now),
-    time: formatTimeInput(now),
-  }
-}
-
-function formatDateInput(date) {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
-}
-
-function formatTimeInput(date) {
-  return [
-    String(date.getHours()).padStart(2, '0'),
-    String(date.getMinutes()).padStart(2, '0'),
-  ].join(':')
-}
-
-function formatPanelDateTime(date) {
-  return `${formatDateInput(date)} ${formatTimeInput(date)}`
 }
 
 function formatHistoryDateTime(value) {
@@ -1025,10 +1318,6 @@ function toErrorMessage(value) {
 
 function ensureArray(value) {
   return Array.isArray(value) ? value : []
-}
-
-function delay(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
 function makeMockChats() {

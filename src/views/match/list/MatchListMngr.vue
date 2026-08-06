@@ -818,6 +818,7 @@ async function saveMatch(match) {
     scheduleSaveStateClear(match.id)
   } catch (error) {
     console.error('경기 정보 저장에 실패했습니다.', error)
+    revertMatchEdits(match)
     setSaveState(match.id, 'error')
     scheduleSaveStateClear(match.id)
     alert(extractApiErrorMessage(error, '경기 정보 저장에 실패했습니다.'))
@@ -871,6 +872,14 @@ function setDataSourceType(match, type) {
 
 function setUseStatus(match, useStatus) {
   match.editUseStatus = useStatus
+}
+
+function revertMatchEdits(match) {
+  match.editDate = match.startDate
+  match.editTime = match.startTime
+  match.editStatus = match.status
+  match.editDataSourceType = match.dataSource?.type || 'external'
+  match.editUseStatus = match.useStatus || 'inactive'
 }
 
 function openBroadcastModal(match) {
