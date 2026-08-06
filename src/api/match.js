@@ -23,7 +23,7 @@ export const getAdminMatchDetail = async (matchId) => {
 
 // 축구 중계 상세 정보 업데이트 API
 export const updateFootballMatchDetail = async (matchId, payload) => {
-  const response = await client.patch(`/api/v1/admin/matches/${matchId}/detail/football`, payload);
+  const response = await client.patch(`/api/v1/admin/matches/${matchId}/detail`, payload);
 
   return response.data?.data ?? response.data;
 };
