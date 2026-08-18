@@ -8,8 +8,17 @@ const routes = [
   { path: '/', component: Login },
   { path: '/admin', component: Admin },
   { path: '/admin/user', component: UserAdmin},
-  { path: '/admin/match', component: MatchAdmin },
-  { path: '/admin/match/list', component: MatchAdmin },
+  { path: '/admin/match', redirect: '/admin/menu/match-list' },
+  { path: '/admin/match/list', redirect: '/admin/menu/match-list' },
+  { path: '/admin/match/league', redirect: '/admin/menu/leagues' },
+  { path: '/admin/menu/match-list', component: MatchAdmin },
+  { path: '/admin/menu/featured-matches', component: MatchAdmin },
+  { path: '/admin/menu/standings', component: MatchAdmin },
+  { path: '/admin/menu/leagues', component: MatchAdmin },
+  { path: '/admin/menu/teams', component: MatchAdmin },
+  { path: '/admin/menu/players', component: MatchAdmin },
+  { path: '/admin/menu/squads', component: MatchAdmin },
+  { path: '/admin/menu/stadiums', component: MatchAdmin },
 ];
 
 const router = createRouter({
