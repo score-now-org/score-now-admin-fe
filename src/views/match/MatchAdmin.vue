@@ -3,12 +3,13 @@
     <div class="body-wrap">
       <AppSidebar
         v-model="activeSidebar"
-        title="경기"
+        title="메뉴"
         :items="sidebarItems"
       />
 
       <main class="main-content">
         <MatchListMngr v-if="activeSidebar === '경기 리스트'" />
+        <LeagueMngr v-else-if="activeSidebar === '리그'" />
 
         <div v-else class="coming-soon">
           {{ activeSidebar }} 준비 중입니다.
@@ -19,21 +20,53 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import MatchListMngr from './list/MatchListMngr.vue'
+import LeagueMngr from './league/LeagueMngr.vue'
 
-const activeSidebar = ref('경기 리스트')
+const route = useRoute()
+const router = useRouter()
 
 const sidebarItems = [
-  { label: '경기 리스트' },
-  { label: '상단고정/핫매치' },
-  { label: '순위' },
-  { label: '리그' },
-  { label: '팀' },
-  { label: '선수' },
-  { label: '스쿼드/결장자' },
-  { label: '경기장' },
+  { label: '경기 리스트', path: '/admin/menu/match-list' },
+  { label: '상단고정/핫매치', path: '/admin/menu/featured-matches' },
+  { label: '순위', path: '/admin/menu/standings' },
+  { label: '리그', path: '/admin/menu/leagues' },
+  { label: '팀', path: '/admin/menu/teams' },
+  { label: '선수', path: '/admin/menu/players' },
+  { label: '스쿼드/결장자', path: '/admin/menu/squads' },
+  { label: '경기장', path: '/admin/menu/stadiums' },
 ]
+
+const legacyPathMap = {
+  '/admin/match': '경기 리스트',
+  '/admin/match/list': '경기 리스트',
+  '/admin/match/league': '리그',
+}
+
+const activeSidebar = ref(resolveActiveSidebar(route.path))
+
+watch(
+  () => route.path,
+  (path) => {
+    activeSidebar.value = resolveActiveSidebar(path)
+  },
+)
+
+watch(activeSidebar, (label) => {
+  const targetPath = sidebarItems.find((item) => item.label === label)?.path
+
+  if (targetPath && route.path !== targetPath) {
+    router.push(targetPath)
+  }
+})
+
+function resolveActiveSidebar(path) {
+  return sidebarItems.find((item) => item.path === path)?.label
+    || legacyPathMap[path]
+    || '경기 리스트'
+}
 </script>
 
 <style scoped>
