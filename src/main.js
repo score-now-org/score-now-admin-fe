@@ -4,6 +4,7 @@ import { createPinia } from 'pinia'
 import router from './router'
 import globalComponents from './plugins/globalComponents'
 import './assets/main.css' 
+import './styles/admin-tokens.css'
 
 
 

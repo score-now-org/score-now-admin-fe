@@ -9,7 +9,10 @@
 
       <main class="main-content">
         <MatchListMngr v-if="activeSidebar === '경기 리스트'" />
+        <FeaturedMatchMngr v-else-if="activeSidebar === '상단고정/핫매치'" />
         <LeagueMngr v-else-if="activeSidebar === '리그'" />
+        <TeamMngr v-else-if="activeSidebar === '팀'" />
+        <StadiumMngr v-else-if="activeSidebar === '경기장'" />
 
         <div v-else class="coming-soon">
           {{ activeSidebar }} 준비 중입니다.
@@ -24,6 +27,9 @@ import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MatchListMngr from './list/MatchListMngr.vue'
 import LeagueMngr from './league/LeagueMngr.vue'
+import FeaturedMatchMngr from './featured/FeaturedMatchMngr.vue'
+import TeamMngr from './team/TeamMngr.vue'
+import StadiumMngr from './stadium/StadiumMngr.vue'
 
 const route = useRoute()
 const router = useRouter()

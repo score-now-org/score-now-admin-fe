@@ -1,0 +1,56 @@
+:root {
+  /* Admin typography */
+  --admin-font-size-page-title: 22px;
+  --admin-font-size-description: 12px;
+  --admin-font-size-label: 11px;
+  --admin-font-size-table-heading: 10px;
+  --admin-font-size-table-body: 11px;
+
+  /* Admin text colors */
+  --admin-color-text-body: #172033;
+  --admin-color-text-title: #111827;
+  --admin-color-text-description: #758096;
+  --admin-color-text-label: #4d586d;
+  --admin-color-text-muted: #778195;
+  --admin-color-text-subtle: #8892a3;
+  --admin-color-text-table-heading: #616c80;
+  --admin-color-text-table-body: #4b5669;
+  --admin-color-text-empty-title: #556176;
+  --admin-color-text-empty-description: #9aa3b2;
+  --admin-color-text-control: #263248;
+
+  /* Admin surfaces and borders */
+  --admin-color-surface: #ffffff;
+  --admin-color-surface-subtle: #fbfcfe;
+  --admin-color-border: #e3e8f0;
+  --admin-color-divider: #edf0f5;
+  --admin-color-table-heading-border: #e5e9f0;
+  --admin-color-table-row-border: #edf0f4;
+  --admin-color-table-heading-surface: #f7f9fc;
+  --admin-color-table-row-hover: #fafcff;
+  --admin-color-info-border: #b8c0cd;
+  --admin-color-control-border: #dce2eb;
+
+  /* Admin interaction colors */
+  --admin-color-primary: #1c67ff;
+  --admin-color-toast-surface: #263248;
+  --admin-color-toast-accent: #8fe1b3;
+
+  /* Admin spacing and shape */
+  --admin-page-padding: 28px 32px 48px;
+  --admin-page-padding-inline-compact: 22px;
+  --admin-page-header-gap: 24px;
+  --admin-page-header-margin-bottom: 22px;
+  --admin-section-margin-bottom: 14px;
+  --admin-card-padding: 16px;
+  --admin-filter-gap: 18px;
+  --admin-field-gap: 7px;
+  --admin-action-gap: 6px;
+  --admin-card-radius: 10px;
+  --admin-control-radius: 6px;
+  --admin-toast-radius: 8px;
+
+  /* Admin effects */
+  --admin-focus-ring: 0 0 0 3px rgb(28 103 255 / 8%);
+  --admin-toast-shadow: 0 10px 28px rgb(15 23 42 / 20%);
+}
