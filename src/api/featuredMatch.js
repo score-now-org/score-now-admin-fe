@@ -17,8 +17,7 @@ export async function getFeaturedMatchCandidates(date) {
 }
 
 export async function createFeaturedMatches(payload) {
-  const response = await client.post(BASE_PATH, payload)
-  return unwrap(response)
+  await client.post(BASE_PATH, payload)
 }
 
 export async function updateFeaturedMatchesOrder(payload) {

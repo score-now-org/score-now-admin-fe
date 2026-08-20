@@ -5,7 +5,6 @@
         <div class="title-row">
           <h1>상단고정/핫매치</h1>
         </div>
-        <p>중요 경기를 노출 유형별로 지정하고 같은 유형 안에서 순서를 관리합니다.</p>
       </div>
     </header>
 
@@ -16,7 +15,6 @@
           <span>상단고정</span>
           <strong>{{ filteredTypeCount('pinned') }}경기</strong>
         </div>
-        <small>리스트 최상단에 우선 노출</small>
       </article>
       <article class="summary-card hot">
         <div class="summary-icon" aria-hidden="true">H</div>
@@ -24,7 +22,6 @@
           <span>핫매치</span>
           <strong>{{ filteredTypeCount('hot') }}경기</strong>
         </div>
-        <small>핫매치 영역에 강조 노출</small>
       </article>
     </section>
 
@@ -64,7 +61,6 @@
           <strong>{{ formattedAppliedDate }}</strong>
           <span>등록 경기 {{ visibleFeaturedMatches.length }}건</span>
         </div>
-        <p><span class="info-dot">i</span> 순서는 같은 노출 유형 안에서만 변경됩니다.</p>
       </div>
 
       <div class="table-scroll">
@@ -76,7 +72,7 @@
               <th>리그명</th>
               <th>홈팀명</th>
               <th>원정팀명</th>
-              <th>경기 예정 일시</th>
+              <th>경기 예정 시각</th>
               <th>노출 유형</th>
               <th>순서 변경</th>
               <th>삭제</th>
@@ -102,10 +98,7 @@
               <td>{{ match.league }}</td>
               <td class="team-name">{{ match.homeTeam }}</td>
               <td class="team-name">{{ match.awayTeam }}</td>
-              <td class="date-cell">
-                <strong>{{ formatShortDate(match.startAt) }}</strong>
-                <span>{{ formatTime(match.startAt) }}</span>
-              </td>
+              <td class="time-only">{{ formatTime(match.startAt) }}</td>
               <td>
                 <span class="type-badge" :class="match.featuredType">
                   <span class="type-dot"></span>{{ featuredTypeLabel(match.featuredType) }}
@@ -162,7 +155,6 @@
             <span class="radio-mark"><span></span></span>
             <span>
               <strong>{{ option.label }}</strong>
-              <small>{{ option.description }}</small>
             </span>
           </button>
         </div>
@@ -248,7 +240,6 @@
           <div class="summary-check">✓</div>
           <div>
             <strong>{{ selectedMatchIds.length }}개 경기를 {{ featuredTypeLabel(registerType) }}로 등록합니다.</strong>
-            <span>등록 후에도 목록에서 순서를 변경하거나 삭제할 수 있습니다.</span>
           </div>
         </div>
       </div>
@@ -289,8 +280,8 @@ const filterTypeOptions = [
 ]
 
 const registerTypeOptions = [
-  { value: 'pinned', label: '상단고정', description: '경기 리스트 최상단에 우선 노출합니다.' },
-  { value: 'hot', label: '핫매치', description: '핫매치 전용 영역에 강조 노출합니다.' },
+  { value: 'pinned', label: '상단고정' },
+  { value: 'hot', label: '핫매치' },
 ]
 
 const searchDate = ref(defaultDate)
@@ -330,12 +321,6 @@ const allSelectableChecked = computed(() => (
 
 function featuredTypeLabel(type) {
   return type === 'pinned' ? '상단고정' : '핫매치'
-}
-
-function formatShortDate(dateTime) {
-  if (!dateTime) return '-'
-  const [, month = '', day = ''] = dateTime.slice(0, 10).split('-')
-  return `${month}.${day}`
 }
 
 function formatTime(dateTime) {
@@ -473,20 +458,30 @@ async function registerSelectedMatches() {
 
   const registeredCount = selectedMatchIds.value.length
   registering.value = true
+
   try {
-    const response = await createFeaturedMatches({
+    await createFeaturedMatches({
       matchIds: selectedMatchIds.value,
       type: toApiType(registerType.value),
     })
-    applyFeaturedMatchesResponse(response)
-    appliedDate.value = registerDate.value
-    searchDate.value = registerDate.value
-    appliedType.value = 'all'
-    searchType.value = 'all'
-    registerModalOpen.value = false
-    showToast(`${registeredCount}개 경기를 ${featuredTypeLabel(registerType.value)}로 등록했습니다.`)
   } catch (error) {
     showToast(apiErrorMessage(error, '선택 경기 등록에 실패했습니다.'))
+    registering.value = false
+    return
+  }
+
+  searchDate.value = registerDate.value
+  searchType.value = 'all'
+  registerModalOpen.value = false
+
+  try {
+    const response = await getFeaturedMatches(toApiDate(registerDate.value))
+    applyFeaturedMatchesResponse(response)
+    appliedDate.value = registerDate.value
+    appliedType.value = 'all'
+    showToast(`${registeredCount}개 경기를 ${featuredTypeLabel(registerType.value)}로 등록했습니다.`)
+  } catch (error) {
+    showToast(apiErrorMessage(error, '등록은 완료되었지만 최신 목록 조회에 실패했습니다. 다시 조회해 주세요.'))
   } finally {
     registering.value = false
   }
@@ -574,17 +569,15 @@ onMounted(applySearch)
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--admin-page-header-gap); margin-bottom: var(--admin-page-header-margin-bottom); }
 .title-row { display: flex; align-items: center; gap: 10px; }
 .page-header h1 { margin: 0; font-size: var(--admin-font-size-page-title); line-height: 1.35; letter-spacing: -.04em; color: var(--admin-color-text-title); }
-.page-header p { margin: 6px 0 0; color: var(--admin-color-text-description); font-size: var(--admin-font-size-description); }
 
 .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-.summary-card { display: grid; grid-template-columns: 40px auto 1fr; align-items: center; gap: 12px; min-height: 74px; padding: 14px 16px; background: var(--admin-color-surface); border: 1px solid #e7ebf2; border-radius: var(--admin-card-radius); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); }
+.summary-card { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 12px; min-height: 74px; padding: 14px 16px; background: var(--admin-color-surface); border: 1px solid #e7ebf2; border-radius: var(--admin-card-radius); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); }
 .summary-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 9px; font-size: 12px; font-weight: 900; }
 .summary-card.pinned .summary-icon { color: #1763da; background: #eaf2ff; }
 .summary-card.hot .summary-icon { color: #d94747; background: #fff0f0; }
 .summary-card > div:nth-child(2) { display: flex; flex-direction: column; gap: 3px; }
 .summary-card span { font-size: 11px; color: #7b8496; }
 .summary-card strong { font-size: 18px; line-height: 1; color: #1d2738; }
-.summary-card small { justify-self: end; color: #9aa2b1; font-size: 11px; }
 
 .filter-card { display: flex; align-items: flex-end; gap: var(--admin-filter-gap); padding: var(--admin-card-padding); margin-bottom: var(--admin-section-margin-bottom); background: var(--admin-color-surface); border: 1px solid var(--admin-color-border); border-radius: var(--admin-card-radius); }
 .field-group { display: flex; flex-direction: column; gap: var(--admin-field-gap); }
@@ -605,8 +598,6 @@ onMounted(applySearch)
 .table-toolbar > div { display: flex; align-items: center; gap: 10px; }
 .table-toolbar strong { font-size: 13px; }
 .table-toolbar span { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-label); }
-.table-toolbar p { display: flex; align-items: center; gap: var(--admin-action-gap); margin: 0; color: var(--admin-color-text-subtle); font-size: var(--admin-font-size-table-heading); }
-.info-dot { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1px solid var(--admin-color-info-border); border-radius: 50%; font-size: 9px !important; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th { height: 39px; padding: 0 10px; border-bottom: 1px solid var(--admin-color-table-heading-border); color: var(--admin-color-text-table-heading); background: var(--admin-color-table-heading-surface); font-size: var(--admin-font-size-table-heading); font-weight: 700; text-align: center; white-space: nowrap; }
@@ -623,9 +614,6 @@ th:nth-child(7) { width: 104px; } th:nth-child(8) { width: 120px; } th:nth-child
 .sport-badge.baseball { color: #3864bd; background: #edf3ff; }
 .sport-badge.basketball { color: #b85a19; background: #fff3e7; }
 .sport-badge.other { color: #5f6878; background: #eef1f5; }
-.date-cell { display: flex; align-items: baseline; justify-content: center; gap: 6px; }
-.date-cell strong { color: #2e3a4e; font-size: 11px; }
-.date-cell span { color: #7e8798; }
 .type-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
 .type-badge.pinned { color: #1e61c9; background: #eaf2ff; }
 .type-badge.hot { color: #d34646; background: #fff0f0; }
@@ -652,9 +640,7 @@ th:nth-child(7) { width: 104px; } th:nth-child(8) { width: 120px; } th:nth-child
 .type-cards > button { display: flex; align-items: center; gap: 12px; min-height: 70px; padding: 13px 14px; border: 1px solid #dfe4eb; border-radius: 8px; text-align: left; background: #fff; cursor: pointer; }
 .type-cards > button.selected.pinned { border-color: #4c8cff; background: #f6f9ff; box-shadow: 0 0 0 2px rgba(28, 103, 255, .08); }
 .type-cards > button.selected.hot { border-color: #ef6a6a; background: #fff8f8; box-shadow: 0 0 0 2px rgba(230, 76, 76, .07); }
-.type-cards strong, .type-cards small { display: block; }
-.type-cards strong { margin-bottom: 4px; color: #273348; font-size: 12px; }
-.type-cards small { color: #8992a2; font-size: 10px; }
+.type-cards strong { display: block; color: #273348; font-size: 12px; }
 .radio-mark { display: grid; place-items: center; width: 17px; height: 17px; border: 1px solid #c9d0dc; border-radius: 50%; flex: 0 0 auto; }
 .selected.pinned .radio-mark { border-color: #1c67ff; }
 .selected.hot .radio-mark { border-color: #e64c4c; }
@@ -683,9 +669,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #1c67ff; curso
 .modal-empty { height: 130px !important; color: #929bab; text-align: center; }
 .selection-summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 8px; background: #f2f7ff; }
 .summary-check { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; color: #fff; background: #1c67ff; font-size: 12px; font-weight: 800; }
-.selection-summary strong, .selection-summary span { display: block; }
-.selection-summary strong { margin-bottom: 3px; color: #28549b; font-size: 11px; }
-.selection-summary span { color: #7690b6; font-size: 9px; }
+.selection-summary strong { display: block; color: #28549b; font-size: 11px; }
 
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 1500; display: flex; align-items: center; gap: 8px; padding: 11px 15px; border-radius: var(--admin-toast-radius); color: var(--admin-color-surface); background: var(--admin-color-toast-surface); box-shadow: var(--admin-toast-shadow); font-size: var(--admin-font-size-label); }
 .toast span { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; color: var(--admin-color-toast-surface); background: var(--admin-color-toast-accent); font-size: var(--admin-font-size-table-heading); font-weight: 900; }
@@ -694,6 +678,5 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #1c67ff; curso
 
 @media (max-width: 1180px) {
   .admin-page { padding-inline: var(--admin-page-padding-inline-compact); }
-  .summary-card small { display: none; }
 }
 </style>

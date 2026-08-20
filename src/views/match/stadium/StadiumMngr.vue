@@ -6,7 +6,6 @@
           <h1>경기장 관리</h1>
           <span class="mock-badge">화면 데모</span>
         </div>
-        <p>경기장을 검색하고 명칭을 수정하거나 수동 경기장을 새로 등록합니다.</p>
       </div>
       <BaseButton variant="primary" size="md" class="primary-action" @click="openCreateModal">
         + 경기장 등록
@@ -30,7 +29,6 @@
           <strong>검색 결과</strong>
           <span>총 {{ filteredStadiums.length }}건</span>
         </div>
-        <p><span class="info-dot">i</span> 경기장명은 목록에서 바로 수정할 수 있습니다.</p>
       </div>
 
       <div class="table-scroll">
@@ -80,7 +78,6 @@
         <span class="manual-icon">M</span>
         <div>
           <strong>수동 경기장으로 등록됩니다.</strong>
-          <p>외부 API와 연결되지 않으며 등록 후 경기장 목록에서 관리할 수 있습니다.</p>
         </div>
       </div>
 
@@ -105,7 +102,6 @@
         <div class="form-field">
           <label for="new-stadium-name">경기장명 <span>*</span></label>
           <input id="new-stadium-name" v-model="newStadium.name" class="form-control" placeholder="예: 서울월드컵경기장" />
-          <small>운영 화면에 표시될 공식 경기장명을 입력해 주세요.</small>
         </div>
 
         <div class="form-field">
@@ -219,7 +215,6 @@ function showToast(message) {
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--admin-page-header-gap); margin-bottom: var(--admin-page-header-margin-bottom); }
 .title-row { display: flex; align-items: center; gap: 10px; }
 .page-header h1 { margin: 0; font-size: var(--admin-font-size-page-title); line-height: 1.35; letter-spacing: -.04em; color: var(--admin-color-text-title); }
-.page-header p { margin: 6px 0 0; color: var(--admin-color-text-description); font-size: var(--admin-font-size-description); }
 .mock-badge { padding: 3px 8px; border-radius: 999px; background: #eff5ff; color: #2768dd; font-size: 10px; font-weight: 700; }
 .primary-action { min-width: 104px; height: 34px; box-shadow: 0 4px 10px rgba(28, 103, 255, .18); }
 .filter-card { display: flex; align-items: flex-end; gap: var(--admin-filter-gap); padding: var(--admin-card-padding); margin-bottom: var(--admin-section-margin-bottom); background: var(--admin-color-surface); border: 1px solid var(--admin-color-border); border-radius: var(--admin-card-radius); }
@@ -232,8 +227,6 @@ function showToast(message) {
 .table-toolbar > div { display: flex; align-items: center; gap: 10px; }
 .table-toolbar strong { font-size: 13px; }
 .table-toolbar span { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-label); }
-.table-toolbar p { display: flex; align-items: center; gap: var(--admin-action-gap); margin: 0; color: var(--admin-color-text-subtle); font-size: var(--admin-font-size-table-heading); }
-.info-dot { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1px solid var(--admin-color-info-border); border-radius: 50%; font-size: 9px !important; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; min-width: 900px; border-collapse: collapse; table-layout: fixed; }
 th { height: 39px; padding: 0 12px; border-bottom: 1px solid var(--admin-color-table-heading-border); color: var(--admin-color-text-table-heading); background: var(--admin-color-table-heading-surface); font-size: var(--admin-font-size-table-heading); font-weight: 700; text-align: left; white-space: nowrap; }
@@ -265,12 +258,10 @@ th:nth-child(4) { width: 130px; } th:nth-child(5) { width: 100px; } th:nth-child
 .modal-intro { display: flex; align-items: center; gap: 11px; padding: 12px 13px; margin-bottom: 18px; border: 1px solid #dce8fb; border-radius: 8px; background: #f5f9ff; }
 .manual-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: #fff; background: #3975d2; font-size: 10px; font-weight: 900; }
 .modal-intro strong { display: block; margin-bottom: 3px; color: #315f9e; font-size: 11px; }
-.modal-intro p { margin: 0; color: #7890b2; font-size: 9px; }
 .stadium-form { display: flex; flex-direction: column; gap: 17px; }
 .form-field { display: flex; flex-direction: column; gap: var(--admin-field-gap); }
 .form-field > label { color: var(--admin-color-text-label); font-size: var(--admin-font-size-table-heading); font-weight: 700; }
 .form-field > label span { color: #e14d4d; }
-.form-field > small { color: #929baa; font-size: 9px; }
 .form-control { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--admin-color-control-border); border-radius: var(--admin-control-radius); outline: none; color: var(--admin-color-text-control); background: var(--admin-color-surface-subtle); font: inherit; font-size: var(--admin-font-size-label); }
 .form-control:focus { border-color: var(--admin-color-primary); background: var(--admin-color-surface); box-shadow: var(--admin-focus-ring); }
 .sport-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

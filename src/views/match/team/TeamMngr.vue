@@ -6,7 +6,6 @@
           <h1>팀 관리</h1>
           <span class="mock-badge">화면 데모</span>
         </div>
-        <p>팀 정보를 검색하고 각 행에서 바로 수정하거나 수동 팀을 새로 등록합니다.</p>
       </div>
       <BaseButton variant="primary" size="md" class="primary-action" @click="openCreateModal">
         + 팀 등록
@@ -34,7 +33,6 @@
           <strong>검색 결과</strong>
           <span>총 {{ filteredTeams.length }}건</span>
         </div>
-        <p><span class="info-dot">i</span> 값을 수정한 뒤 해당 행의 저장 버튼을 눌러 반영합니다.</p>
       </div>
 
       <div class="table-scroll">
@@ -112,7 +110,6 @@
         <span class="manual-icon">M</span>
         <div>
           <strong>수동 팀으로 등록됩니다.</strong>
-          <p>외부 API와 연결되지 않으며 등록 후 팀 관리 목록에서 수정할 수 있습니다.</p>
         </div>
       </div>
 
@@ -130,7 +127,7 @@
               @click="newTeam.type = option.value"
             >
               <span class="radio-dot"><span></span></span>
-              <span><strong>{{ option.label }}</strong><small>{{ option.description }}</small></span>
+              <span><strong>{{ option.label }}</strong></span>
             </button>
           </div>
         </div>
@@ -210,8 +207,8 @@ const countryOptions = [
 ]
 
 const teamTypeOptions = [
-  { value: 'club', label: '클럽', description: '리그에 소속된 일반 구단' },
-  { value: 'national', label: '국가대표', description: '국가를 대표하는 선발팀' },
+  { value: 'club', label: '클럽' },
+  { value: 'national', label: '국가대표' },
 ]
 
 const initialTeams = [
@@ -345,7 +342,6 @@ function showToast(message) {
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--admin-page-header-gap); margin-bottom: var(--admin-page-header-margin-bottom); }
 .title-row { display: flex; align-items: center; gap: 10px; }
 .page-header h1 { margin: 0; font-size: var(--admin-font-size-page-title); line-height: 1.35; letter-spacing: -.04em; color: var(--admin-color-text-title); }
-.page-header p { margin: 6px 0 0; color: var(--admin-color-text-description); font-size: var(--admin-font-size-description); }
 .mock-badge { padding: 3px 8px; border-radius: 999px; background: #eff5ff; color: #2768dd; font-size: 10px; font-weight: 700; }
 .primary-action { min-width: 92px; height: 34px; box-shadow: 0 4px 10px rgba(28, 103, 255, .18); }
 
@@ -361,8 +357,6 @@ function showToast(message) {
 .table-toolbar > div { display: flex; align-items: center; gap: 10px; }
 .table-toolbar strong { font-size: 13px; }
 .table-toolbar span { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-label); }
-.table-toolbar p { display: flex; align-items: center; gap: var(--admin-action-gap); margin: 0; color: var(--admin-color-text-subtle); font-size: var(--admin-font-size-table-heading); }
-.info-dot { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1px solid var(--admin-color-info-border); border-radius: 50%; font-size: 9px !important; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; min-width: 1120px; border-collapse: collapse; table-layout: fixed; }
 th { height: 39px; padding: 0 8px; border-bottom: 1px solid var(--admin-color-table-heading-border); color: var(--admin-color-text-table-heading); background: var(--admin-color-table-heading-surface); font-size: var(--admin-font-size-table-heading); font-weight: 700; text-align: left; white-space: nowrap; }
@@ -400,7 +394,6 @@ select.row-control { cursor: pointer; }
 .modal-intro { display: flex; align-items: center; gap: 11px; padding: 12px 13px; margin-bottom: 18px; border: 1px solid #dce8fb; border-radius: 8px; background: #f5f9ff; }
 .manual-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: #fff; background: #3975d2; font-size: 10px; font-weight: 900; }
 .modal-intro strong { display: block; margin-bottom: 3px; color: #315f9e; font-size: 11px; }
-.modal-intro p { margin: 0; color: #7890b2; font-size: 9px; }
 .team-form { display: flex; flex-direction: column; gap: 16px; }
 .form-grid { display: grid; gap: 12px; }
 .two-column { grid-template-columns: 1fr 1fr; }
@@ -416,9 +409,7 @@ select.row-control { cursor: pointer; }
 .radio-dot { display: grid; place-items: center; width: 16px; height: 16px; border: 1px solid #c5ccd8; border-radius: 50%; }
 .selected .radio-dot { border-color: #1c67ff; }
 .selected .radio-dot span { width: 8px; height: 8px; border-radius: 50%; background: #1c67ff; }
-.type-radio-grid strong, .type-radio-grid small { display: block; }
-.type-radio-grid strong { margin-bottom: 3px; color: #334057; font-size: 11px; }
-.type-radio-grid small { color: #929baa; font-size: 9px; }
+.type-radio-grid strong { display: block; color: #334057; font-size: 11px; }
 .image-dropzone { display: block; padding: 13px; border: 1px dashed #c9d2df; border-radius: 7px; background: #fafbfd; cursor: pointer; }
 .image-dropzone:hover { border-color: #1c67ff; background: #f8fbff; }
 .upload-placeholder, .upload-preview { display: flex; align-items: center; justify-content: center; gap: 11px; min-height: 44px; }
