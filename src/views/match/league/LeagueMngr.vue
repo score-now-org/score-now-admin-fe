@@ -94,7 +94,12 @@
                 :class="{ 'row-even': idx % 2 === 1 }"
               >
                 <td class="bold">{{ league.id }}</td>
-                <td>{{ sportLabel(league) }}</td>
+                <td>
+                  <AdminSportBadge
+                    :sport-code="league.sportCode"
+                    :sport-name="sportLabel(league)"
+                  />
+                </td>
                 <td class="league-name-cell">
                   <div class="name-stack">
                     <strong>{{ displayLeagueName(league) }}</strong>
@@ -884,6 +889,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import {
   createAdminLeague,
   createLeagueSeason,
@@ -2019,6 +2025,7 @@ function normalizeLeagueResponse(league = {}) {
     kName: league.kName ?? league.kname ?? league.KName ?? '',
     eName: league.eName ?? league.ename ?? league.EName ?? '',
     sName: league.sName ?? league.sname ?? league.SName ?? '',
+    sportCode: league.sportCode ?? '',
     syncEnabled: normalizeBoolean(league.syncEnabled ?? league.sync_enabled ?? league.SyncEnabled),
   }
 }

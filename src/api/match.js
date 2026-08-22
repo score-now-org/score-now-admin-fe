@@ -71,3 +71,31 @@ export const getMatchTeamCandidates = async (params) => {
 
   return response.data?.data ?? response.data;
 };
+
+// 경기의 현재 경기장 매핑 조회 API
+export const getMatchStadiumMapping = async (matchId) => {
+  const response = await client.get(`/api/v1/admin/matches/${matchId}/stadium`);
+
+  return response.data?.data ?? response.data;
+};
+
+// 등록 경기장 배정 API
+export const assignMatchStadium = async (matchId, payload) => {
+  const response = await client.patch(`/api/v1/admin/matches/${matchId}/stadium`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 임시 경기장 배정 API
+export const assignMatchTemporaryStadium = async (matchId, payload) => {
+  const response = await client.patch(`/api/v1/admin/matches/${matchId}/temporary-stadium`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 임시 경기장 매핑 해제 API
+export const removeMatchTemporaryStadium = async (matchId) => {
+  const response = await client.delete(`/api/v1/admin/matches/${matchId}/temporary-stadium`);
+
+  return response.data?.data ?? response.data;
+};

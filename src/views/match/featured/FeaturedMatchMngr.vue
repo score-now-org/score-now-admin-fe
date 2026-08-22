@@ -94,7 +94,7 @@
             </tr>
             <tr v-for="match in visibleFeaturedMatches" :key="match.featuredMatchId">
               <td class="id-cell">{{ match.matchId }}</td>
-              <td><span class="sport-badge" :class="match.sportClass">{{ match.sportName }}</span></td>
+              <td><AdminSportBadge :sport-code="match.sportCode" :sport-name="match.sportName" /></td>
               <td>{{ match.league }}</td>
               <td class="team-name">{{ match.homeTeam }}</td>
               <td class="team-name">{{ match.awayTeam }}</td>
@@ -218,7 +218,7 @@
                   />
                 </td>
                 <td class="time-only">{{ formatTime(match.startAt) }}</td>
-                <td><span class="sport-badge" :class="match.sportClass">{{ match.sportName }}</span></td>
+                <td><AdminSportBadge :sport-code="match.sportCode" :sport-name="match.sportName" /></td>
                 <td>{{ match.league }}</td>
                 <td>
                   <div class="matchup">
@@ -263,6 +263,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import {
   createFeaturedMatches,
   deleteFeaturedMatch,
@@ -503,8 +504,8 @@ function normalizeFeaturedMatch(match) {
     featuredMatchId: match.featuredMatchId,
     matchId: match.matchId,
     sportId: match.sportId,
+    sportCode: match.sportCode || '',
     sportName: match.sportName || '-',
-    sportClass: sportClass(match.sportName),
     league: match.leagueName || '-',
     homeTeam: match.homeTeamName || '-',
     awayTeam: match.awayTeamName || '-',
@@ -518,22 +519,14 @@ function normalizeCandidateMatch(match) {
   return {
     id: match.matchId,
     sportId: match.sportId,
+    sportCode: match.sportCode || '',
     sportName: match.sportName || '-',
-    sportClass: sportClass(match.sportName),
     league: match.leagueName || '-',
     homeTeam: match.homeTeamName || '-',
     awayTeam: match.awayTeamName || '-',
     startAt: match.startAt,
     registerable: match.registerable,
   }
-}
-
-function sportClass(sportName = '') {
-  const normalized = sportName.toLowerCase()
-  if (normalized.includes('축구') || normalized.includes('football') || normalized.includes('soccer')) return 'soccer'
-  if (normalized.includes('야구') || normalized.includes('baseball')) return 'baseball'
-  if (normalized.includes('농구') || normalized.includes('basketball')) return 'basketball'
-  return 'other'
 }
 
 function toApiType(type) {
@@ -609,11 +602,6 @@ th:nth-child(4), th:nth-child(5) { width: 135px; } th:nth-child(6) { width: 112p
 th:nth-child(7) { width: 104px; } th:nth-child(8) { width: 120px; } th:nth-child(9) { width: 70px; }
 .id-cell { color: #2e3b52; font-weight: 700; font-variant-numeric: tabular-nums; }
 .team-name { color: #273348; font-weight: 600; }
-.sport-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 22px; border-radius: 5px; font-size: 10px; font-weight: 700; }
-.sport-badge.soccer { color: #18734b; background: #eaf8f1; }
-.sport-badge.baseball { color: #3864bd; background: #edf3ff; }
-.sport-badge.basketball { color: #b85a19; background: #fff3e7; }
-.sport-badge.other { color: #5f6878; background: #eef1f5; }
 .type-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
 .type-badge.pinned { color: #1e61c9; background: #eaf2ff; }
 .type-badge.hot { color: #d34646; background: #fff0f0; }
