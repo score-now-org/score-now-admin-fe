@@ -186,9 +186,10 @@
             >
               <td class="match-id">{{ match.id }}</td>
               <td>
-                <BaseBadge :variant="sportVariant(match.sport)">
-                  {{ sportLabel(match.sport) }}
-                </BaseBadge>
+                <AdminSportBadge
+                  :sport-code="match.sportCode"
+                  :sport-name="match.sportName || sportLabel(match.sport)"
+                />
               </td>
               <td class="league-cell">{{ leagueName(match.leagueId) }}</td>
               <td class="center">{{ match.matchType }}</td>
@@ -386,12 +387,18 @@
     <MatchStadiumModal
       v-model="stadiumModal.visible"
       :match="stadiumModal.match"
+      @completed="handleStadiumMappingCompleted"
     />
+
+    <div v-if="stadiumToastMessage" class="stadium-toast" role="status">
+      <span>✓</span>{{ stadiumToastMessage }}
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import {
   createAdminMatch,
   getAdminMatches,
@@ -497,6 +504,8 @@ const emptyResultHeight = computed(() => `${pageSizeNumber.value * RESULT_ROW_HE
 const createModalVisible = ref(false)
 const broadcastPanel = ref({ visible: false, match: null })
 const stadiumModal = ref({ visible: false, match: null })
+const stadiumToastMessage = ref('')
+let stadiumToastTimer
 
 onMounted(async () => {
   await loadSearchOptions()
@@ -607,6 +616,7 @@ function mapMatchResponse(match) {
     id: String(match.id),
     sport,
     sportId: match.sportId,
+    sportCode: match.sportCode,
     sportName: match.sportName,
     leagueId: match.leagueId,
     leagueName: match.leagueName,
@@ -926,6 +936,14 @@ function openStadiumModal(match) {
   stadiumModal.value = { visible: true, match }
 }
 
+function handleStadiumMappingCompleted({ message }) {
+  stadiumToastMessage.value = message || '경기장 매핑이 변경되었습니다.'
+  window.clearTimeout(stadiumToastTimer)
+  stadiumToastTimer = window.setTimeout(() => {
+    stadiumToastMessage.value = ''
+  }, 3200)
+}
+
 function createMatch(match) {
   return {
     ...match,
@@ -980,10 +998,6 @@ function makeEmblem(text, color) {
 
 function sportLabel(sport) {
   return sportOptions.value.find((item) => item.value === sport)?.label || sport
-}
-
-function sportVariant(sport) {
-  return { soccer: 'green', baseball: 'yellow' }[sport] || 'gray'
 }
 
 function statusLabel(status) {
@@ -1568,6 +1582,36 @@ td {
 
 .error-empty {
   color: #dc2626;
+}
+
+.stadium-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 460px;
+  padding: 11px 15px;
+  border-radius: var(--admin-toast-radius);
+  color: var(--admin-color-surface);
+  background: var(--admin-color-toast-surface);
+  box-shadow: var(--admin-toast-shadow);
+  font-size: var(--admin-font-size-label);
+}
+
+.stadium-toast span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  color: var(--admin-color-toast-surface);
+  background: var(--admin-color-toast-accent);
+  font-size: var(--admin-font-size-table-heading);
+  font-weight: 900;
 }
 
 @media (max-width: 960px) {
