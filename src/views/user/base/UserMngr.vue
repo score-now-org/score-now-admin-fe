@@ -24,7 +24,7 @@
             <!-- 회원번호 -->
             <div class="filter-item">
               <label class="filter-label">회원번호</label>
-              <BaseInput v-model="filter.id" placeholder="회원번호 입력" />
+              <BaseInput v-model="filter.memberId" placeholder="회원번호 입력" />
             </div>
 
             <!-- 제공자 -->
@@ -83,7 +83,7 @@
           <!-- Toolbar -->
           <div class="toolbar">
             <span class="total-count"
-              >총 <strong>{{ filteredUsers.length }}</strong
+              >총 <strong>{{ pagination.totalElements  }}</strong
               >명</span
             >
             <div class="toolbar-right">
@@ -110,11 +110,11 @@
               <tbody>
                 <tr
                   v-for="(user, idx) in filteredUsers"
-                  :key="user.id"
+                  :key="user.memberId"
                   :class="{ 'row-even': idx % 2 === 1 }"
                 >
                   <td class="bold link" @click="openDetailModal(user)">
-                    {{ user.id }}
+                    {{ user.memberId }}
                   </td>
                   <td>
                     <!-- BaseBadge 적용 -->
@@ -158,26 +158,64 @@
                 </tr>
               </tbody>
             </table>
+            <!--페이징 ui -->
+            <div v-if="pagination.totalPages > 1" class="pagination">
+            <button
+              class="page-btn"
+              :disabled="pagination.currentPage === 0"
+              @click="changePage(pagination.currentPage - 1)"
+            >
+              이전
+            </button>
+
+            <button
+              v-for="page in pagination.totalPages"
+              :key="page"
+              class="page-btn"
+              :class="{
+                active: pagination.currentPage === page - 1
+              }"
+              @click="changePage(page - 1)"
+            >
+              {{ page }}
+            </button>
+
+            <button
+              class="page-btn"
+              :disabled="
+                pagination.currentPage === pagination.totalPages - 1
+              "
+              @click="changePage(pagination.currentPage + 1)"
+            >
+              다음
+            </button>
           </div>
         </div>
-  <UserDetailModal v-model="detailModal.visible" :userId="detailModal.userId" />
+        </div>
+  <UserDetailModal v-model="detailModal.visible" :memberId="detailModal.memberId" />
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from 'vue';
 import UserDetailModal from "./modals/UserDetailModal.vue";
+import { useUserMngr } from "./composables/useUserMngr";
 
+const {
+  users,
+  loading,
+  error,
+  tabs,
+  activeTab,
+  filter,
+  pagination,
+  onTabChange,
+  resetFilter,
+  fetchUsers,
+  changePage,
+  statusLabel,
+  statusVariant,
+} = useUserMngr();
 
-const tabs = ["회원", "경고회원", "영구탈퇴회원", "탈퇴 회원"];
-const activeTab = ref("회원");
-
-
-const tabFilterMap = {
-  '회원':         { status: '',         minWarningCnt: 0 },
-  '경고회원':     { status: '',         minWarningCnt: 1 },
-  '영구탈퇴회원': { status: 'banned',   minWarningCnt: 0 },
-  '탈퇴 회원':    { status: 'inactive', minWarningCnt: 0 },
-}
 
 const searchOptions = [
   { label: "닉네임", value: "nickname" },
@@ -185,100 +223,16 @@ const searchOptions = [
   { label: "제공자", value: "provider" },
 ];
 
-const filter = ref({
-  nickname:      '',
-  id:            '',
-  provider:      '',
-  createdFrom:   '',
-  createdTo:     '',
-  status:        '',
-  minWarningCnt: 0,
-})
 
-// 탭 클릭 시 필터 자동 세팅
-function onTabChange(tab) {
-  activeTab.value = tab
-  const preset = tabFilterMap[tab]
-  filter.value = {
-    nickname:      '',
-    id:            '',
-    provider:      '',
-    createdFrom:   '',
-    createdTo:     '',
-    ...preset,   // ← 탭에 맞는 status, minWarningCnt 자동 세팅
-  }
-}
-
-function resetFilter() {
-  filter.value = {
-    nickname: "",
-    id: "",
-    provider: "",
-    createdFrom: "",
-    createdTo: "",
-    status: "",
-  };
-}
-function doSearch() {} // TODO: API 연결 시 구현
-
-const users = ref([
-  {
-    id: 1234567,
-    provider: "google",
-    nickname: "playerOne",
-    warningCnt: 0,
-    countryCode: "KR",
-    createdAt: "2025-12-29 20:00:06",
-    updatedAt: "2026-01-05 10:12:00",
-    status: "active",
-    profileImageUrl: "https://i.pravatar.cc/36?img=1",
-  },
-  {
-    id: 2345678,
-    provider: "kakao",
-    nickname: "shooter99",
-    warningCnt: 2,
-    countryCode: "KR",
-    createdAt: "2025-11-15 14:30:22",
-    updatedAt: "2026-02-01 09:00:00",
-    status: "active",
-  },
-  {
-    id: 3456789,
-    provider: "google",
-    nickname: "goalking",
-    warningCnt: 0,
-    countryCode: "US",
-    createdAt: "2025-10-03 09:12:44",
-    updatedAt: "2025-12-20 17:45:00",
-    status: "inactive",
-  },
-  {
-    id: 4567890,
-    provider: "kakao",
-    nickname: "redcard77",
-    warningCnt: 5,
-    countryCode: "KR",
-    createdAt: "2025-09-01 08:00:00",
-    updatedAt: "2026-03-10 11:30:00",
-    status: "banned",
-  },
-  {
-    id: 5678901,
-    provider: "google",
-    nickname: "matchpro",
-    warningCnt: 1,
-    countryCode: "JP",
-    createdAt: "2026-01-20 16:22:11",
-    updatedAt: "2026-04-01 14:00:00",
-    status: "active",
-  },
-]);
+// 페이지 진입시 조회 
+onMounted(() => {
+  fetchUsers();
+});
 
 const filteredUsers = computed(() => {
   return users.value.filter(u => {
     if (filter.value.nickname      && !u.nickname?.toLowerCase().includes(filter.value.nickname.toLowerCase())) return false
-    if (filter.value.id            && !String(u.id).includes(filter.value.id)) return false
+    if (filter.value.memberId            && !String(u.memberId).includes(filter.value.memberId)) return false
     if (filter.value.provider      && u.provider !== filter.value.provider) return false
     if (filter.value.status        && u.status !== filter.value.status) return false
     if (filter.value.minWarningCnt && u.warningCnt < filter.value.minWarningCnt) return false
@@ -291,16 +245,6 @@ const filteredUsers = computed(() => {
   })
 })
 
-function statusLabel(status) {
-  return (
-    { active: "활동중", inactive: "비활동", banned: "정지" }[status] || status
-  );
-}
-
-function statusVariant(status) {
-  return { active: "green", inactive: "gray", banned: "red" }[status] || "gray";
-}
-
 function handleWarn() {
   alert("경고 처리");
 }
@@ -308,10 +252,10 @@ function handleBan() {
   alert("영구탈퇴 처리");
 }
 
-const detailModal = ref({ visible: false, userId: null });
+const detailModal = ref({ visible: false, memberId: null });
 
 function openDetailModal(user) {
-  detailModal.value = { visible: true, userId: user.id };
+  detailModal.value = { visible: true, userId: user.memberId };
 }
 </script>
 
@@ -600,6 +544,49 @@ td.link:hover {
   flex-direction: column;
   flex: 1;
   overflow: auto;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  padding: 16px 0;
+}
+
+.page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #d9dce3;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #f5f6f8;
+}
+
+.page-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+}
+
+.page-btn:disabled {
+  color: #bbb;
+  background: #f8f8f8;
+  cursor: not-allowed;
 }
 
 </style>

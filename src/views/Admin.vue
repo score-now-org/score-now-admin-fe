@@ -16,7 +16,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAdminData } from '../api/admin'
+import { getMembersList } from '../api/admin'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
@@ -25,7 +25,7 @@ const data = ref([])
 
 async function loadData() {
   try {
-    const res = await getAdminData()
+    const res = await getMembersList()
     data.value = res.data
   } catch (e) {
     alert('인증 실패')
