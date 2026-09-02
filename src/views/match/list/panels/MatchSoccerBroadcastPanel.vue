@@ -27,12 +27,9 @@
       <section class="work-section">
         <div class="section-head">
           <div>
-            <h4 class="section-title">시간 / 상태</h4>
-            <p class="section-desc">경기 시작 예정 시간과 현재 경기 상태를 관리합니다.</p>
+            <h4 class="section-title">경기 예정 시각</h4>
+            <p class="section-desc">경기 시작 예정 일자와 시각을 관리합니다.</p>
           </div>
-          <BaseBadge :variant="statusBadgeVariant(timeForm.status)">
-            {{ statusLabel(timeForm.status) }}
-          </BaseBadge>
         </div>
 
         <div class="time-grid">
@@ -43,18 +40,6 @@
           <label class="form-row">
             <span class="form-label">경기 시작 예정시각</span>
             <input v-model="timeForm.startTime" class="form-input" type="time" />
-          </label>
-          <label class="form-row span-2">
-            <span class="form-label">경기 상태</span>
-            <BaseSelect v-model="timeForm.status">
-              <option
-                v-for="status in statusOptions"
-                :key="status.value"
-                :value="status.value"
-              >
-                {{ status.label }}
-              </option>
-            </BaseSelect>
           </label>
         </div>
 
@@ -76,43 +61,183 @@
           >
             {{ buttonLabel('manualTime', '수동시간 저장') }}
           </BaseButton>
+        </div>
+      </section>
+
+      <section class="work-section">
+        <div class="section-head">
+          <div>
+            <h4 class="section-title">경기 상태</h4>
+            <p class="section-desc">경기의 진행 상태를 별도로 변경합니다.</p>
+          </div>
+          <BaseBadge :variant="statusBadgeVariant(timeForm.status)">
+            {{ statusLabel(timeForm.status) }}
+          </BaseBadge>
+        </div>
+
+        <div class="status-editor">
+          <label class="form-row">
+            <span class="form-label">변경할 경기 상태</span>
+            <BaseSelect v-model="timeForm.status">
+              <option
+                v-for="status in statusOptions"
+                :key="status.value"
+                :value="status.value"
+              >
+                {{ status.label }}
+              </option>
+            </BaseSelect>
+          </label>
+        </div>
+
+        <div class="action-row">
           <BaseButton
-            variant="secondary"
+            variant="primary"
             size="sm"
-            class="panel-action-btn"
             :disabled="isWorking('status')"
             @click="requestAction('status')"
           >
             {{ buttonLabel('status', '경기 상태 저장') }}
           </BaseButton>
         </div>
+      </section>
+
+      <section class="work-section">
+        <div class="section-head">
+          <div>
+            <h4 class="section-title">경기 시계</h4>
+            <p class="section-desc">경기 Phase, 경과시간과 추가시간을 관리합니다.</p>
+          </div>
+        </div>
+
+        <div class="time-subsection first-time-subsection">
+          <div class="subsection-head">
+            <div>
+              <h5 class="subsection-title">현재 경기 시계</h5>
+              <p class="section-desc">현재 Phase의 경과시간을 확인하고 보정하거나 타이머를 제어합니다.</p>
+            </div>
+            <BaseBadge :variant="footballClock.running ? 'green' : 'gray'">
+              {{ clockRunningLabel }}
+            </BaseBadge>
+          </div>
+
+          <div class="clock-overview" :class="{ running: footballClock.running }">
+            <div
+              class="clock-phase-summary"
+              :class="{ ended: footballClock.phaseCode === 'FULL_TIME' }"
+            >
+              <span>현재 Phase</span>
+              <strong>{{ currentPhaseLabel }}</strong>
+            </div>
+            <div class="clock-elapsed-summary">
+              <span>현재 경과시간</span>
+              <strong>{{ formattedClockElapsed }}</strong>
+            </div>
+          </div>
+
+          <div class="clock-meta-grid">
+            <div>
+              <span>기준 경과시간</span>
+              <strong>{{ formattedClockBaseElapsed }}</strong>
+            </div>
+            <div>
+              <span>기준시각</span>
+              <strong>{{ clockReferenceText }}</strong>
+            </div>
+          </div>
+
+          <div class="clock-correction-card">
+            <div>
+              <strong>Phase 경과시간 보정</strong>
+              <p>입력한 시간으로 기준 경과시간을 다시 설정합니다.</p>
+            </div>
+            <div class="clock-correction-controls">
+              <label class="clock-correction-field">
+                <input
+                  v-model.number="clockCorrectionForm.elapsedMinutes"
+                  type="number"
+                  min="0"
+                  step="1"
+                  :disabled="!clockInitialized"
+                />
+                <span>분</span>
+              </label>
+              <label class="clock-correction-field">
+                <input
+                  v-model.number="clockCorrectionForm.elapsedSeconds"
+                  type="number"
+                  min="0"
+                  max="59"
+                  step="1"
+                  :disabled="!clockInitialized"
+                />
+                <span>초</span>
+              </label>
+              <BaseButton
+                variant="primary"
+                size="sm"
+                :disabled="!clockInitialized || clockActionWorking"
+                @click="requestAction('clockCorrection')"
+              >
+                {{ isWorking('clockCorrection') ? '보정중' : '시간 보정' }}
+              </BaseButton>
+            </div>
+          </div>
+
+          <div class="action-row compact-action-row">
+            <BaseButton
+              v-if="footballClock.running"
+              variant="warn"
+              size="sm"
+              :disabled="!clockInitialized || clockActionWorking"
+              @click="requestAction('clockPause')"
+            >
+              {{ isWorking('clockPause') ? '처리중' : '타이머 일시정지' }}
+            </BaseButton>
+            <BaseButton
+              v-else
+              variant="secondary"
+              size="sm"
+              class="panel-action-btn"
+              :disabled="!canResumeClock || clockActionWorking"
+              @click="requestAction('clockResume')"
+            >
+              {{ isWorking('clockResume') ? '처리중' : '타이머 재개' }}
+            </BaseButton>
+            <span v-if="!clockInitialized" class="clock-action-hint">
+              먼저 아래에서 경기 Phase를 시작해주세요.
+            </span>
+            <span v-else-if="!footballClock.running && !canResumeClock" class="clock-action-hint">
+              현재 Phase 또는 경기 상태에서는 타이머를 재개할 수 없습니다.
+            </span>
+          </div>
+        </div>
 
         <div class="time-subsection">
           <div class="subsection-head">
             <div>
-              <h5 class="subsection-title">중계 상태 문구</h5>
-              <p class="section-desc">앱 화면에 노출되는 축구 경기 진행 상태 문구를 관리합니다.</p>
+              <h5 class="subsection-title">경기 Phase 전환</h5>
+              <p class="section-desc">Phase 전환 시 기준시각은 현재 시각, 경과시간은 0초로 초기화됩니다.</p>
             </div>
           </div>
 
           <div class="option-card clock-state-card">
             <div class="option-card-head">
-              <strong>상태 문구</strong>
-              <button
-                class="clear-choice-btn"
-                type="button"
-                :disabled="!timeForm.clockState"
-                @click="timeForm.clockState = ''"
-              >
-                선택 해제
-              </button>
+              <strong>전환할 Phase</strong>
+              <span
+                class="current-phase-caption"
+                :class="{ ended: footballClock.phaseCode === 'FULL_TIME' }"
+              >현재 {{ currentPhaseLabel }}</span>
             </div>
             <div class="radio-grid clock-state-radio-grid">
               <label
                 v-for="clockState in soccerClockStateOptions"
                 :key="clockState.value"
                 class="radio-option"
-                :class="{ selected: timeForm.clockState === clockState.value }"
+                :class="{
+                  selected: timeForm.clockState === clockState.value,
+                  'ending-phase': clockState.value === 'FULL_TIME',
+                }"
               >
                 <input
                   v-model="timeForm.clockState"
@@ -129,10 +254,10 @@
             <BaseButton
               variant="primary"
               size="sm"
-              :disabled="isWorking('clockState')"
+              :disabled="!canTransitionPhase || clockActionWorking"
               @click="requestAction('clockState')"
             >
-              {{ buttonLabel('clockState', '중계 상태 문구 저장') }}
+              {{ isWorking('clockState') ? '전환중' : '선택 Phase 시작/전환' }}
             </BaseButton>
           </div>
         </div>
@@ -183,9 +308,6 @@
             <h4 class="section-title">점수</h4>
             <p class="section-desc">클라이언트에 노출되는 경기 점수를 수동으로 보정합니다.</p>
           </div>
-          <BaseButton variant="outline" size="sm" @click="scoreForm.penaltyVisible = !scoreForm.penaltyVisible">
-            {{ scoreForm.penaltyVisible ? '승부차기 숨김' : '승부차기 입력' }}
-          </BaseButton>
         </div>
 
         <div class="score-editor">
@@ -205,12 +327,6 @@
             <input v-model.number="scoreForm.awayScore" class="score-input-lg" type="number" min="0" />
           </label>
 
-          <div v-if="scoreForm.penaltyVisible" class="penalty-row">
-            <div class="penalty-title">PK</div>
-            <input v-model.number="scoreForm.homePenaltyScore" class="penalty-inline-input" type="number" min="0" />
-            <span class="penalty-sep">:</span>
-            <input v-model.number="scoreForm.awayPenaltyScore" class="penalty-inline-input" type="number" min="0" />
-          </div>
         </div>
 
         <div class="action-row">
@@ -220,8 +336,36 @@
             :disabled="isWorking('score')"
             @click="requestAction('score')"
           >
-            {{ buttonLabel('score', '점수 저장') }}
+            {{ buttonLabel('score', '일반 점수 저장') }}
           </BaseButton>
+        </div>
+
+        <div v-if="isPenaltyShootoutPhase" class="penalty-score-section">
+          <div class="subsection-head">
+            <div>
+              <h5 class="subsection-title">승부차기 점수</h5>
+              <p class="section-desc">승부차기 Phase에서 기록된 점수를 별도로 저장합니다.</p>
+            </div>
+          </div>
+
+          <div class="penalty-row">
+            <span class="penalty-team-name">{{ homeTeamName }}</span>
+            <input v-model.number="scoreForm.homePenaltyScore" class="penalty-inline-input" type="number" min="0" />
+            <span class="penalty-sep">:</span>
+            <input v-model.number="scoreForm.awayPenaltyScore" class="penalty-inline-input" type="number" min="0" />
+            <span class="penalty-team-name away">{{ awayTeamName }}</span>
+          </div>
+
+          <div class="action-row compact-action-row">
+            <BaseButton
+              variant="primary"
+              size="sm"
+              :disabled="isWorking('shootOutScore')"
+              @click="requestAction('shootOutScore')"
+            >
+              {{ buttonLabel('shootOutScore', '승부차기 점수 저장') }}
+            </BaseButton>
+          </div>
         </div>
       </section>
 
@@ -343,6 +487,7 @@
               class="stat-input"
               type="number"
               min="0"
+              :max="stat.max"
             />
           </div>
           <div class="stats-row">
@@ -354,6 +499,7 @@
               class="stat-input"
               type="number"
               min="0"
+              :max="stat.max"
             />
           </div>
         </div>
@@ -421,12 +567,21 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  correctFootballClock,
   createMatchCommentary,
   getAdminMatchDetail,
   getMatchCommentaries,
-  updateFootballMatchDetail,
+  pauseFootballClock,
+  resumeFootballClock,
+  transitionFootballPhase,
+  updateAdminMatchScheduledStartAt,
+  updateAdminMatchScore,
+  updateAdminMatchStatus,
+  updateFootballAdditionalTime,
+  updateFootballShootOutScore,
+  updateFootballStatistics,
 } from '../../../../api/match'
 
 const props = defineProps({
@@ -471,7 +626,7 @@ const extraTimeFields = [
 const statFields = [
   { key: 'shots', label: '슈팅' },
   { key: 'shotsOnTarget', label: '유효슛' },
-  { key: 'possession', label: '점유율' },
+  { key: 'possession', label: '점유율', max: 100 },
   { key: 'corners', label: '코너킥' },
   { key: 'freeKicks', label: '프리킥' },
   { key: 'offsides', label: '오프사이드' },
@@ -481,6 +636,9 @@ const statFields = [
 ]
 
 const timeForm = ref(defaultTimeForm())
+const persistedMatchStatus = ref(props.match?.status || 'NOT_STARTED')
+const footballClock = ref(defaultFootballClock())
+const clockCorrectionForm = ref(defaultClockCorrectionForm())
 const scoreForm = ref(defaultScoreForm())
 const commentForm = ref(defaultCommentForm())
 const statsForm = ref(defaultStatsForm())
@@ -496,6 +654,8 @@ const commentHistoryError = ref('')
 const commentHistoryRequestId = ref(0)
 const detailError = ref('')
 const detailRequestId = ref(0)
+const clockNow = ref(Date.now())
+let clockTickTimer = null
 
 const homeTeamName = computed(() => props.match?.homeTeam?.name || '홈팀')
 const awayTeamName = computed(() => props.match?.awayTeam?.name || '원정팀')
@@ -503,8 +663,71 @@ const matchLeague = computed(() => props.match?.leagueName || props.match?.leagu
 const clockStatePreview = computed(() => {
   return soccerClockStateOptions.find((item) => item.value === timeForm.value.clockState)?.label || '선택된 문구 없음'
 })
+const clockInitialized = computed(() => (
+  Boolean(footballClock.value.phaseCode)
+    && footballClock.value.phaseElapsedSeconds != null
+    && Number.isInteger(Number(footballClock.value.phaseElapsedSeconds))
+    && Boolean(footballClock.value.clockSyncedAt)
+    && typeof footballClock.value.running === 'boolean'
+))
+const currentPhaseLabel = computed(() => {
+  if (footballClock.value.phaseName) return footballClock.value.phaseName
+
+  return soccerClockStateOptions.find((item) => (
+    item.value === footballClock.value.phaseCode
+  ))?.label || '미설정'
+})
+const resolvedClockElapsedSeconds = computed(() => {
+  if (!clockInitialized.value) return null
+
+  const baseSeconds = Math.max(Number(footballClock.value.phaseElapsedSeconds), 0)
+  if (!footballClock.value.running) return baseSeconds
+
+  const syncedAt = Date.parse(footballClock.value.clockSyncedAt)
+  if (!Number.isFinite(syncedAt)) return baseSeconds
+
+  const elapsedSinceSync = Math.max(Math.floor((clockNow.value - syncedAt) / 1000), 0)
+  return baseSeconds + elapsedSinceSync
+})
+const formattedClockElapsed = computed(() => formatClockDuration(resolvedClockElapsedSeconds.value))
+const formattedClockBaseElapsed = computed(() => (
+  formatClockDuration(clockInitialized.value ? footballClock.value.phaseElapsedSeconds : null)
+))
+const clockReferenceText = computed(() => formatClockReferenceTime(footballClock.value.clockSyncedAt))
+const clockRunningLabel = computed(() => {
+  if (!clockInitialized.value) return '미설정'
+  return footballClock.value.running ? '타이머 진행중' : '타이머 정지'
+})
+const clockActionWorking = computed(() => (
+  ['clockState', 'clockCorrection', 'clockPause', 'clockResume'].some(isWorking)
+))
+const canResumeClock = computed(() => (
+  clockInitialized.value
+    && !footballClock.value.running
+    && isClockRunningPhase(footballClock.value.phaseCode)
+    && persistedMatchStatus.value === 'IN_PLAY'
+))
+const canTransitionPhase = computed(() => (
+  Boolean(timeForm.value.clockState)
+    && timeForm.value.clockState !== footballClock.value.phaseCode
+))
+const isPenaltyShootoutPhase = computed(() => (
+  footballClock.value.phaseCode === 'PENALTY_SHOOTOUT'
+))
 const currentComment = computed(() => currentCommentary.value)
 const visibleCommentHistory = computed(() => commentHistory.value)
+
+onMounted(() => {
+  clockTickTimer = window.setInterval(() => {
+    clockNow.value = Date.now()
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (clockTickTimer != null) {
+    window.clearInterval(clockTickTimer)
+  }
+})
 
 watch(
   () => props.match?.id,
@@ -517,6 +740,9 @@ watch(
 
 function resetPanelState() {
   timeForm.value = defaultTimeForm()
+  persistedMatchStatus.value = props.match?.status || 'NOT_STARTED'
+  footballClock.value = defaultFootballClock()
+  clockCorrectionForm.value = defaultClockCorrectionForm()
   scoreForm.value = defaultScoreForm()
   commentForm.value = defaultCommentForm()
   statsForm.value = defaultStatsForm()
@@ -545,11 +771,27 @@ function defaultTimeForm() {
   }
 }
 
+function defaultFootballClock() {
+  return {
+    phaseCode: '',
+    phaseName: '',
+    clockSyncedAt: null,
+    phaseElapsedSeconds: null,
+    running: null,
+  }
+}
+
+function defaultClockCorrectionForm() {
+  return {
+    elapsedMinutes: 0,
+    elapsedSeconds: 0,
+  }
+}
+
 function defaultScoreForm() {
   return {
     homeScore: Number(props.match?.homeScore ?? 0),
     awayScore: Number(props.match?.awayScore ?? 0),
-    penaltyVisible: false,
     homePenaltyScore: 0,
     awayPenaltyScore: 0,
   }
@@ -670,6 +912,7 @@ function applyMatchDetail(detail = {}) {
   const nextHomeScore = Number(detail.homeScore ?? scoreForm.value.homeScore ?? 0)
   const nextAwayScore = Number(detail.awayScore ?? scoreForm.value.awayScore ?? 0)
   const nextClockState = resolveFootballPhaseCode(footballDetail, detail)
+  const nextFootballClock = normalizeFootballClock(footballDetail, nextClockState)
   const nextExtraTime = mergeExtraTime(timeForm.value.extraTime, footballDetail.additionalTime)
   const nextPenaltyScore = pickPenaltyScore(footballDetail.shootOutScore)
   const nextHomeStats = mergeStats(statsForm.value.home, footballDetail.homeStats)
@@ -683,12 +926,16 @@ function applyMatchDetail(detail = {}) {
     clockState: nextClockState || '',
     extraTime: nextExtraTime,
   }
+  persistedMatchStatus.value = nextStatus
+
+  footballClock.value = nextFootballClock
+  clockCorrectionForm.value = correctionFormFromSeconds(nextFootballClock.phaseElapsedSeconds)
+  clockNow.value = Date.now()
 
   scoreForm.value = {
     ...scoreForm.value,
     homeScore: nextHomeScore,
     awayScore: nextAwayScore,
-    penaltyVisible: scoreForm.value.penaltyVisible || nextPenaltyScore.visible,
     homePenaltyScore: nextPenaltyScore.homeScore ?? scoreForm.value.homePenaltyScore,
     awayPenaltyScore: nextPenaltyScore.awayScore ?? scoreForm.value.awayPenaltyScore,
   }
@@ -789,8 +1036,62 @@ async function saveFootballDetail(action) {
   const payload = buildFootballDetailUpdatePayload(action)
   if (!payload) return
 
-  await updateFootballMatchDetail(props.match.id, payload)
+  await executeFootballDetailUpdate(action, payload)
   applyFootballDetailUpdatePayload(payload)
+  await fetchMatchDetail('detail')
+}
+
+async function executeFootballDetailUpdate(action, payload) {
+  const matchId = props.match.id
+
+  if (action === 'currentTime' || action === 'manualTime') {
+    await updateAdminMatchScheduledStartAt(matchId, payload)
+    return
+  }
+
+  if (action === 'status') {
+    await updateAdminMatchStatus(matchId, payload)
+    return
+  }
+
+  if (action === 'clockState') {
+    await transitionFootballPhase(matchId, payload)
+    return
+  }
+
+  if (action === 'clockCorrection') {
+    await correctFootballClock(matchId, payload)
+    return
+  }
+
+  if (action === 'clockPause') {
+    await pauseFootballClock(matchId)
+    return
+  }
+
+  if (action === 'clockResume') {
+    await resumeFootballClock(matchId)
+    return
+  }
+
+  if (action === 'extraTime') {
+    await updateFootballAdditionalTime(matchId, payload)
+    return
+  }
+
+  if (action === 'score') {
+    await updateAdminMatchScore(matchId, payload)
+    return
+  }
+
+  if (action === 'shootOutScore') {
+    await updateFootballShootOutScore(matchId, payload)
+    return
+  }
+
+  if (action === 'stats') {
+    await updateFootballStatistics(matchId, payload)
+  }
 }
 
 async function saveCommentary() {
@@ -836,9 +1137,18 @@ function buildFootballDetailUpdatePayload(action) {
 
   if (action === 'clockState') {
     return {
-      phase: timeForm.value.clockState || null,
+      footballPhase: timeForm.value.clockState || null,
     }
   }
+
+  if (action === 'clockCorrection') {
+    return {
+      elapsedMinutes: toNonNegativeInteger(clockCorrectionForm.value.elapsedMinutes),
+      elapsedSeconds: toNonNegativeInteger(clockCorrectionForm.value.elapsedSeconds),
+    }
+  }
+
+  if (action === 'clockPause' || action === 'clockResume') return {}
 
   if (action === 'extraTime') {
     return {
@@ -850,17 +1160,17 @@ function buildFootballDetailUpdatePayload(action) {
   }
 
   if (action === 'score') {
-    const payload = {
+    return {
       homeScore: toNonNegativeInteger(scoreForm.value.homeScore),
       awayScore: toNonNegativeInteger(scoreForm.value.awayScore),
     }
+  }
 
-    if (scoreForm.value.penaltyVisible) {
-      payload.homeShootOutScore = toNonNegativeInteger(scoreForm.value.homePenaltyScore)
-      payload.awayShootOutScore = toNonNegativeInteger(scoreForm.value.awayPenaltyScore)
+  if (action === 'shootOutScore') {
+    return {
+      homeShootOutScore: toNonNegativeInteger(scoreForm.value.homePenaltyScore),
+      awayShootOutScore: toNonNegativeInteger(scoreForm.value.awayPenaltyScore),
     }
-
-    return payload
   }
 
   if (action === 'stats') {
@@ -886,12 +1196,13 @@ function applyFootballDetailUpdatePayload(payload) {
 
   if (payload.status) {
     timeForm.value.status = payload.status
+    persistedMatchStatus.value = payload.status
     listPatch.status = payload.status
     listPatch.statusName = statusLabel(payload.status)
   }
 
-  if (Object.prototype.hasOwnProperty.call(payload, 'phase')) {
-    timeForm.value.clockState = payload.phase || timeForm.value.clockState
+  if (Object.prototype.hasOwnProperty.call(payload, 'footballPhase')) {
+    timeForm.value.clockState = payload.footballPhase || timeForm.value.clockState
   }
 
   extraTimeFields.forEach((field) => {
@@ -965,6 +1276,31 @@ function validateAction(action) {
     return false
   }
 
+  if (action === 'clockState' && !timeForm.value.clockState) {
+    alert('전환할 경기 Phase를 선택해주세요.')
+    return false
+  }
+
+  if (action === 'clockState' && timeForm.value.clockState === footballClock.value.phaseCode) {
+    alert('현재 Phase와 다른 Phase를 선택해주세요.')
+    return false
+  }
+
+  if (['clockCorrection', 'clockPause', 'clockResume'].includes(action) && !clockInitialized.value) {
+    alert('경기 Phase를 먼저 시작해주세요.')
+    return false
+  }
+
+  if (action === 'clockCorrection' && !isValidClockCorrection()) {
+    alert('경과시간은 0분 이상, 초는 0~59 사이의 정수로 입력해주세요.')
+    return false
+  }
+
+  if (action === 'clockResume' && !canResumeClock.value) {
+    alert('현재 Phase 또는 경기 상태에서는 타이머를 재개할 수 없습니다.')
+    return false
+  }
+
   if (action === 'comment') {
     if (!commentForm.value.message.trim()) {
       alert('중계 멘트를 입력해주세요.')
@@ -982,8 +1318,18 @@ function validateAction(action) {
     return false
   }
 
+  if (action === 'shootOutScore' && !isPenaltyShootoutPhase.value) {
+    alert('승부차기 Phase에서만 승부차기 점수를 저장할 수 있습니다.')
+    return false
+  }
+
+  if (action === 'shootOutScore' && !isValidShootOutScore()) {
+    alert('승부차기 점수는 0 이상의 숫자로 입력해주세요.')
+    return false
+  }
+
   if (action === 'stats' && !isValidStats()) {
-    alert('경기 스탯은 0 이상의 숫자로 입력해주세요.')
+    alert('경기 스탯은 0 이상의 정수로 입력하고, 점유율은 100 이하로 입력해주세요.')
     return false
   }
 
@@ -1008,8 +1354,23 @@ function actionConfig(action) {
       variant: 'primary',
     },
     clockState: {
-      title: '중계 상태 문구 저장',
+      title: '경기 Phase 전환',
       message: clockStateSaveMessage(),
+      variant: 'primary',
+    },
+    clockCorrection: {
+      title: '경과시간 보정',
+      message: `${clockCorrectionForm.value.elapsedMinutes}분 ${clockCorrectionForm.value.elapsedSeconds}초로 현재 Phase 경과시간을 보정합니다.`,
+      variant: 'primary',
+    },
+    clockPause: {
+      title: '타이머 일시정지',
+      message: `${currentPhaseLabel.value} 타이머를 현재 경과시간에서 일시정지합니다.`,
+      variant: 'warn',
+    },
+    clockResume: {
+      title: '타이머 재개',
+      message: `${currentPhaseLabel.value} 타이머를 현재 경과시간부터 다시 진행합니다.`,
       variant: 'primary',
     },
     extraTime: {
@@ -1018,8 +1379,13 @@ function actionConfig(action) {
       variant: 'primary',
     },
     score: {
-      title: '점수 저장',
+      title: '일반 점수 저장',
       message: scoreSaveMessage(),
+      variant: 'primary',
+    },
+    shootOutScore: {
+      title: '승부차기 점수 저장',
+      message: shootOutScoreSaveMessage(),
       variant: 'primary',
     },
     comment: {
@@ -1037,10 +1403,10 @@ function actionConfig(action) {
 
 function clockStateSaveMessage() {
   if (clockStatePreview.value === '선택된 문구 없음') {
-    return '선택된 중계 상태 문구가 없으면 현재 서버 값이 유지됩니다.'
+    return '전환할 경기 Phase를 선택해주세요.'
   }
 
-  return `앱에 노출되는 중계 상태 문구를 "${clockStatePreview.value}" 상태로 저장합니다.`
+  return `경기 Phase를 "${clockStatePreview.value}" 상태로 전환하고 경과시간을 0초로 초기화합니다.`
 }
 
 function extraTimeSaveMessage() {
@@ -1053,24 +1419,29 @@ function extraTimeSaveMessage() {
 function scoreSaveMessage() {
   const baseScore = `${homeTeamName.value} ${scoreForm.value.homeScore} : ${scoreForm.value.awayScore} ${awayTeamName.value}`
 
-  if (!scoreForm.value.penaltyVisible) {
-    return `${baseScore} 점수로 저장합니다.`
-  }
+  return `${baseScore} 점수로 저장합니다.`
+}
 
-  return `${baseScore}, 승부차기 ${scoreForm.value.homePenaltyScore} : ${scoreForm.value.awayPenaltyScore} 점수로 저장합니다.`
+function shootOutScoreSaveMessage() {
+  return `${homeTeamName.value} ${scoreForm.value.homePenaltyScore} : ${scoreForm.value.awayPenaltyScore} ${awayTeamName.value} 승부차기 점수로 저장합니다.`
 }
 
 function isValidExtraTime() {
   return extraTimeFields.every((field) => isNonNegativeIntegerValue(timeForm.value.extraTime[field.key]))
 }
 
+function isValidClockCorrection() {
+  return isNonNegativeIntegerValue(clockCorrectionForm.value.elapsedMinutes)
+    && isNonNegativeIntegerValue(clockCorrectionForm.value.elapsedSeconds)
+    && Number(clockCorrectionForm.value.elapsedSeconds) <= 59
+}
+
 function isValidScore() {
-  const regularScoreValid = isNonNegativeIntegerValue(scoreForm.value.homeScore)
+  return isNonNegativeIntegerValue(scoreForm.value.homeScore)
     && isNonNegativeIntegerValue(scoreForm.value.awayScore)
+}
 
-  if (!regularScoreValid) return false
-  if (!scoreForm.value.penaltyVisible) return true
-
+function isValidShootOutScore() {
   return isNonNegativeIntegerValue(scoreForm.value.homePenaltyScore)
     && isNonNegativeIntegerValue(scoreForm.value.awayPenaltyScore)
 }
@@ -1079,6 +1450,8 @@ function isValidStats() {
   return statFields.every((stat) => (
     isNonNegativeIntegerValue(statsForm.value.home[stat.key])
       && isNonNegativeIntegerValue(statsForm.value.away[stat.key])
+      && (stat.max == null || Number(statsForm.value.home[stat.key]) <= stat.max)
+      && (stat.max == null || Number(statsForm.value.away[stat.key]) <= stat.max)
   ))
 }
 
@@ -1106,6 +1479,72 @@ function buildStatsPayload(stats) {
     payload[stat.key] = toNonNegativeInteger(stats[stat.key])
     return payload
   }, {})
+}
+
+function normalizeFootballClock(footballDetail, phaseCode) {
+  const elapsedSeconds = footballDetail.phaseElapsedSeconds == null
+    ? Number.NaN
+    : Number(footballDetail.phaseElapsedSeconds)
+
+  return {
+    phaseCode: phaseCode || '',
+    phaseName: footballDetail.phaseName || '',
+    clockSyncedAt: footballDetail.clockSyncedAt || null,
+    phaseElapsedSeconds: Number.isInteger(elapsedSeconds) && elapsedSeconds >= 0
+      ? elapsedSeconds
+      : null,
+    running: typeof footballDetail.running === 'boolean'
+      ? footballDetail.running
+      : null,
+  }
+}
+
+function correctionFormFromSeconds(value) {
+  const elapsedSeconds = Number(value)
+  if (!Number.isInteger(elapsedSeconds) || elapsedSeconds < 0) {
+    return defaultClockCorrectionForm()
+  }
+
+  return {
+    elapsedMinutes: Math.floor(elapsedSeconds / 60),
+    elapsedSeconds: elapsedSeconds % 60,
+  }
+}
+
+function isClockRunningPhase(phaseCode) {
+  return [
+    'FIRST_HALF',
+    'SECOND_HALF',
+    'EXTRA_FIRST_HALF',
+    'EXTRA_SECOND_HALF',
+  ].includes(phaseCode)
+}
+
+function formatClockDuration(value) {
+  if (value == null || !Number.isFinite(Number(value))) return '--:--'
+
+  const elapsedSeconds = Math.max(Math.floor(Number(value)), 0)
+  const minutes = Math.floor(elapsedSeconds / 60)
+  const seconds = elapsedSeconds % 60
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+function formatClockReferenceTime(value) {
+  if (!value) return '-'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return date.toLocaleString('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }
 
 function resolveFootballPhaseCode(footballDetail, detail) {
@@ -1493,6 +1932,19 @@ function makeMockChats() {
   border-top: 1px solid #eef2f7;
 }
 
+.time-subsection.first-time-subsection {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.status-editor {
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
 .subsection-head {
   display: flex;
   align-items: flex-start;
@@ -1506,6 +1958,175 @@ function makeMockChats() {
   color: #111827;
   font-size: 13px;
   font-weight: 800;
+}
+
+.clock-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.8fr);
+  gap: 1px;
+  overflow: hidden;
+  background: #dbe3ec;
+  border: 1px solid #dbe3ec;
+  border-radius: 8px;
+}
+
+.clock-overview.running {
+  background: #bbf7d0;
+  border-color: #bbf7d0;
+}
+
+.clock-phase-summary,
+.clock-elapsed-summary {
+  display: flex;
+  min-height: 78px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  background: #fff;
+}
+
+.clock-phase-summary span,
+.clock-elapsed-summary span,
+.clock-meta-grid span {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.clock-phase-summary strong {
+  color: #1e293b;
+  font-size: 18px;
+}
+
+.clock-phase-summary.ended strong {
+  color: #dc2626;
+}
+
+.clock-elapsed-summary strong {
+  color: #1d4ed8;
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.clock-overview.running .clock-elapsed-summary strong {
+  color: #15803d;
+}
+
+.clock-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.clock-meta-grid > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.clock-meta-grid strong {
+  overflow: hidden;
+  color: #475569;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clock-correction-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.clock-correction-card strong {
+  color: #334155;
+  font-size: 12px;
+}
+
+.clock-correction-card p {
+  margin: 3px 0 0;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.clock-correction-controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.clock-correction-field {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+}
+
+.clock-correction-field:focus-within {
+  border-color: #60a5fa;
+}
+
+.clock-correction-field input {
+  width: 54px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 4px 0 8px;
+  color: #1e293b;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.clock-correction-field input:disabled {
+  color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.clock-correction-field span {
+  padding-right: 8px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.clock-action-hint {
+  align-self: center;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.current-phase-caption {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.current-phase-caption.ended {
+  color: #dc2626;
 }
 
 .option-card {
@@ -1589,6 +2210,16 @@ function makeMockChats() {
   color: #1d4ed8;
   background: #eff6ff;
   border-color: #93c5fd;
+}
+
+.radio-option.ending-phase {
+  color: #b91c1c;
+}
+
+.radio-option.ending-phase.selected {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fca5a5;
 }
 
 .compact-action-row {
@@ -1800,7 +2431,6 @@ function makeMockChats() {
 
 .penalty-row {
   display: grid;
-  grid-column: 1 / -1;
   grid-template-columns: 1fr 80px 24px 80px 1fr;
   align-items: center;
   gap: 8px;
@@ -1808,6 +2438,27 @@ function makeMockChats() {
   background: #f8fafc;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
+}
+
+.penalty-score-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eef2f7;
+}
+
+.penalty-team-name {
+  overflow: hidden;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.penalty-team-name.away {
+  color: #c2410c;
+  text-align: left;
 }
 
 .penalty-title {
@@ -2154,8 +2805,19 @@ function makeMockChats() {
   }
 
   .score-editor,
-  .time-grid {
+  .time-grid,
+  .clock-overview,
+  .clock-meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .clock-correction-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clock-correction-controls {
+    flex-wrap: wrap;
   }
 
   .extra-time-grid,

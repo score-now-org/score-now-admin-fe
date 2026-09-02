@@ -21,9 +21,72 @@ export const getAdminMatchDetail = async (matchId) => {
   return response.data?.data ?? response.data;
 };
 
-// 축구 중계 상세 정보 업데이트 API
-export const updateFootballMatchDetail = async (matchId, payload) => {
-  const response = await client.patch(`/api/v1/admin/matches/${matchId}/detail`, payload);
+// 중계 패널 경기 예정 시각 업데이트 API
+export const updateAdminMatchScheduledStartAt = async (matchId, payload) => {
+  const response = await client.put(`/api/v1/admin/matches/${matchId}/detail/scheduled-start-at`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 중계 패널 경기 상태 업데이트 API
+export const updateAdminMatchStatus = async (matchId, payload) => {
+  const response = await client.put(`/api/v1/admin/matches/${matchId}/detail/status`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 중계 패널 경기 점수 업데이트 API
+export const updateAdminMatchScore = async (matchId, payload) => {
+  const response = await client.put(`/api/v1/admin/matches/${matchId}/detail/score`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 축구 추가시간 업데이트 API
+export const updateFootballAdditionalTime = async (matchId, payload) => {
+  const response = await client.put(`/api/v1/admin/matches/${matchId}/detail/football/additional-time`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 축구 경기 스탯 업데이트 API
+export const updateFootballStatistics = async (matchId, payload) => {
+  const response = await client.put(`/api/v1/admin/matches/${matchId}/detail/football/statistics`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 축구 승부차기 점수 업데이트 API
+export const updateFootballShootOutScore = async (matchId, payload) => {
+  const response = await client.put(`/api/v1/admin/matches/${matchId}/detail/football/shoot-out-score`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 축구 경기 구간 전환 API
+export const transitionFootballPhase = async (matchId, payload) => {
+  const response = await client.post(`/api/v1/admin/matches/${matchId}/detail/football/clock/phase-transitions`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 축구 경기 시간 보정 API
+export const correctFootballClock = async (matchId, payload) => {
+  const response = await client.post(`/api/v1/admin/matches/${matchId}/detail/football/clock/corrections`, payload);
+
+  return response.data?.data ?? response.data;
+};
+
+// 축구 경기 타이머 일시정지 API
+export const pauseFootballClock = async (matchId) => {
+  const response = await client.post(`/api/v1/admin/matches/${matchId}/detail/football/clock/pause`);
+
+  return response.data?.data ?? response.data;
+};
+
+// 축구 경기 타이머 재개 API
+export const resumeFootballClock = async (matchId) => {
+  const response = await client.post(`/api/v1/admin/matches/${matchId}/detail/football/clock/resume`);
 
   return response.data?.data ?? response.data;
 };
