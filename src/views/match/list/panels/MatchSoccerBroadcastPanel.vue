@@ -35,11 +35,11 @@
         <div class="time-grid">
           <label class="form-row">
             <span class="form-label">경기 시작 예정일자</span>
-            <input v-model="timeForm.startDate" class="form-input" type="date" />
+            <BaseInput v-model="timeForm.startDate" type="date" />
           </label>
           <label class="form-row">
             <span class="form-label">경기 시작 예정시각</span>
-            <input v-model="timeForm.startTime" class="form-input" type="time" />
+            <BaseInput v-model="timeForm.startTime" type="time" />
           </label>
         </div>
 
@@ -423,7 +423,7 @@
           class="comment-box"
           :class="{ highlighted: commentForm.highlight }"
         >
-          <textarea
+          <BaseTextarea
             v-model="commentForm.message"
             class="comment-textarea"
             placeholder="중계 멘트를 입력하세요."
@@ -517,7 +517,7 @@
       </section>
     </div>
 
-    <BaseModal v-model="chatModalVisible" title="채팅 보기" width="620px">
+    <BaseModal v-model="chatModalVisible" title="채팅 보기" size="lg">
       <ul class="modal-list">
         <li v-for="chat in chats" :key="chat.id" class="chat-item">
           <span class="chat-time">{{ chat.time }}</span>
@@ -530,7 +530,7 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="commentHistoryModalVisible" title="중계글 모음" width="680px">
+    <BaseModal v-model="commentHistoryModalVisible" title="중계글 모음" size="lg">
       <p v-if="commentHistoryLoading" class="modal-empty">
         중계글 모음을 불러오는 중입니다.
       </p>
@@ -556,7 +556,7 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="confirmModal.visible" :title="confirmModal.title" width="420px">
+    <BaseModal v-model="confirmModal.visible" :title="confirmModal.title" size="sm">
       <p class="confirm-message">{{ confirmModal.message }}</p>
       <template #footer>
         <BaseButton variant="outline" @click="closeConfirmModal">취소</BaseButton>
@@ -568,6 +568,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import {
   correctFootballClock,
   createMatchCommentary,
@@ -1780,11 +1781,11 @@ function makeMockChats() {
   width: clamp(560px, 48vw, 760px);
   max-width: calc(100vw - 220px);
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #d1d5db;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-border);
   border-right: none;
-  border-radius: 12px 0 0 12px;
-  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.16);
+  border-radius: var(--admin-card-radius) 0 0 var(--admin-card-radius);
+  box-shadow: -8px 0 24px rgb(15 23 42 / 14%);
   animation: panel-slide-in 0.18s ease-out;
 }
 
@@ -1800,8 +1801,7 @@ function makeMockChats() {
   }
 }
 
-.panel-header,
-.panel-footer {
+.panel-header {
   flex-shrink: 0;
 }
 
@@ -1811,21 +1811,21 @@ function makeMockChats() {
   justify-content: space-between;
   gap: 16px;
   padding: 16px;
-  background: #f8fafc;
-  border-bottom: 1px solid #dbe3ec;
-  border-radius: 12px 0 0 0;
+  background: var(--admin-color-surface-subtle);
+  border-bottom: 1px solid var(--admin-color-divider);
+  border-radius: var(--admin-card-radius) 0 0 0;
 }
 
 .panel-kicker {
   margin: 0 0 3px;
-  color: #6b7280;
+  color: var(--admin-color-text-muted);
   font-size: 11px;
   font-weight: 600;
 }
 
 .panel-title {
   margin: 0;
-  color: #111827;
+  color: var(--admin-color-text-title);
   font-size: 17px;
   font-weight: 700;
 }
@@ -1840,26 +1840,27 @@ function makeMockChats() {
 .panel-close {
   width: 28px;
   height: 28px;
-  color: #6b7280;
+  color: var(--admin-color-text-muted);
   font-size: 18px;
   line-height: 1;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
   cursor: pointer;
 }
 
 .panel-close:hover {
-  background: #f3f4f6;
+  color: var(--admin-color-text-title);
+  background: var(--admin-color-table-heading-surface);
 }
 
 .score-input-lg {
-  color: #111827;
+  color: var(--admin-color-text-title);
   font-weight: 800;
   text-align: center;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .score-vs {
@@ -1885,7 +1886,7 @@ function makeMockChats() {
 
 .work-section {
   padding: 14px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--admin-color-divider);
 }
 
 .work-section:first-child {
@@ -1902,14 +1903,14 @@ function makeMockChats() {
 
 .section-title {
   margin: 0 0 4px;
-  color: #111827;
+  color: var(--admin-color-text-title);
   font-size: 13px;
   font-weight: 700;
 }
 
 .section-desc {
   margin: 0;
-  color: #9ca3af;
+  color: var(--admin-color-text-subtle);
   font-size: 11px;
 }
 
@@ -1940,9 +1941,9 @@ function makeMockChats() {
 
 .status-editor {
   padding: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-card-radius);
 }
 
 .subsection-head {
@@ -1955,7 +1956,7 @@ function makeMockChats() {
 
 .subsection-title {
   margin: 0 0 4px;
-  color: #111827;
+  color: var(--admin-color-text-title);
   font-size: 13px;
   font-weight: 800;
 }
@@ -1965,8 +1966,8 @@ function makeMockChats() {
   grid-template-columns: minmax(0, 1fr) minmax(180px, 0.8fr);
   gap: 1px;
   overflow: hidden;
-  background: #dbe3ec;
-  border: 1px solid #dbe3ec;
+  background: var(--admin-color-divider);
+  border: 1px solid var(--admin-color-divider);
   border-radius: 8px;
 }
 
@@ -1984,7 +1985,7 @@ function makeMockChats() {
   justify-content: center;
   gap: 6px;
   padding: 10px;
-  background: #fff;
+  background: var(--admin-color-surface);
 }
 
 .clock-phase-summary span,
@@ -2029,9 +2030,9 @@ function makeMockChats() {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .clock-meta-grid strong {
@@ -2050,9 +2051,9 @@ function makeMockChats() {
   gap: 16px;
   margin-top: 10px;
   padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-card-radius);
 }
 
 .clock-correction-card strong {
@@ -2078,13 +2079,14 @@ function makeMockChats() {
   height: 32px;
   align-items: center;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .clock-correction-field:focus-within {
-  border-color: #60a5fa;
+  border-color: var(--admin-color-primary);
+  box-shadow: var(--admin-focus-ring);
 }
 
 .clock-correction-field input {
@@ -2132,9 +2134,9 @@ function makeMockChats() {
 .option-card {
   min-width: 0;
   padding: 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-card-radius);
 }
 
 .option-card-head {
@@ -2145,26 +2147,6 @@ function makeMockChats() {
   margin-bottom: 10px;
   color: #374151;
   font-size: 12px;
-}
-
-.clear-choice-btn {
-  height: 24px;
-  padding: 0 8px;
-  color: #6b7280;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.clear-choice-btn:disabled {
-  color: #cbd5e1;
-  cursor: not-allowed;
-  background: #f8fafc;
-  border-color: #e5e7eb;
 }
 
 .radio-grid {
@@ -2185,12 +2167,12 @@ function makeMockChats() {
   gap: 6px;
   box-sizing: border-box;
   padding: 0 9px;
-  color: #4b5563;
+  color: var(--admin-color-text-body);
   font-size: 12px;
   font-weight: 600;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
   cursor: pointer;
 }
 
@@ -2207,9 +2189,10 @@ function makeMockChats() {
 }
 
 .radio-option.selected {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border-color: #93c5fd;
+  color: var(--admin-color-primary);
+  background: #f6f9ff;
+  border-color: #4281ec;
+  box-shadow: 0 0 0 2px rgb(28 103 255 / 7%);
 }
 
 .radio-option.ending-phase {
@@ -2251,9 +2234,9 @@ function makeMockChats() {
   height: 34px;
   align-items: center;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .extra-time-input-wrap span {
@@ -2280,12 +2263,8 @@ function makeMockChats() {
 }
 
 .extra-time-input-wrap:focus-within {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.22);
-}
-
-.span-2 {
-  grid-column: span 2;
+  border-color: var(--admin-color-primary);
+  box-shadow: var(--admin-focus-ring);
 }
 
 .form-row {
@@ -2295,34 +2274,27 @@ function makeMockChats() {
 }
 
 .form-label {
-  color: #6b7280;
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--admin-color-text-label);
+  font-size: var(--admin-font-size-label);
+  font-weight: 700;
 }
 
-.form-input,
 .stat-input {
   box-sizing: border-box;
-  color: #232323;
+  color: var(--admin-color-text-control);
   font-family: inherit;
   font-size: 12px;
-  background: #f3f3f3;
-  border: 1px solid #e9e9e9;
-  border-radius: 4px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
   outline: none;
 }
 
-.form-input {
-  width: 100%;
-  padding: 7px 12px;
-}
-
-.form-input:focus,
 .score-input:focus,
-.score-input-lg:focus,
-.comment-textarea:focus {
-  background: #fff;
-  border-color: #1c67ff;
+.score-input-lg:focus {
+  background: var(--admin-color-surface);
+  border-color: var(--admin-color-primary);
+  box-shadow: var(--admin-focus-ring);
 }
 
 .action-row {
@@ -2333,11 +2305,13 @@ function makeMockChats() {
 }
 
 :deep(.base-btn.panel-action-btn) {
-  background: #64748b;
+  color: #4b5563;
+  background: var(--admin-color-surface);
+  border-color: #d1d5db;
 }
 
 :deep(.base-btn.panel-action-btn:hover:not(.disabled)) {
-  background: #475569;
+  background: #f3f4f6;
 }
 
 .score-editor {
@@ -2346,9 +2320,9 @@ function makeMockChats() {
   align-items: end;
   gap: 12px;
   padding: 12px;
-  background: #fff;
-  border: 1px solid #dbe3ec;
-  border-radius: 8px;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-card-radius);
 }
 
 .score-team {
@@ -2358,18 +2332,19 @@ function makeMockChats() {
   gap: 10px;
   align-items: center;
   padding: 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .home-score-team {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: var(--admin-color-surface-subtle);
+  border-color: var(--admin-color-border);
 }
 
 .away-score-team {
-  background: #fff7ed;
-  border-color: #fed7aa;
+  background: var(--admin-color-surface-subtle);
+  border-color: var(--admin-color-border);
 }
 
 .team-title-stack {
@@ -2400,8 +2375,8 @@ function makeMockChats() {
 }
 
 .away-label {
-  color: #c2410c;
-  background: #ffedd5;
+  color: #5f6878;
+  background: #eef1f5;
 }
 
 .score-team-name {
@@ -2435,9 +2410,9 @@ function makeMockChats() {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .penalty-score-section {
@@ -2461,14 +2436,6 @@ function makeMockChats() {
   text-align: left;
 }
 
-.penalty-title {
-  grid-column: 1 / -1;
-  justify-self: center;
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .penalty-inline-input {
   grid-column: 2;
   width: 100%;
@@ -2478,14 +2445,15 @@ function makeMockChats() {
   font-size: 13px;
   font-weight: 700;
   text-align: center;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
   outline: none;
 }
 
 .penalty-inline-input:focus {
-  border-color: #1c67ff;
+  border-color: var(--admin-color-primary);
+  box-shadow: var(--admin-focus-ring);
 }
 
 .penalty-sep {
@@ -2501,9 +2469,9 @@ function makeMockChats() {
 }
 
 .comment-box {
-  background: #f9fafb;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .comment-box.highlighted {
@@ -2523,28 +2491,28 @@ function makeMockChats() {
 }
 
 :deep(.base-btn.record-toggle-on) {
-  color: #fff;
-  background: #16a34a;
-  border: none;
+  color: #18734b;
+  background: #eaf8f1;
+  border-color: #bfe7d2;
   font-weight: 700;
 }
 
 :deep(.base-btn.record-toggle-on:hover:not(.disabled)) {
-  background: #15803d;
+  background: #ddf3e8;
 }
 
 :deep(.base-btn.record-toggle-off) {
-  color: #fff;
-  background: #64748b;
-  border: none;
+  color: #5f6878;
+  background: #eef1f5;
+  border-color: #dce2eb;
   font-weight: 700;
 }
 
 :deep(.base-btn.record-toggle-off:hover:not(.disabled)) {
-  background: #475569;
+  background: #e4e8ee;
 }
 
-.comment-textarea {
+:deep(.base-textarea.comment-textarea) {
   width: 100%;
   box-sizing: border-box;
   padding: 12px;
@@ -2558,9 +2526,10 @@ function makeMockChats() {
   outline: none;
 }
 
-.comment-textarea:focus {
+:deep(.base-textarea.comment-textarea:focus) {
   background: transparent;
   border-color: transparent;
+  box-shadow: none;
 }
 
 .comment-box:focus-within {
@@ -2654,8 +2623,8 @@ function makeMockChats() {
 
 .stats-table {
   overflow-x: auto;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .stats-row {
@@ -2665,7 +2634,7 @@ function makeMockChats() {
 }
 
 .stats-row + .stats-row {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--admin-color-divider);
 }
 
 .stats-row > span,
@@ -2693,14 +2662,14 @@ function makeMockChats() {
   color: #374151;
   font-size: 11px;
   font-weight: 700;
-  background: #f3f4f6;
+  background: var(--admin-color-table-heading-surface);
 }
 
 .stats-team-name {
   color: #374151;
   font-size: 12px;
   font-weight: 700;
-  background: #f9fafb;
+  background: var(--admin-color-surface-subtle);
 }
 
 .stat-input {
@@ -2709,18 +2678,9 @@ function makeMockChats() {
 }
 
 .stat-input:focus {
-  background: #eff6ff;
+  background: #f6f9ff;
   border-color: transparent #e5e7eb transparent transparent;
   box-shadow: inset 0 0 0 1px #93c5fd;
-}
-
-.panel-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fff;
-  border-top: 1px solid #e5e7eb;
 }
 
 .modal-list {
@@ -2739,8 +2699,8 @@ function makeMockChats() {
   grid-template-columns: 48px 90px 1fr;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .chat-time,
@@ -2761,8 +2721,8 @@ function makeMockChats() {
 
 .comment-history-item {
   padding: 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .comment-history-item p {
@@ -2828,10 +2788,6 @@ function makeMockChats() {
 
   .subsection-head {
     flex-direction: column;
-  }
-
-  .span-2 {
-    grid-column: auto;
   }
 }
 </style>

@@ -67,7 +67,7 @@ async function handleLogin() {
     // TODO: 실제 API 연결 시 교체
     // const res = await api.post('/auth/login', form.value)
     await new Promise(resolve => setTimeout(resolve, 800))
-    router.push('/admin/user')
+    router.replace({ name: 'admin-match-list' })
   } catch (e) {
     errorMsg.value = '아이디 또는 비밀번호가 올바르지 않습니다.'
   } finally {

@@ -1,5 +1,5 @@
 <template>
-  <span class="base-badge" :class="variant">
+  <span class="base-badge" :class="`base-badge--${variant}`">
     <slot />
   </span>
 </template>
@@ -9,23 +9,50 @@ defineProps({
   variant: {
     type: String,
     default: 'gray',
-    // blue | red | yellow | green | gray
-  }
+    validator: (value) => ['blue', 'red', 'yellow', 'green', 'gray'].includes(value),
+  },
 })
 </script>
 
 <style scoped>
+/* 모든 전문 배지가 공유하는 크기·간격·알약 형태 */
 .base-badge {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
 }
-.blue   { background: #dbeafe; color: #1d4ed8; }
-.red    { background: #fee2e2; color: #dc2626; }
-.yellow { background: #fef9c3; color: #a16207; }
-.green  { background: #dcfce7; color: #16a34a; }
-.gray   { background: #f3f4f6; color: #6b7280; }
+
+.base-badge--blue {
+  color: #3864bd;
+  background: #edf3ff;
+}
+
+.base-badge--red {
+  color: #c53c46;
+  background: #fff0f0;
+}
+
+.base-badge--yellow {
+  color: #9a6511;
+  background: #fff5d9;
+}
+
+.base-badge--green {
+  color: #18734b;
+  background: #eaf8f1;
+}
+
+.base-badge--gray {
+  color: #5f6878;
+  background: #eef1f5;
+}
 </style>

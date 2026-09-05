@@ -1,10 +1,6 @@
 <template>
-  <div class="admin-page">
-    <header class="page-header">
-      <div class="title-row"><h1>경기장 관리</h1></div>
-    </header>
-
-    <section class="filter-card" aria-label="경기장 검색 조건">
+  <AdminListPage title="경기장 관리">
+    <AdminFilterCard aria-label="경기장 검색 조건">
       <div class="field-group id-search">
         <label for="stadium-id">경기장 ID</label>
         <BaseInput id="stadium-id" v-model="searchForm.id" placeholder="경기장 ID 입력" @enter="searchStadiums" />
@@ -13,32 +9,31 @@
         <label for="stadium-name">경기장명</label>
         <BaseInput id="stadium-name" v-model="searchForm.name" placeholder="경기장명 입력" @enter="searchStadiums" />
       </div>
-      <div class="filter-actions">
+      <template #actions>
         <BaseButton variant="secondary" size="md" :disabled="loading" @click="resetSearch">초기화</BaseButton>
         <BaseButton variant="primary" size="md" :disabled="loading" @click="searchStadiums">검색</BaseButton>
-        <BaseButton variant="secondary" size="md" class="register-action" @click="openCreateModal">+ 경기장 등록</BaseButton>
-      </div>
-    </section>
+        <BaseButton variant="success" size="md" @click="openCreateModal">+ 경기장 등록</BaseButton>
+      </template>
+    </AdminFilterCard>
 
-    <section class="table-card">
-      <div class="table-toolbar">
-        <div class="result-summary">
-          <strong>검색 결과</strong>
-          <span>총 {{ totalElements }}건</span>
-        </div>
-        <div class="paging-toolbar">
-          <label for="stadium-page-size">페이지당</label>
-          <select id="stadium-page-size" v-model="pageSize" :disabled="loading" @change="changePageSize">
-            <option v-for="option in pageSizeOptions" :key="option" :value="option">{{ option }}개</option>
-          </select>
-          <span>{{ page }} / {{ maxPage }} 페이지</span>
-          <BaseButton variant="outline" size="sm" :disabled="loading || page === 1" @click="changePage(page - 1)">이전</BaseButton>
-          <BaseButton variant="outline" size="sm" :disabled="loading || page === maxPage" @click="changePage(page + 1)">다음</BaseButton>
-        </div>
-      </div>
+    <AdminTableCard scroll-label="경기장 목록" table-min-width="900px">
+      <template #summary>
+        <strong>검색 결과</strong>
+        <span>총 {{ totalElements }}건</span>
+      </template>
+      <template #toolbar-actions>
+        <AdminTablePagination
+          v-model:page-size="pageSize"
+          :page-size-options="pageSizeOptions"
+          :page="page"
+          :total-pages="maxPage"
+          :loading="loading"
+          @change-page="changePage"
+          @change-page-size="changePageSize"
+        />
+      </template>
 
-      <div class="table-scroll">
-        <table>
+      <table>
           <thead>
             <tr>
               <th>경기장 ID</th>
@@ -50,16 +45,26 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading">
-              <td colspan="6" class="empty-state"><strong>경기장 목록을 불러오는 중입니다.</strong></td>
-            </tr>
-            <tr v-else-if="stadiums.length === 0">
-              <td colspan="6" class="empty-state">
-                <span class="empty-icon">○</span>
-                <strong>검색 결과가 없습니다.</strong>
-                <small>경기장 ID 또는 경기장명을 다시 확인해 주세요.</small>
-              </td>
-            </tr>
+            <AdminTableState
+              v-if="loading"
+              type="loading"
+              :colspan="6"
+              title="경기장 목록을 불러오는 중입니다."
+              compact
+            />
+            <AdminTableState
+              v-else-if="listError"
+              type="error"
+              :colspan="6"
+              :title="listError"
+              description="잠시 후 다시 검색해 주세요."
+            />
+            <AdminTableState
+              v-else-if="stadiums.length === 0"
+              :colspan="6"
+              title="검색 결과가 없습니다."
+              description="경기장 ID 또는 경기장명을 다시 확인해 주세요."
+            />
             <template v-else>
               <tr v-for="stadium in stadiums" :key="stadium.id" :class="{ dirty: isDirty(stadium) }">
                 <td class="id-cell">{{ stadium.id }}</td>
@@ -105,12 +110,11 @@
               </tr>
             </template>
           </tbody>
-        </table>
-      </div>
-    </section>
+      </table>
+    </AdminTableCard>
 
-    <BaseModal v-model="createModalOpen" title="수동 경기장 등록" width="560px">
-      <form class="stadium-form" @submit.prevent="createStadium">
+    <BaseModal v-model="createModalOpen" title="수동 경기장 등록" size="md" :close-disabled="creating">
+      <form class="stadium-form modal-form" @submit.prevent="createStadium">
         <div class="form-field">
           <label for="stadium-sport">종목 <span>*</span></label>
           <div id="stadium-sport" class="sport-options" role="radiogroup" aria-label="종목 선택">
@@ -130,22 +134,20 @@
 
         <div class="form-field">
           <label for="new-stadium-name">경기장명 <span>*</span></label>
-          <input
+          <BaseInput
             id="new-stadium-name"
             v-model="newStadium.name"
             maxlength="255"
-            class="form-control"
             placeholder="예: 서울월드컵경기장"
           />
         </div>
 
         <div class="form-field">
           <label for="new-stadium-city">도시명 <span>*</span></label>
-          <input
+          <BaseInput
             id="new-stadium-city"
             v-model="newStadium.city"
             maxlength="255"
-            class="form-control"
             placeholder="예: 서울"
           />
         </div>
@@ -162,11 +164,17 @@
     <div v-if="toastMessage" class="toast" :class="toastType" role="status">
       <span>{{ toastType === 'error' ? '!' : '✓' }}</span>{{ toastMessage }}
     </div>
-  </div>
+  </AdminListPage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
+import AdminListPage from '@/components/admin/AdminListPage.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
+import AdminTableCard from '@/components/admin/AdminTableCard.vue'
+import AdminTablePagination from '@/components/admin/AdminTablePagination.vue'
+import AdminTableState from '@/components/admin/AdminTableState.vue'
 import AdminDataOriginBadge from '@/components/common/AdminDataOriginBadge.vue'
 import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import {
@@ -188,6 +196,7 @@ const page = ref(1)
 const pageSize = ref(20)
 const totalPages = ref(1)
 const totalElements = ref(0)
+const listError = ref('')
 const searchForm = reactive({ id: '', name: '' })
 const appliedSearch = reactive({ id: '', name: '' })
 const createModalOpen = ref(false)
@@ -267,6 +276,7 @@ async function resetSearch() {
 
 async function fetchStadiums() {
   loading.value = true
+  listError.value = ''
   try {
     const params = { page: page.value - 1, size: Number(pageSize.value), sort: 'id,asc' }
     if (appliedSearch.id) params.stadiumId = Number(appliedSearch.id)
@@ -282,7 +292,7 @@ async function fetchStadiums() {
     stadiums.value = []
     totalElements.value = 0
     totalPages.value = 1
-    showError(error, '경기장 목록을 불러오지 못했습니다.')
+    listError.value = error?.response?.data?.error?.message || '경기장 목록을 불러오지 못했습니다.'
   } finally {
     loading.value = false
   }
@@ -405,58 +415,12 @@ function showToast(message, type = 'success') {
 </script>
 
 <style scoped>
-.admin-page { min-width: 920px; padding: var(--admin-page-padding); color: var(--admin-color-text-body); }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--admin-page-header-gap); margin-bottom: var(--admin-page-header-margin-bottom); }
-.title-row { display: flex; align-items: center; gap: 10px; }
-.page-header h1 { margin: 0; font-size: var(--admin-font-size-page-title); line-height: 1.35; letter-spacing: -.04em; color: var(--admin-color-text-title); }
-.filter-card { display: flex; align-items: flex-end; gap: var(--admin-filter-gap); padding: var(--admin-card-padding); margin-bottom: var(--admin-section-margin-bottom); background: var(--admin-color-surface); border: 1px solid var(--admin-color-border); border-radius: var(--admin-card-radius); }
-.field-group { display: flex; flex-direction: column; gap: var(--admin-field-gap); }
-.field-group label { color: var(--admin-color-text-label); font-size: var(--admin-font-size-label); font-weight: 700; }
 .id-search { width: 160px; }
 .name-search { width: 310px; }
-.filter-actions { display: flex; gap: var(--admin-action-gap); margin-left: auto; }
-.filter-actions :deep(.register-action) { min-width: 104px; background: #0f9f6e; color: #fff; box-shadow: 0 4px 10px rgba(15, 159, 110, .18); }
-.filter-actions :deep(.register-action:hover:not(.disabled)) { background: #0b8059; }
-.table-card { overflow: hidden; background: var(--admin-color-surface); border: 1px solid var(--admin-color-border); border-radius: var(--admin-card-radius); }
-.table-toolbar { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 var(--admin-card-padding); border-bottom: 1px solid var(--admin-color-divider); }
-.result-summary, .paging-toolbar { display: flex; align-items: center; gap: 10px; }
-.table-toolbar strong { font-size: 13px; }
-.table-toolbar span, .paging-toolbar label { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-label); }
-.paging-toolbar select { height: 28px; padding: 0 8px; border: 1px solid var(--admin-color-control-border); border-radius: var(--admin-control-radius); color: var(--admin-color-text-control); background: #fff; font-size: var(--admin-font-size-label); }
-.table-scroll { overflow-x: auto; }
-table { width: 100%; min-width: 900px; border-collapse: collapse; table-layout: fixed; }
-th { height: 39px; padding: 0 10px; border-bottom: 1px solid var(--admin-color-table-heading-border); color: var(--admin-color-text-table-heading); background: var(--admin-color-table-heading-surface); font-size: var(--admin-font-size-table-heading); font-weight: 700; text-align: center; white-space: nowrap; }
-td { height: 64px; padding: 8px 10px; border-bottom: 1px solid var(--admin-color-table-row-border); color: var(--admin-color-text-table-body); font-size: var(--admin-font-size-table-body); text-align: center; vertical-align: middle; }
-tbody tr:last-child td { border-bottom: 0; }
-tbody tr:hover:not(:has(.empty-state)) { background: var(--admin-color-table-row-hover); }
-tbody tr.dirty { background: #fffdf5; }
-tbody tr.dirty:hover { background: #fffaf0; }
 th:nth-child(1) { width: 92px; } th:nth-child(2) { width: 100px; } th:nth-child(3) { width: 260px; }
 th:nth-child(4) { width: 180px; } th:nth-child(5) { width: 100px; } th:nth-child(6) { width: 140px; }
-.id-cell { color: #2e3b52; font-weight: 700; font-variant-numeric: tabular-nums; }
-.row-control { width: 100%; height: 32px; padding: 0 9px; border: 1px solid transparent; border-radius: 5px; outline: none; color: #303b50; background: transparent; font: inherit; font-size: 11px; text-align: center; }
-.row-control:hover:not(:disabled) { border-color: #e1e6ed; background: #fff; }
-.row-control:focus { border-color: #1c67ff; background: #fff; box-shadow: 0 0 0 2px rgba(28, 103, 255, .08); }
-.row-control:disabled { opacity: .65; }
 .name-control { font-weight: 600; }
-.action-buttons { display: flex; justify-content: center; gap: 5px; }
-.empty-state { height: 230px; text-align: center; }
-.empty-state > * { display: block; margin: auto; }
-.empty-state .empty-icon { margin-bottom: 9px; color: var(--admin-color-info-border); font-size: 24px; }
-.empty-state strong { color: var(--admin-color-text-empty-title); font-size: var(--admin-font-size-description); }
-.empty-state small { margin-top: 5px; color: var(--admin-color-text-empty-description); font-size: var(--admin-font-size-table-heading); }
-.stadium-form { display: flex; flex-direction: column; gap: 17px; }
-.form-field { display: flex; flex-direction: column; gap: var(--admin-field-gap); }
-.form-field > label { color: var(--admin-color-text-label); font-size: var(--admin-font-size-table-heading); font-weight: 700; }
-.form-field > label span { color: #e14d4d; }
-.form-control { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--admin-color-control-border); border-radius: var(--admin-control-radius); outline: none; color: var(--admin-color-text-control); background: var(--admin-color-surface-subtle); font: inherit; font-size: var(--admin-font-size-label); }
-.form-control:focus { border-color: var(--admin-color-primary); background: var(--admin-color-surface); box-shadow: var(--admin-focus-ring); }
 .sport-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
 .sport-options button { display: flex; align-items: center; justify-content: center; gap: 7px; height: 42px; border: 1px solid #dde3eb; border-radius: 7px; color: #687388; background: #fff; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
 .sport-options button.selected { border-color: #4281ec; color: #1f62cc; background: #f6f9ff; box-shadow: 0 0 0 2px rgba(28, 103, 255, .07); }
-.toast { position: fixed; right: 24px; bottom: 24px; z-index: 1500; display: flex; align-items: center; gap: 8px; max-width: 460px; padding: 11px 15px; border-radius: var(--admin-toast-radius); color: var(--admin-color-surface); background: var(--admin-color-toast-surface); box-shadow: var(--admin-toast-shadow); font-size: var(--admin-font-size-label); }
-.toast.error { background: #a92f3c; }
-.toast span { display: grid; place-items: center; flex: 0 0 auto; width: 17px; height: 17px; border-radius: 50%; color: var(--admin-color-toast-surface); background: var(--admin-color-toast-accent); font-size: var(--admin-font-size-table-heading); font-weight: 900; }
-.toast.error span { color: #a92f3c; background: #fff; }
-@media (max-width: 1100px) { .admin-page { padding-inline: var(--admin-page-padding-inline-compact); } }
 </style>
