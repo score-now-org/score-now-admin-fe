@@ -1,0 +1,53 @@
+/*
+ * 관리자 작업 결과 토스트
+ * 경기, 상단고정/핫매치, 팀, 경기장 페이지의 성공·오류 메시지 표시에 사용한다.
+ * 표시 위치와 외형만 담당하며, 메시지 상태와 타이머는 각 페이지가 소유한다.
+ */
+.admin-list-page .toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 460px;
+  padding: 11px 15px;
+  color: var(--admin-color-surface);
+  font-size: var(--admin-font-size-label);
+  background: var(--admin-color-toast-surface);
+  border-radius: var(--admin-toast-radius);
+  box-shadow: var(--admin-toast-shadow);
+}
+
+.admin-list-page .toast.error {
+  background: #a92f3c;
+}
+
+.admin-list-page .toast span {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  color: var(--admin-color-toast-surface);
+  font-size: var(--admin-font-size-table-heading);
+  font-weight: 900;
+  background: var(--admin-color-toast-accent);
+  border-radius: 50%;
+}
+
+.admin-list-page .toast.error span {
+  color: #a92f3c;
+  background: var(--admin-color-surface);
+}
+
+/* 작은 브라우저 화면에서는 토스트가 좌우 여백을 제외한 전체 폭을 사용한다. */
+@media (max-width: 600px) {
+  .admin-list-page .toast {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    max-width: none;
+  }
+}

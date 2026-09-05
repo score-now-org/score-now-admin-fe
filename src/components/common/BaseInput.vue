@@ -22,27 +22,39 @@ defineEmits(['update:modelValue', 'enter'])
 
 <style scoped>
 .base-input {
-  border: 1px solid #E9E9E9;
-  border-radius: 4px;
-  padding: 7px 12px;
-  font-size: 12px;
-  color: #232323;
-  background: #F3F3F3;
-  outline: none;
-  font-family: inherit;
-  transition: border-color 0.15s, background 0.15s;
   width: 100%;
+  min-height: var(--admin-control-height, 34px);
   box-sizing: border-box;
+  padding: 0 var(--admin-control-padding-inline, 10px);
+  color: var(--admin-color-text-control, #263248);
+  font-family: inherit;
+  font-size: var(--admin-font-size-description, 12px);
+  line-height: 1.4;
+  background: var(--admin-color-surface-subtle, #fbfcfe);
+  border: 1px solid var(--admin-color-control-border, #dce2eb);
+  border-radius: var(--admin-control-radius, 6px);
+  outline: none;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
+
 .base-input:focus {
-  border-color: #1C67FF;
-  background: #fff;
+  background: var(--admin-color-surface, #fff);
+  border-color: var(--admin-color-primary, #1c67ff);
+  box-shadow: var(--admin-focus-ring, 0 0 0 3px rgb(28 103 255 / 8%));
 }
+
 .base-input:disabled {
-  opacity: 0.5;
+  color: var(--admin-color-text-subtle, #8892a3);
+  background: var(--admin-color-table-heading-surface, #f7f9fc);
   cursor: not-allowed;
+  opacity: 0.65;
 }
+
 .base-input::placeholder {
-  color: #9A9A9A;
+  color: var(--admin-color-text-muted, #778195);
 }
 </style>

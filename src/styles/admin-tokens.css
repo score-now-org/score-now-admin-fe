@@ -47,6 +47,8 @@
   --admin-field-gap: 7px;
   --admin-action-gap: 6px;
   --admin-card-radius: 10px;
+  --admin-control-height: 34px;
+  --admin-control-padding-inline: 10px;
   --admin-control-radius: 6px;
   --admin-toast-radius: 8px;
 

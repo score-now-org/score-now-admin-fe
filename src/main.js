@@ -5,6 +5,7 @@ import router from './router'
 import globalComponents from './plugins/globalComponents'
 import './assets/main.css' 
 import './styles/admin-tokens.css'
+import './styles/admin-toast.css'
 
 
 

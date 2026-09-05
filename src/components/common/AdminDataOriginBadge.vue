@@ -1,11 +1,12 @@
 <template>
-  <span class="data-origin-badge" :class="`data-origin-badge--${variant}`">
+  <BaseBadge class="data-origin-badge" :variant="variant">
     {{ label }}
-  </span>
+  </BaseBadge>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import BaseBadge from './BaseBadge.vue'
 
 const props = defineProps({
   dataOrigin: {
@@ -23,32 +24,8 @@ const label = computed(() => {
 })
 
 const variant = computed(() => {
-  if (normalizedDataOrigin.value === 'MANUAL') return 'manual'
-  if (normalizedDataOrigin.value === 'BETS') return 'bets'
-  return 'unknown'
+  if (normalizedDataOrigin.value === 'MANUAL') return 'yellow'
+  if (normalizedDataOrigin.value === 'BETS') return 'blue'
+  return 'gray'
 })
 </script>
-
-<style scoped>
-.data-origin-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 8px;
-  border-radius: 999px;
-  color: #6b7280;
-  background: #f1f3f5;
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.data-origin-badge--manual {
-  color: #8b5e14;
-  background: #fff5d9;
-}
-
-.data-origin-badge--bets {
-  color: #3972c5;
-  background: #edf4ff;
-}
-</style>

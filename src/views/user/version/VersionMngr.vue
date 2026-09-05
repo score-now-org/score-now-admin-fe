@@ -64,7 +64,7 @@
 
     <!-- 버전 추가/수정 모달 -->
     <BaseModal v-model="modal.visible" :title="modal.isEdit ? '버전 수정' : '버전 추가'" width="420px">
-      <div class="form">
+      <div class="form modal-form">
         <div class="form-row">
           <label class="form-label">버전 정보</label>
           <BaseInput v-model="form.version" placeholder="예) 51.0.4" />
@@ -79,12 +79,11 @@
         </div>
         <div class="form-row">
           <label class="form-label">업데이트 일시</label>
-          <input class="date-input" type="date" v-model="form.updatedAt" />
+          <BaseInput v-model="form.updatedAt" type="date" />
         </div>
         <div class="form-row">
           <label class="form-label">업데이트 내용</label>
-          <textarea
-            class="form-textarea"
+          <BaseTextarea
             v-model="form.content"
             placeholder="업데이트 내용을 입력하세요"
             rows="3"
@@ -207,36 +206,4 @@ td.center { text-align: center; }
 .form { display: flex; flex-direction: column; gap: 14px; }
 .form-row { display: flex; flex-direction: column; gap: 5px; }
 .form-label { font-size: 12px; font-weight: 600; color: #4b5563; }
-.form-textarea {
-  border: 1px solid #e9e9e9;
-  border-radius: 4px;
-  padding: 7px 12px;
-  font-size: 12px;
-  color: #232323;
-  background: #f3f3f3;
-  outline: none;
-  font-family: inherit;
-  resize: vertical;
-  transition: border-color 0.15s, background 0.15s;
-}
-.form-textarea:focus {
-  border-color: #1C67FF;
-  background: #fff;
-}
-.date-input {
-  border: 1px solid #e9e9e9;
-  border-radius: 4px;
-  padding: 7px 12px;
-  font-size: 12px;
-  color: #232323;
-  background: #f3f3f3;
-  outline: none;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-.date-input:focus {
-  border-color: #1C67FF;
-  background: #fff;
-}
 </style>

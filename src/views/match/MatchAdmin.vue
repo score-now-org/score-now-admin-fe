@@ -101,6 +101,8 @@ function resolveActiveSidebar(path) {
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  container-name: admin-content;
+  container-type: inline-size;
 }
 
 .coming-soon {

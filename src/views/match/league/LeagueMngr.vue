@@ -1,135 +1,148 @@
 <template>
-  <div class="league-admin-wrap">
-    <div class="tab-bar">
+  <AdminListPage title="리그 관리">
+    <nav class="tab-bar" aria-label="리그 관리 메뉴" role="tablist">
       <button
         v-for="tab in tabs"
         :key="tab.value"
         class="tab-btn"
         :class="{ active: activeTab === tab.value }"
         type="button"
+        role="tab"
+        :aria-selected="activeTab === tab.value"
         @click="activeTab = tab.value"
       >
         {{ tab.label }}
       </button>
-    </div>
+    </nav>
 
     <section v-if="activeTab === 'leagues'" class="admin-section">
-      <div class="search-box">
-        <div class="filter-row">
-          <div class="filter-item filter-id">
-            <label class="filter-label">리그 ID</label>
-            <BaseInput
-              v-model="leagueSearch.leagueId"
-              placeholder="단일 검색"
-              @enter="fetchLeagues"
-            />
-          </div>
-
-          <div class="filter-item filter-keyword">
-            <label class="filter-label">리그명</label>
-            <BaseInput
-              v-model="leagueSearch.keyword"
-              placeholder="한글/영문 리그명"
-              @enter="fetchLeagues"
-            />
-          </div>
-
-          <div class="filter-item filter-btns">
-            <BaseButton variant="primary" size="md" :disabled="leagueLoading" @click="fetchLeagues">
-              {{ leagueLoading ? '검색중' : '검색' }}
-            </BaseButton>
-            <BaseButton variant="secondary" size="md" class="reset-filter-btn" @click="resetLeagueSearch">
-              초기화
-            </BaseButton>
-            <BaseButton variant="secondary" size="md" class="create-admin-btn" @click="openCreateLeagueModal">
-              리그 등록
-            </BaseButton>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <div class="toolbar">
-          <span class="total-count">
-            총 <strong>{{ leagues.length }}</strong>건
-          </span>
-          <span v-if="leagueError" class="toolbar-error">{{ leagueError }}</span>
+      <AdminFilterCard aria-label="리그 검색 조건">
+        <div class="field-group filter-id">
+          <label for="league-id">리그 ID</label>
+          <BaseInput
+            id="league-id"
+            v-model="leagueSearch.leagueId"
+            placeholder="단일 검색"
+            @enter="fetchLeagues"
+          />
         </div>
 
-        <div class="table-scroll">
-          <table class="league-table">
-            <colgroup>
-              <col class="col-id" />
-              <col class="col-sport" />
-              <col class="col-name" />
-              <col class="col-short" />
-              <col class="col-order" />
-              <col class="col-origin" />
-              <col class="col-linked" />
-              <col class="col-actions" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>리그 ID</th>
-                <th>종목</th>
-                <th>리그명</th>
-                <th>숏네임</th>
-                <th>팀 표기 순서</th>
-                <th>데이터 원천</th>
-                <th>외부 연동</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="leagueLoading">
-                <td colspan="8" class="empty">리그 목록을 불러오는 중입니다.</td>
-              </tr>
-              <tr v-else-if="leagues.length === 0">
-                <td colspan="8" class="empty">검색 결과가 없습니다.</td>
-              </tr>
-              <tr
-                v-for="(league, idx) in leagues"
-                v-else
-                :key="league.id"
-                :class="{ 'row-even': idx % 2 === 1 }"
-              >
-                <td class="bold">{{ league.id }}</td>
-                <td>
-                  <AdminSportBadge
-                    :sport-code="league.sportCode"
-                    :sport-name="sportLabel(league)"
-                  />
-                </td>
-                <td class="league-name-cell">
-                  <div class="name-stack">
-                    <strong>{{ displayLeagueName(league) }}</strong>
-                    <span>{{ leagueEName(league) || '-' }}</span>
-                  </div>
-                </td>
-                <td>{{ leagueSName(league) || '-' }}</td>
-                <td>
-                  <BaseBadge :variant="teamDisplayOrderVariant(league.teamDisplayOrder)">
-                    {{ teamDisplayOrderLabel(league.teamDisplayOrder) }}
-                  </BaseBadge>
-                </td>
-                <td>
-                  <BaseBadge :variant="dataOriginVariant(league.dataOrigin)">
-                    {{ dataOriginLabel(league.dataOrigin) }}
-                  </BaseBadge>
-                </td>
-                <td>
-                  <BaseBadge :variant="leagueSyncVariant(league)">
-                    {{ leagueSyncLabel(league) }}
-                  </BaseBadge>
-                </td>
-                <td>
-                  <div class="action-btns">
-                    <BaseButton variant="outline" size="sm" @click="openEditLeagueModal(league)">
-                      수정
-                    </BaseButton>
+        <div class="field-group filter-keyword">
+          <label for="league-keyword">리그명</label>
+          <BaseInput
+            id="league-keyword"
+            v-model="leagueSearch.keyword"
+            placeholder="한글/영문 리그명"
+            @enter="fetchLeagues"
+          />
+        </div>
+
+        <template #actions>
+          <BaseButton variant="secondary" size="md" :disabled="leagueLoading" @click="resetLeagueSearch">
+            초기화
+          </BaseButton>
+          <BaseButton variant="primary" size="md" :disabled="leagueLoading" @click="fetchLeagues">
+            {{ leagueLoading ? '검색중' : '검색' }}
+          </BaseButton>
+          <BaseButton variant="success" size="md" @click="openCreateLeagueModal">
+            + 리그 등록
+          </BaseButton>
+        </template>
+      </AdminFilterCard>
+
+      <AdminTableCard scroll-label="리그 목록" table-min-width="1160px">
+        <template #summary>
+          <strong>검색 결과</strong>
+          <span>총 {{ leagues.length }}건</span>
+        </template>
+
+        <table class="league-table">
+          <colgroup>
+            <col class="col-id" />
+            <col class="col-sport" />
+            <col class="col-name" />
+            <col class="col-short" />
+            <col class="col-order" />
+            <col class="col-origin" />
+            <col class="col-linked" />
+            <col class="col-actions" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>리그 ID</th>
+              <th>종목</th>
+              <th>리그명</th>
+              <th>숏네임</th>
+              <th>팀 표기 순서</th>
+              <th>데이터 원천</th>
+              <th>외부 연동</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            <AdminTableState
+              v-if="leagueLoading"
+              type="loading"
+              :colspan="8"
+              title="리그 목록을 불러오는 중입니다."
+              compact
+            />
+            <AdminTableState
+              v-else-if="leagueError"
+              type="error"
+              :colspan="8"
+              :title="leagueError"
+              description="잠시 후 다시 검색해 주세요."
+            />
+            <AdminTableState
+              v-else-if="leagues.length === 0"
+              :colspan="8"
+              title="검색 결과가 없습니다."
+              description="리그 ID 또는 리그명을 다시 확인해 주세요."
+            />
+            <tr v-for="league in leagues" v-else :key="league.id">
+              <td class="id-cell">{{ league.id }}</td>
+              <td>
+                <AdminSportBadge
+                  :sport-code="league.sportCode"
+                  :sport-name="sportLabel(league)"
+                />
+              </td>
+              <td class="league-name-cell">
+                <div class="name-stack">
+                  <strong>{{ displayLeagueName(league) }}</strong>
+                  <span>{{ leagueEName(league) || '-' }}</span>
+                </div>
+              </td>
+              <td>{{ leagueSName(league) || '-' }}</td>
+              <td>
+                <BaseBadge :variant="teamDisplayOrderVariant(league.teamDisplayOrder)">
+                  {{ teamDisplayOrderLabel(league.teamDisplayOrder) }}
+                </BaseBadge>
+              </td>
+              <td>
+                <AdminDataOriginBadge :data-origin="league.dataOrigin" />
+              </td>
+              <td>
+                <BaseBadge :variant="leagueSyncVariant(league)">
+                  {{ leagueSyncLabel(league) }}
+                </BaseBadge>
+              </td>
+              <td>
+                <div class="action-buttons row-action-layout">
+                  <BaseButton
+                    variant="outline"
+                    size="sm"
+                    class="row-action-primary"
+                    @click="openEditLeagueModal(league)"
+                  >
+                    수정
+                  </BaseButton>
+                  <div class="row-action-group" role="group" aria-label="외부 연동 관리">
                     <BaseButton
                       variant="outline"
                       size="sm"
+                      class="row-action-secondary"
                       :disabled="!isExternalLeague(league)"
                       @click="openLeagueApiModal(league)"
                     >
@@ -138,297 +151,279 @@
                     <BaseButton
                       variant="outline"
                       size="sm"
+                      class="row-action-secondary"
                       :disabled="!isExternalLeague(league)"
                       @click="openLeagueSyncModal(league)"
                     >
                       동기화 여부
                     </BaseButton>
                   </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </AdminTableCard>
     </section>
 
     <section v-else-if="activeTab === 'seasons'" class="admin-section">
-      <div class="search-box">
-        <div class="filter-row">
-          <div class="filter-item filter-id">
-            <label class="filter-label">리그 ID</label>
-            <BaseInput
-              v-model="seasonSearch.leagueId"
-              placeholder="리그 ID"
-              @enter="searchLeagueSeasons"
+      <AdminFilterCard aria-label="리그 시즌 검색 조건">
+        <div class="field-group filter-id">
+          <label for="season-league-id">리그 ID</label>
+          <BaseInput
+            id="season-league-id"
+            v-model="seasonSearch.leagueId"
+            placeholder="리그 ID"
+            @enter="searchLeagueSeasons"
+          />
+        </div>
+
+        <div class="field-group filter-keyword">
+          <label for="season-league-name">리그명</label>
+          <BaseInput
+            id="season-league-name"
+            v-model="seasonSearch.leagueName"
+            placeholder="한글/영문 리그명"
+            @enter="searchLeagueSeasons"
+          />
+        </div>
+
+        <template #actions>
+          <BaseButton variant="secondary" size="md" :disabled="seasonLoading" @click="resetSeasonSearch">
+            초기화
+          </BaseButton>
+          <BaseButton variant="primary" size="md" :disabled="seasonLoading" @click="searchLeagueSeasons">
+            {{ seasonLoading ? '검색중' : '검색' }}
+          </BaseButton>
+          <BaseButton variant="success" size="md" @click="openCreateSeasonModal">
+            + 시즌 등록
+          </BaseButton>
+        </template>
+      </AdminFilterCard>
+
+      <AdminTableCard scroll-label="리그 시즌 목록" table-min-width="1100px">
+        <template #summary>
+          <strong>검색 결과</strong>
+          <span>총 {{ seasonTotalElements }}건</span>
+        </template>
+        <template #toolbar-actions>
+          <AdminTablePagination
+            v-model:page-size="seasonPageSize"
+            :page-size-options="pageSizeOptions"
+            :page="seasonPage"
+            :total-pages="seasonMaxPage"
+            :loading="seasonLoading"
+            @change-page="changeSeasonPage"
+          />
+        </template>
+
+        <table class="season-table">
+          <colgroup>
+            <col class="col-id" />
+            <col class="col-id" />
+            <col class="col-name" />
+            <col class="col-name" />
+            <col class="col-period" />
+            <col class="col-current" />
+            <col class="col-actions-compact" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>시즌 ID</th>
+              <th>리그 ID</th>
+              <th>리그명</th>
+              <th>시즌명</th>
+              <th>기간</th>
+              <th>현재 시즌</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            <AdminTableState
+              v-if="seasonLoading"
+              type="loading"
+              :colspan="7"
+              title="리그 시즌 목록을 불러오는 중입니다."
+              compact
             />
-          </div>
-
-          <div class="filter-item filter-keyword">
-            <label class="filter-label">리그명</label>
-            <BaseInput
-              v-model="seasonSearch.leagueName"
-              placeholder="한글/영문 리그명"
-              @enter="searchLeagueSeasons"
+            <AdminTableState
+              v-else-if="seasonError"
+              type="error"
+              :colspan="7"
+              :title="seasonError"
+              description="잠시 후 다시 검색해 주세요."
             />
-          </div>
-
-          <div class="filter-item filter-page-size">
-            <label class="filter-label">페이지당</label>
-            <BaseSelect v-model="seasonPageSize">
-              <option v-for="option in pageSizeOptions" :key="option" :value="String(option)">
-                {{ option }}개
-              </option>
-            </BaseSelect>
-          </div>
-
-          <div class="filter-item filter-btns">
-            <BaseButton
-              variant="primary"
-              size="md"
-              :disabled="seasonLoading"
-              @click="searchLeagueSeasons"
-            >
-              {{ seasonLoading ? '검색중' : '검색' }}
-            </BaseButton>
-            <BaseButton variant="secondary" size="md" class="reset-filter-btn" @click="resetSeasonSearch">
-              초기화
-            </BaseButton>
-            <BaseButton variant="secondary" size="md" class="create-admin-btn" @click="openCreateSeasonModal">
-              시즌 등록
-            </BaseButton>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <div class="toolbar">
-          <span class="total-count">
-            총 <strong>{{ seasonTotalElements }}</strong>건
-          </span>
-          <div class="toolbar-right">
-            <span v-if="seasonError" class="toolbar-error">{{ seasonError }}</span>
-            <span class="toolbar-hint">{{ seasonPage }} / {{ seasonMaxPage }} 페이지</span>
-            <BaseButton
-              variant="outline"
-              size="sm"
-              :disabled="seasonLoading || seasonPage === 1"
-              @click="changeSeasonPage(seasonPage - 1)"
-            >
-              이전
-            </BaseButton>
-            <BaseButton
-              variant="outline"
-              size="sm"
-              :disabled="seasonLoading || seasonPage === seasonMaxPage"
-              @click="changeSeasonPage(seasonPage + 1)"
-            >
-              다음
-            </BaseButton>
-          </div>
-        </div>
-
-        <div class="table-scroll">
-          <table class="season-table">
-            <colgroup>
-              <col class="col-id" />
-              <col class="col-id" />
-              <col class="col-name" />
-              <col class="col-name" />
-              <col class="col-period" />
-              <col class="col-current" />
-              <col class="col-actions" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>시즌 ID</th>
-                <th>리그 ID</th>
-                <th>리그명</th>
-                <th>시즌명</th>
-                <th>기간</th>
-                <th>현재 시즌</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="seasonLoading">
-                <td colspan="7" class="empty">리그 시즌 목록을 불러오는 중입니다.</td>
-              </tr>
-              <tr v-else-if="leagueSeasons.length === 0">
-                <td colspan="7" class="empty">{{ seasonEmptyMessage }}</td>
-              </tr>
-              <tr
-                v-for="(season, idx) in leagueSeasons"
-                v-else
-                :key="season.leagueSeasonId"
-                :class="{ 'row-even': idx % 2 === 1 }"
-              >
-                <td class="bold">{{ season.leagueSeasonId }}</td>
-                <td>{{ season.leagueId }}</td>
-                <td>{{ season.leagueName || '-' }}</td>
-                <td class="bold">{{ season.leagueSeasonName || '-' }}</td>
-                <td class="muted">
-                  {{ formatPeriod(season.leagueSeasonStartAt, season.leagueSeasonEndAt) }}
-                </td>
-                <td>
-                  <BaseBadge :variant="isCurrentSeason(season) ? 'green' : 'gray'">
-                    {{ isCurrentSeason(season) ? '현재' : '아님' }}
-                  </BaseBadge>
-                </td>
-                <td>
-                  <div class="action-btns">
-                    <BaseButton variant="outline" size="sm" @click="openEditSeasonModal(season)">
-                      수정
-                    </BaseButton>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+            <AdminTableState
+              v-else-if="leagueSeasons.length === 0"
+              :colspan="7"
+              :title="seasonEmptyMessage"
+              :description="seasonSearched ? '검색 조건을 변경한 뒤 다시 검색해 주세요.' : ''"
+            />
+            <tr v-for="season in leagueSeasons" v-else :key="season.leagueSeasonId">
+              <td class="id-cell">{{ season.leagueSeasonId }}</td>
+              <td>{{ season.leagueId }}</td>
+              <td>{{ season.leagueName || '-' }}</td>
+              <td class="emphasis-cell">{{ season.leagueSeasonName || '-' }}</td>
+              <td class="muted-cell period-cell">
+                {{ formatPeriod(season.leagueSeasonStartAt, season.leagueSeasonEndAt) }}
+              </td>
+              <td>
+                <BaseBadge :variant="isCurrentSeason(season) ? 'green' : 'gray'">
+                  {{ isCurrentSeason(season) ? '현재' : '아님' }}
+                </BaseBadge>
+              </td>
+              <td>
+                <div class="action-buttons row-action-layout">
+                  <BaseButton
+                    variant="outline"
+                    size="sm"
+                    class="row-action-primary"
+                    @click="openEditSeasonModal(season)"
+                  >
+                    수정
+                  </BaseButton>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </AdminTableCard>
     </section>
 
     <section v-else class="admin-section">
-      <div class="search-box">
-        <div class="filter-row">
-          <div class="filter-item filter-id">
-            <label class="filter-label">리그 ID</label>
-            <BaseInput
-              v-model="standingsSearch.leagueId"
-              placeholder="리그 ID"
-              @enter="searchStandings"
-            />
-          </div>
-
-          <div class="filter-item filter-keyword">
-            <label class="filter-label">리그명</label>
-            <BaseInput
-              v-model="standingsSearch.leagueName"
-              placeholder="한글/영문 리그명"
-              @enter="searchStandings"
-            />
-          </div>
-
-          <div class="filter-item filter-page-size">
-            <label class="filter-label">페이지당</label>
-            <BaseSelect v-model="standingsPageSize">
-              <option v-for="option in pageSizeOptions" :key="option" :value="String(option)">
-                {{ option }}개
-              </option>
-            </BaseSelect>
-          </div>
-
-          <div class="filter-item filter-btns">
-            <BaseButton
-              variant="primary"
-              size="md"
-              :disabled="standingsLoading"
-              @click="searchStandings"
-            >
-              {{ standingsLoading ? '검색중' : '검색' }}
-            </BaseButton>
-            <BaseButton variant="secondary" size="md" class="reset-filter-btn" @click="resetStandingsSearch">
-              초기화
-            </BaseButton>
-            <BaseButton variant="secondary" size="md" class="create-admin-btn" @click="openCreateStandingsModal">
-              순위 관리 설정 등록
-            </BaseButton>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <div class="toolbar">
-          <span class="total-count">
-            총 <strong>{{ standingsTotalElements }}</strong>건
-          </span>
-          <div class="toolbar-right">
-            <span v-if="standingsError" class="toolbar-error">{{ standingsError }}</span>
-            <span class="toolbar-hint">{{ standingsPage }} / {{ standingsMaxPage }} 페이지</span>
-            <BaseButton
-              variant="outline"
-              size="sm"
-              :disabled="standingsLoading || standingsPage === 1"
-              @click="changeStandingsPage(standingsPage - 1)"
-            >
-              이전
-            </BaseButton>
-            <BaseButton
-              variant="outline"
-              size="sm"
-              :disabled="standingsLoading || standingsPage === standingsMaxPage"
-              @click="changeStandingsPage(standingsPage + 1)"
-            >
-              다음
-            </BaseButton>
-          </div>
+      <AdminFilterCard aria-label="리그 시즌 순위 검색 조건">
+        <div class="field-group filter-id">
+          <label for="standings-league-id">리그 ID</label>
+          <BaseInput
+            id="standings-league-id"
+            v-model="standingsSearch.leagueId"
+            placeholder="리그 ID"
+            @enter="searchStandings"
+          />
         </div>
 
-        <div class="table-scroll">
-          <table class="standings-table">
-            <colgroup>
-              <col class="col-id" />
-              <col class="col-id" />
-              <col class="col-name" />
-              <col class="col-name" />
-              <col class="col-current" />
-              <col class="col-type" />
-              <col class="col-current" />
-              <col class="col-actions-wide" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>순위 ID</th>
-                <th>시즌 ID</th>
-                <th>리그명</th>
-                <th>시즌명</th>
-                <th>현재 시즌</th>
-                <th>관리 타입</th>
-                <th>이미지</th>
-                <th>관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="standingsLoading">
-                <td colspan="8" class="empty">순위 관리 목록을 불러오는 중입니다.</td>
-              </tr>
-              <tr v-else-if="leagueSeasonStandings.length === 0">
-                <td colspan="8" class="empty">{{ standingsEmptyMessage }}</td>
-              </tr>
-              <tr
-                v-for="(standing, idx) in leagueSeasonStandings"
-                v-else
-                :key="standing.leagueSeasonStandingsId"
-                :class="{ 'row-even': idx % 2 === 1 }"
-              >
-                <td class="bold">{{ standing.leagueSeasonStandingsId }}</td>
-                <td>{{ standing.leagueSeasonId }}</td>
-                <td>{{ standing.leagueName || '-' }}</td>
-                <td class="bold">{{ standing.seasonName || '-' }}</td>
-                <td>
-                  <BaseBadge :variant="isCurrentSeason(standing) ? 'green' : 'gray'">
-                    {{ isCurrentSeason(standing) ? '현재' : '아님' }}
-                  </BaseBadge>
-                </td>
-                <td>
-                  <BaseBadge :variant="standingsTypeVariant(standingTypeValue(standing))">
-                    {{ standingsTypeLabel(standingTypeValue(standing)) }}
-                  </BaseBadge>
-                </td>
-                <td>
-                  <BaseBadge :variant="standing.standingImageRegistered ? 'green' : 'gray'">
-                    {{ standing.standingImageRegistered ? '등록됨' : '미등록' }}
-                  </BaseBadge>
-                </td>
-                <td>
-                  <div class="action-btns">
-                    <BaseButton variant="outline" size="sm" @click="openEditStandingsTypeModal(standing)">
-                      타입 수정
-                    </BaseButton>
+        <div class="field-group filter-keyword">
+          <label for="standings-league-name">리그명</label>
+          <BaseInput
+            id="standings-league-name"
+            v-model="standingsSearch.leagueName"
+            placeholder="한글/영문 리그명"
+            @enter="searchStandings"
+          />
+        </div>
+
+        <template #actions>
+          <BaseButton variant="secondary" size="md" :disabled="standingsLoading" @click="resetStandingsSearch">
+            초기화
+          </BaseButton>
+          <BaseButton variant="primary" size="md" :disabled="standingsLoading" @click="searchStandings">
+            {{ standingsLoading ? '검색중' : '검색' }}
+          </BaseButton>
+          <BaseButton variant="success" size="md" @click="openCreateStandingsModal">
+            + 순위 관리 설정 등록
+          </BaseButton>
+        </template>
+      </AdminFilterCard>
+
+      <AdminTableCard scroll-label="리그 시즌 순위 관리 목록" table-min-width="1360px">
+        <template #summary>
+          <strong>검색 결과</strong>
+          <span>총 {{ standingsTotalElements }}건</span>
+        </template>
+        <template #toolbar-actions>
+          <AdminTablePagination
+            v-model:page-size="standingsPageSize"
+            :page-size-options="pageSizeOptions"
+            :page="standingsPage"
+            :total-pages="standingsMaxPage"
+            :loading="standingsLoading"
+            @change-page="changeStandingsPage"
+          />
+        </template>
+
+        <table class="standings-table">
+          <colgroup>
+            <col class="col-id" />
+            <col class="col-id" />
+            <col class="col-name" />
+            <col class="col-name" />
+            <col class="col-current" />
+            <col class="col-type" />
+            <col class="col-current" />
+            <col class="col-actions-wide" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>순위 ID</th>
+              <th>시즌 ID</th>
+              <th>리그명</th>
+              <th>시즌명</th>
+              <th>현재 시즌</th>
+              <th>관리 타입</th>
+              <th>이미지</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            <AdminTableState
+              v-if="standingsLoading"
+              type="loading"
+              :colspan="8"
+              title="순위 관리 목록을 불러오는 중입니다."
+              compact
+            />
+            <AdminTableState
+              v-else-if="standingsError"
+              type="error"
+              :colspan="8"
+              :title="standingsError"
+              description="잠시 후 다시 검색해 주세요."
+            />
+            <AdminTableState
+              v-else-if="leagueSeasonStandings.length === 0"
+              :colspan="8"
+              :title="standingsEmptyMessage"
+              :description="standingsSearched ? '검색 조건을 변경한 뒤 다시 검색해 주세요.' : ''"
+            />
+            <tr
+              v-for="standing in leagueSeasonStandings"
+              v-else
+              :key="standing.leagueSeasonStandingsId"
+            >
+              <td class="id-cell">{{ standing.leagueSeasonStandingsId }}</td>
+              <td>{{ standing.leagueSeasonId }}</td>
+              <td>{{ standing.leagueName || '-' }}</td>
+              <td class="emphasis-cell">{{ standing.seasonName || '-' }}</td>
+              <td>
+                <BaseBadge :variant="isCurrentSeason(standing) ? 'green' : 'gray'">
+                  {{ isCurrentSeason(standing) ? '현재' : '아님' }}
+                </BaseBadge>
+              </td>
+              <td>
+                <BaseBadge :variant="standingsTypeVariant(standingTypeValue(standing))">
+                  {{ standingsTypeLabel(standingTypeValue(standing)) }}
+                </BaseBadge>
+              </td>
+              <td>
+                <BaseBadge :variant="standing.standingImageRegistered ? 'green' : 'gray'">
+                  {{ standing.standingImageRegistered ? '등록됨' : '미등록' }}
+                </BaseBadge>
+              </td>
+              <td>
+                <div class="action-buttons row-action-layout">
+                  <BaseButton
+                    variant="outline"
+                    size="sm"
+                    class="row-action-primary"
+                    @click="openEditStandingsTypeModal(standing)"
+                  >
+                    타입 수정
+                  </BaseButton>
+                  <div class="row-action-group" role="group" aria-label="순위 추가 관리">
                     <BaseButton
                       variant="outline"
                       size="sm"
+                      class="row-action-secondary"
                       :disabled="standingTypeValue(standing) !== 'IMAGE'"
                       @click="openUploadImageModal(standing)"
                     >
@@ -437,6 +432,7 @@
                     <BaseButton
                       variant="outline"
                       size="sm"
+                      class="row-action-secondary"
                       :disabled="standingTypeValue(standing) !== 'EXTERNAL_DATA'"
                       @click="syncStandingsData(standing)"
                     >
@@ -445,21 +441,27 @@
                     <BaseButton
                       variant="outline"
                       size="sm"
+                      class="row-action-secondary"
                       :disabled="standingTypeValue(standing) !== 'EXTERNAL_DATA'"
                       @click="openGroupMappingsModal(standing)"
                     >
                       그룹 설정
                     </BaseButton>
                   </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </AdminTableCard>
     </section>
 
-    <BaseModal v-model="createLeagueModal.visible" title="리그 등록" width="720px">
+    <BaseModal
+      v-model="createLeagueModal.visible"
+      title="리그 등록"
+      size="lg"
+      :close-disabled="createLeagueModal.saving"
+    >
       <div class="modal-form">
         <div class="form-grid">
           <div class="form-row">
@@ -553,7 +555,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="editLeagueModal.visible" title="리그 정보 수정" width="640px">
+    <BaseModal
+      v-model="editLeagueModal.visible"
+      title="리그 정보 수정"
+      size="lg"
+      :close-disabled="editLeagueModal.saving"
+    >
       <div class="modal-form">
         <div class="form-grid">
           <div class="form-row">
@@ -595,7 +602,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="leagueApiModal.visible" title="외부 API 리그 ID 수정" width="420px">
+    <BaseModal
+      v-model="leagueApiModal.visible"
+      title="외부 API 리그 ID 수정"
+      size="sm"
+      :close-disabled="leagueApiModal.saving"
+    >
       <div class="modal-form">
         <div class="form-row">
           <label class="form-label">리그 ID</label>
@@ -616,7 +628,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="leagueSyncModal.visible" title="외부 API 동기화 여부 수정" width="420px">
+    <BaseModal
+      v-model="leagueSyncModal.visible"
+      title="외부 API 동기화 여부 수정"
+      size="sm"
+      :close-disabled="leagueSyncModal.saving"
+    >
       <div class="modal-form">
         <div class="form-row">
           <label class="form-label">리그 ID</label>
@@ -641,7 +658,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="createSeasonModal.visible" title="리그 시즌 등록" width="640px">
+    <BaseModal
+      v-model="createSeasonModal.visible"
+      title="리그 시즌 등록"
+      size="lg"
+      :close-disabled="createSeasonModal.saving"
+    >
       <div class="modal-form">
         <div class="form-grid">
           <div class="form-row form-row-wide">
@@ -721,7 +743,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="editSeasonModal.visible" title="리그 시즌 수정" width="560px">
+    <BaseModal
+      v-model="editSeasonModal.visible"
+      title="리그 시즌 수정"
+      size="md"
+      :close-disabled="editSeasonModal.saving"
+    >
       <div class="modal-form">
         <div class="form-grid">
           <div class="form-row">
@@ -759,7 +786,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="createStandingsModal.visible" title="리그 시즌 순위 등록" width="460px">
+    <BaseModal
+      v-model="createStandingsModal.visible"
+      title="리그 시즌 순위 등록"
+      size="sm"
+      :close-disabled="createStandingsModal.saving"
+    >
       <div class="modal-form">
         <div class="form-row">
           <label class="form-label">리그 시즌 ID</label>
@@ -783,7 +815,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="editStandingsTypeModal.visible" title="순위 관리 타입 수정" width="460px">
+    <BaseModal
+      v-model="editStandingsTypeModal.visible"
+      title="순위 관리 타입 수정"
+      size="sm"
+      :close-disabled="editStandingsTypeModal.saving"
+    >
       <div class="modal-form">
         <div class="form-row">
           <label class="form-label">리그 시즌 ID</label>
@@ -811,7 +848,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="uploadImageModal.visible" title="순위 이미지 업로드" width="460px">
+    <BaseModal
+      v-model="uploadImageModal.visible"
+      title="순위 이미지 업로드"
+      size="sm"
+      :close-disabled="uploadImageModal.saving"
+    >
       <div class="modal-form">
         <div class="form-row">
           <label class="form-label">리그 시즌 ID</label>
@@ -833,7 +875,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="groupMappingsModal.visible" title="순위 그룹 설정" width="760px">
+    <BaseModal
+      v-model="groupMappingsModal.visible"
+      title="순위 그룹 설정"
+      size="xl"
+      :close-disabled="groupMappingsModal.loading || groupMappingsModal.saving"
+    >
       <div v-if="groupMappingsModal.loading" class="group-mapping-empty">
         순위 그룹 설정을 불러오는 중입니다.
       </div>
@@ -870,7 +917,7 @@
       <template #footer>
         <BaseButton
           variant="outline"
-          :disabled="groupMappingsModal.saving"
+          :disabled="groupMappingsModal.loading || groupMappingsModal.saving"
           @click="groupMappingsModal.visible = false"
         >
           취소
@@ -884,11 +931,18 @@
         </BaseButton>
       </template>
     </BaseModal>
-  </div>
+  </AdminListPage>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
+import AdminListPage from '@/components/admin/AdminListPage.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
+import AdminTableCard from '@/components/admin/AdminTableCard.vue'
+import AdminTablePagination from '@/components/admin/AdminTablePagination.vue'
+import AdminTableState from '@/components/admin/AdminTableState.vue'
+import AdminDataOriginBadge from '@/components/common/AdminDataOriginBadge.vue'
 import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import {
   createAdminLeague,
@@ -913,9 +967,9 @@ import {
 } from '../../../api/league'
 
 const tabs = [
-  { value: 'leagues', label: '리그 관리' },
-  { value: 'seasons', label: '시즌 관리' },
-  { value: 'standings', label: '리그 시즌 순위 관리' },
+  { value: 'leagues', label: '리그' },
+  { value: 'seasons', label: '시즌' },
+  { value: 'standings', label: '순위 관리' },
 ]
 
 const pageSizeOptions = [10, 20, 50]
@@ -934,7 +988,7 @@ const seasonSearch = ref({ leagueId: '', leagueName: '' })
 const leagueSeasons = ref([])
 const seasonLeagueCandidates = ref([])
 const seasonPage = ref(1)
-const seasonPageSize = ref('10')
+const seasonPageSize = ref(10)
 const seasonTotalElements = ref(0)
 const seasonTotalPages = ref(1)
 const seasonLoading = ref(false)
@@ -948,7 +1002,7 @@ let seasonLeagueSearchRequestId = 0
 const standingsSearch = ref({ leagueId: '', leagueName: '' })
 const leagueSeasonStandings = ref([])
 const standingsPage = ref(1)
-const standingsPageSize = ref('10')
+const standingsPageSize = ref(10)
 const standingsTotalElements = ref(0)
 const standingsTotalPages = ref(1)
 const standingsLoading = ref(false)
@@ -2083,15 +2137,6 @@ function leagueSyncEnabled(league) {
   return normalizeBoolean(league?.syncEnabled ?? league?.sync_enabled ?? league?.SyncEnabled)
 }
 
-function dataOriginLabel(dataOrigin) {
-  return dataOrigin || 'MANUAL'
-}
-
-function dataOriginVariant(dataOrigin) {
-  if (!dataOrigin || dataOrigin === 'MANUAL') return 'gray'
-  return 'blue'
-}
-
 function teamDisplayOrderLabel(teamDisplayOrder) {
   return {
     HOME_AWAY: '홈-원정',
@@ -2101,7 +2146,7 @@ function teamDisplayOrderLabel(teamDisplayOrder) {
 
 function teamDisplayOrderVariant(teamDisplayOrder) {
   if (!teamDisplayOrder || teamDisplayOrder === 'HOME_AWAY') return 'gray'
-  return 'yellow'
+  return 'blue'
 }
 
 function isCurrentSeason(row) {
@@ -2199,226 +2244,76 @@ function toErrorMessage(value) {
 </script>
 
 <style scoped>
-.league-admin-wrap {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
+/* 리그 페이지 전용 2차 메뉴: 카드 장식 없이 활성 항목을 밑줄로만 구분한다. */
 .tab-bar {
   display: flex;
-  flex: 0 0 auto;
-  align-items: flex-end;
-  min-height: 40px;
-  padding: 8px 12px 0;
-  gap: 4px;
-  background: #fff;
-  border-bottom: 1px solid #d1d5db;
+  max-width: 100%;
+  min-height: 41px;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: var(--admin-section-margin-bottom);
+  padding: 0 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--admin-color-divider);
 }
 
 .tab-btn {
-  padding: 6px 16px;
-  color: #6b7280;
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 41px;
+  padding: 0 2px;
+  color: var(--admin-color-text-muted);
+  font-family: inherit;
   font-size: 12px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-bottom: none;
-  border-radius: 4px 4px 0 0;
+  font-weight: 600;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: color 0.15s;
+}
+
+.tab-btn::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--admin-color-primary);
+  content: '';
+  transform: scaleX(0);
+  transition: transform 0.15s;
 }
 
 .tab-btn:hover {
-  background: #e5e7eb;
+  color: var(--admin-color-text-title);
 }
 
 .tab-btn.active {
-  color: #fff;
-  font-weight: 600;
-  background: #2563eb;
-  border-color: #2563eb;
+  color: var(--admin-color-primary);
+  font-weight: 700;
+}
+
+.tab-btn.active::after {
+  transform: scaleX(1);
+}
+
+.tab-btn:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--admin-color-primary);
+  outline-offset: -3px;
 }
 
 .admin-section {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
+  min-width: 0;
 }
 
-.search-box {
-  flex: 0 0 auto;
-  margin: 12px 12px 8px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-}
-
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter-label {
-  color: #6b7280;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.filter-id,
-.filter-page-size {
-  width: 120px;
+.filter-id {
+  width: 140px;
 }
 
 .filter-keyword {
-  width: 240px;
-}
-
-.filter-btns {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 6px;
-  margin-left: auto;
-}
-
-:deep(.base-btn.create-admin-btn) {
-  background: #047857;
-  color: #fff;
-  font-weight: 600;
-}
-
-:deep(.base-btn.create-admin-btn:hover:not(.disabled)) {
-  background: #065f46;
-}
-
-:deep(.base-btn.reset-filter-btn) {
-  background: #64748b;
-  color: #fff;
-  font-weight: 600;
-}
-
-:deep(.base-btn.reset-filter-btn:hover:not(.disabled)) {
-  background: #475569;
-}
-
-.table-wrap {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  margin: 0 12px 12px;
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-}
-
-.toolbar {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 38px;
-  padding: 8px 12px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar-hint,
-.total-count {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.total-count strong {
-  color: #374151;
-}
-
-.toolbar-error {
-  color: #dc2626;
-  font-size: 12px;
-}
-
-.table-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-table {
-  width: 100%;
-  min-width: 980px;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-thead tr {
-  background: #f3f4f6;
-  border-bottom: 1px solid #d1d5db;
-}
-
-th {
-  padding: 8px 12px;
-  color: #374151;
-  font-weight: 600;
-  text-align: left;
-  white-space: nowrap;
-}
-
-tbody tr {
-  border-bottom: 1px solid #f3f4f6;
-  transition: background 0.1s;
-}
-
-tbody tr:hover {
-  background: #eff6ff;
-}
-
-tbody tr.row-even {
-  background: #f9fafb;
-}
-
-tbody tr.row-even:hover {
-  background: #eff6ff;
-}
-
-td {
-  padding: 8px 12px;
-  color: #374151;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-td.bold {
-  font-weight: 600;
-}
-
-td.muted {
-  color: #6b7280;
-}
-
-.league-table th,
-.league-table td {
-  text-align: center;
+  width: 280px;
 }
 
 .league-table .league-name-cell {
@@ -2429,34 +2324,6 @@ td.muted {
   align-items: flex-start;
 }
 
-.league-table .action-btns {
-  justify-content: center;
-}
-
-.season-table th,
-.season-table td {
-  text-align: center;
-}
-
-.season-table .action-btns {
-  justify-content: center;
-}
-
-.standings-table th,
-.standings-table td {
-  text-align: center;
-}
-
-.standings-table .action-btns {
-  justify-content: center;
-}
-
-.empty {
-  padding: 40px;
-  color: #9ca3af;
-  text-align: center;
-}
-
 .name-stack {
   display: flex;
   flex-direction: column;
@@ -2465,42 +2332,78 @@ td.muted {
 }
 
 .name-stack strong {
-  color: #111827;
+  color: var(--admin-color-text-title);
 }
 
 .name-stack span {
-  color: #9ca3af;
-  font-size: 11px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-table-heading);
 }
 
-.action-btns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.emphasis-cell {
+  font-weight: 700;
 }
 
-.modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.muted-cell {
+  color: var(--admin-color-text-muted);
+}
+
+.period-cell {
+  white-space: nowrap;
+}
+
+.row-action-layout {
+  align-items: center;
+}
+
+.row-action-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+:deep(.base-btn.row-action-primary) {
+  color: #3864bd;
+  background: var(--admin-color-surface);
+  border-color: #b9c9e8;
+}
+
+:deep(.base-btn.row-action-primary:hover:not(.disabled)) {
+  color: var(--admin-color-primary);
+  background: #f6f9ff;
+  border-color: #8eafea;
+}
+
+:deep(.base-btn.row-action-secondary) {
+  height: 28px;
+  padding-inline: 8px;
+  color: var(--admin-color-text-muted);
+  background: var(--admin-color-surface);
+  border-color: #d1d5db;
+}
+
+:deep(.base-btn.row-action-secondary:hover:not(.disabled)) {
+  color: var(--admin-color-text-body);
+  background: #f3f4f6;
+  border-color: #c4cad3;
 }
 
 .group-mapping-list {
   display: flex;
   max-height: 520px;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   overflow-y: auto;
 }
 
 .group-mapping-card {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: 16px;
-  padding: 14px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  gap: 18px;
+  padding: 14px 16px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-card-radius);
 }
 
 .group-mapping-source {
@@ -2511,27 +2414,31 @@ td.muted {
 }
 
 .group-mapping-source strong {
-  color: #111827;
+  color: var(--admin-color-text-title);
   font-size: 13px;
 }
 
 .group-mapping-source span,
 .group-mapping-source code {
   overflow: hidden;
-  color: #6b7280;
-  font-size: 11px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .group-mapping-source code {
-  color: #2563eb;
+  width: fit-content;
+  padding: 4px 7px;
+  color: #5f6878;
+  background: #eef1f5;
+  border-radius: 999px;
 }
 
 .group-mapping-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 96px;
-  gap: 10px;
+  gap: 14px 10px;
 }
 
 .group-visibility-field {
@@ -2539,9 +2446,15 @@ td.muted {
 }
 
 .group-mapping-empty {
-  padding: 36px 16px;
-  color: #9ca3af;
+  display: grid;
+  min-height: 120px;
+  padding: 24px 16px;
+  place-items: center;
+  color: var(--admin-color-text-empty-description);
   text-align: center;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 @media (max-width: 720px) {
@@ -2551,32 +2464,10 @@ td.muted {
   }
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 12px;
-}
-
-.form-row-wide {
-  grid-column: 1 / -1;
-}
-
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
 .date-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-}
-
-.form-label {
-  color: #4b5563;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .checkbox-field {
@@ -2584,8 +2475,8 @@ td.muted {
   min-height: 32px;
   align-items: center;
   gap: 8px;
-  color: #374151;
-  font-size: 12px;
+  color: var(--admin-color-text-body);
+  font-size: var(--admin-font-size-description);
   cursor: default;
 }
 
@@ -2593,16 +2484,16 @@ td.muted {
   width: 14px;
   height: 14px;
   margin: 0;
-  accent-color: #1c67ff;
+  accent-color: var(--admin-color-primary);
   cursor: pointer;
 }
 
 .league-result-panel {
   height: 152px;
   overflow: auto;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .league-result-item {
@@ -2612,13 +2503,13 @@ td.muted {
   justify-content: space-between;
   gap: 10px;
   padding: 9px 10px;
-  color: #374151;
+  color: var(--admin-color-text-body);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--admin-font-size-description);
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid var(--admin-color-divider);
   cursor: pointer;
 }
 
@@ -2627,7 +2518,7 @@ td.muted {
 }
 
 .league-result-item:hover {
-  background: #eff6ff;
+  background: var(--admin-color-table-row-hover);
 }
 
 .league-result-name {
@@ -2641,8 +2532,8 @@ td.muted {
 
 .league-result-sub {
   flex: 0 0 auto;
-  color: #6b7280;
-  font-size: 11px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
 }
 
 .league-search-guide {
@@ -2653,24 +2544,24 @@ td.muted {
   justify-content: center;
   margin: 0;
   padding: 0 16px;
-  color: #9ca3af;
-  font-size: 12px;
+  color: var(--admin-color-text-empty-description);
+  font-size: var(--admin-font-size-description);
   line-height: 1.5;
   text-align: center;
 }
 
 .league-search-guide.error {
-  color: #ef4444;
+  color: #c53c46;
 }
 
 .league-search-note {
   margin: 0;
   padding: 8px 10px;
-  color: #6b7280;
-  font-size: 11px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
   line-height: 1.5;
-  background: #fff;
-  border-top: 1px solid #edf2f7;
+  background: var(--admin-color-surface);
+  border-top: 1px solid var(--admin-color-divider);
 }
 
 .selected-league-card {
@@ -2682,8 +2573,8 @@ td.muted {
   gap: 6px;
   justify-content: center;
   padding: 16px;
-  color: #1f2937;
-  background: #fff;
+  color: var(--admin-color-text-body);
+  background: var(--admin-color-surface);
 }
 
 .selected-league-card strong {
@@ -2695,36 +2586,17 @@ td.muted {
 }
 
 .selected-league-card span:last-child {
-  color: #6b7280;
-  font-size: 11px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
 }
 
 .selected-league-label {
-  color: #2563eb;
-  font-size: 11px;
+  padding: 5px 8px;
+  color: #3864bd;
+  font-size: var(--admin-font-size-table-heading);
   font-weight: 700;
-}
-
-.file-input {
-  width: 100%;
-  padding: 7px 12px;
-  color: #232323;
-  font-family: inherit;
-  font-size: 12px;
-  background: #f3f3f3;
-  border: 1px solid #e9e9e9;
-  border-radius: 4px;
-}
-
-.file-input:focus {
-  background: #fff;
-  border-color: #1c67ff;
-  outline: none;
-}
-
-.file-name {
-  color: #6b7280;
-  font-size: 11px;
+  background: #edf3ff;
+  border-radius: 999px;
 }
 
 .col-id {
@@ -2753,29 +2625,25 @@ td.muted {
 }
 
 .col-actions {
-  width: 300px;
+  width: 220px;
+}
+
+.col-actions-compact {
+  width: 120px;
 }
 
 .col-actions-wide {
-  width: 430px;
+  width: 340px;
+}
+
+@container admin-content (min-width: 601px) and (max-width: 960px) {
+  .filter-id,
+  .filter-keyword {
+    width: calc(50% - 6px);
+  }
 }
 
 @media (max-width: 900px) {
-  .filter-btns {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .filter-id,
-  .filter-keyword,
-  .filter-page-size {
-    width: calc(50% - 6px);
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-
   .date-row {
     grid-template-columns: 1fr;
   }

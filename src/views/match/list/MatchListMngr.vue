@@ -1,12 +1,8 @@
 <template>
-  <div class="match-list-wrap">
-    <div class="tab-bar">
-      <span class="page-title">경기 리스트</span>
-    </div>
-
-    <div class="search-box">
-      <div class="filter-row">
-        <div class="filter-item filter-sport">
+  <AdminListPage title="경기 리스트">
+    <AdminFilterCard aria-label="경기 검색 조건">
+      <div class="match-filter-fields">
+        <div class="field-group filter-sport">
           <label class="filter-label">종목</label>
           <BaseSelect v-model="searchForm.sport">
             <option
@@ -19,7 +15,7 @@
           </BaseSelect>
         </div>
 
-        <div class="filter-item filter-league-search">
+        <div class="field-group filter-league-search">
           <label class="filter-label">리그명</label>
           <BaseInput
             v-model="searchForm.leagueKeyword"
@@ -27,7 +23,7 @@
           />
         </div>
 
-        <div class="filter-item filter-league">
+        <div class="field-group filter-league">
           <label class="filter-label">하위 리그</label>
           <BaseSelect v-model="searchForm.leagueId">
             <option value="">전체</option>
@@ -41,7 +37,7 @@
           </BaseSelect>
         </div>
 
-        <div class="filter-item filter-status">
+        <div class="field-group filter-status">
           <label class="filter-label">경기상태</label>
           <BaseSelect v-model="searchForm.status">
             <option
@@ -54,7 +50,7 @@
           </BaseSelect>
         </div>
 
-        <div class="filter-item filter-use">
+        <div class="field-group filter-use">
           <label class="filter-label">사용 유무</label>
           <BaseSelect v-model="searchForm.useStatus">
             <option
@@ -67,29 +63,24 @@
           </BaseSelect>
         </div>
 
-        <div class="filter-item filter-date">
+        <div class="field-group filter-date">
           <label class="filter-label">날짜</label>
-          <input
+          <BaseInput
             v-model="searchForm.matchDate"
-            class="date-input"
             type="date"
           />
         </div>
+      </div>
 
-        <div class="filter-item filter-page-size">
-          <label class="filter-label">페이지당</label>
-          <BaseSelect v-model="pageSize">
-            <option
-              v-for="option in pageSizeOptions"
-              :key="option"
-              :value="String(option)"
-            >
-              {{ option }}개
-            </option>
-          </BaseSelect>
-        </div>
-
-        <div class="filter-item filter-btns">
+      <template #actions>
+          <BaseButton
+            variant="secondary"
+            size="md"
+            :disabled="matchesLoading"
+            @click="resetSearch"
+          >
+            초기화
+          </BaseButton>
           <BaseButton
             variant="primary"
             size="md"
@@ -99,55 +90,32 @@
             {{ matchesLoading ? '검색중' : '검색' }}
           </BaseButton>
           <BaseButton
-            variant="secondary"
+            variant="success"
             size="md"
-            class="reset-filter-btn"
-            @click="resetSearch"
-          >
-            초기화
-          </BaseButton>
-          <BaseButton
-            variant="secondary"
-            size="md"
-            class="create-match-btn"
             @click="openCreateModal"
           >
-            경기 등록
+            + 경기 등록
           </BaseButton>
-        </div>
-      </div>
-    </div>
+      </template>
+    </AdminFilterCard>
 
-    <div class="table-wrap">
-      <div class="toolbar">
-        <span class="total-count">
-          총 <strong>{{ totalMatches }}</strong>건
-        </span>
-        <div class="toolbar-right">
-          <span class="toolbar-hint">
-            {{ page }} / {{ maxPage }} 페이지
-          </span>
-          <BaseButton
-            variant="outline"
-            size="sm"
-            :disabled="matchesLoading || page === 1"
-            @click="changePage(page - 1)"
-          >
-            이전
-          </BaseButton>
-          <BaseButton
-            variant="outline"
-            size="sm"
-            :disabled="matchesLoading || page === maxPage"
-            @click="changePage(page + 1)"
-          >
-            다음
-          </BaseButton>
-        </div>
-      </div>
+    <AdminTableCard scroll-label="경기 목록" table-min-width="1610px">
+      <template #summary>
+        <strong>검색 결과</strong>
+        <span>총 {{ totalMatches }}건</span>
+      </template>
+      <template #toolbar-actions>
+        <AdminTablePagination
+          v-model:page-size="pageSize"
+          :page-size-options="pageSizeOptions"
+          :page="page"
+          :total-pages="maxPage"
+          :loading="matchesLoading"
+          @change-page="changePage"
+        />
+      </template>
 
-      <div class="table-scroll">
-        <table>
+        <table class="match-table">
           <colgroup>
             <col class="col-match-id" />
             <col class="col-sport" />
@@ -179,11 +147,32 @@
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="(match, idx) in visibleMatches"
-              :key="match.id"
-              :class="['match-row', { 'row-even': idx % 2 === 1 }]"
-            >
+            <AdminTableState
+              v-if="matchesLoading"
+              type="loading"
+              :colspan="12"
+              title="경기 목록을 불러오는 중입니다."
+              compact
+            />
+            <AdminTableState
+              v-else-if="matchListError"
+              type="error"
+              :colspan="12"
+              :title="matchListError"
+              description="잠시 후 다시 검색해 주세요."
+            />
+            <AdminTableState
+              v-else-if="visibleMatches.length === 0"
+              :colspan="12"
+              title="검색 결과가 없습니다."
+              description="검색 조건을 변경한 뒤 다시 검색해 주세요."
+            />
+            <template v-else>
+              <tr
+                v-for="match in visibleMatches"
+                :key="match.id"
+                class="match-row"
+              >
               <td class="match-id">{{ match.id }}</td>
               <td>
                 <AdminSportBadge
@@ -243,18 +232,18 @@
                 <div class="date-time-editor">
                   <input
                     v-model="match.editDate"
-                    class="row-input"
+                    class="row-control row-input"
                     type="date"
                   />
                   <input
                     v-model="match.editTime"
-                    class="row-input"
+                    class="row-control row-input"
                     type="time"
                   />
                 </div>
               </td>
               <td>
-                <BaseSelect v-model="match.editStatus">
+                <BaseSelect v-model="match.editStatus" class="row-control status-control">
                   <option
                     v-for="status in rowStatusOptions"
                     :key="status.value"
@@ -307,7 +296,7 @@
               <td class="detail-actions-cell action-area-start">
                 <div class="detail-action-row">
                   <BaseButton
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     class="match-action-btn action-broadcast"
                     @click="openBroadcastModal(match)"
@@ -322,7 +311,7 @@
                     라인업
                   </BaseButton>
                   <BaseButton
-                    variant="warn"
+                    variant="outline"
                     size="sm"
                     class="match-action-btn action-stadium"
                     @click="openStadiumModal(match)"
@@ -331,37 +320,11 @@
                   </BaseButton>
                 </div>
               </td>
-            </tr>
-
-            <tr v-if="matchesLoading">
-              <td colspan="12" class="empty" :style="{ height: emptyResultHeight }">
-                경기 목록을 불러오는 중입니다.
-              </td>
-            </tr>
-            <tr v-else-if="matchListError">
-              <td colspan="12" class="empty error-empty" :style="{ height: emptyResultHeight }">
-                {{ matchListError }}
-              </td>
-            </tr>
-            <tr v-else-if="visibleMatches.length === 0">
-              <td colspan="12" class="empty" :style="{ height: emptyResultHeight }">
-                검색 결과가 없습니다.
-              </td>
-            </tr>
-            <template v-else>
-              <tr
-                v-for="rowIndex in placeholderRowCount"
-                :key="`placeholder-${rowIndex}`"
-                class="result-placeholder-row"
-                aria-hidden="true"
-              >
-                <td colspan="12" class="result-placeholder-cell">&nbsp;</td>
               </tr>
             </template>
           </tbody>
         </table>
-      </div>
-    </div>
+    </AdminTableCard>
 
     <MatchCreateModal
       v-model="createModalVisible"
@@ -390,14 +353,19 @@
       @completed="handleStadiumMappingCompleted"
     />
 
-    <div v-if="stadiumToastMessage" class="stadium-toast" role="status">
+    <div v-if="stadiumToastMessage" class="toast" role="status">
       <span>✓</span>{{ stadiumToastMessage }}
     </div>
-  </div>
+  </AdminListPage>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
+import AdminListPage from '@/components/admin/AdminListPage.vue'
+import AdminTableCard from '@/components/admin/AdminTableCard.vue'
+import AdminTablePagination from '@/components/admin/AdminTablePagination.vue'
+import AdminTableState from '@/components/admin/AdminTableState.vue'
 import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import {
   createAdminMatch,
@@ -455,9 +423,8 @@ const isManualOptions = ref([])
 const sportOptionsWithoutAll = computed(() => sportOptions.value.filter((sport) => sport.value))
 const rowStatusOptions = computed(() => statusOptions.value.filter((status) => status.value))
 
-const RESULT_ROW_HEIGHT = 78
 const pageSizeOptions = [10, 20, 50]
-const pageSize = ref('10')
+const pageSize = ref(10)
 const page = ref(1)
 const totalMatches = ref(0)
 const totalPages = ref(1)
@@ -493,13 +460,6 @@ const filteredLeagueOptions = computed(() => {
 
 const maxPage = computed(() => Math.max(1, totalPages.value))
 const visibleMatches = computed(() => matches.value)
-const pageSizeNumber = computed(() => Number(pageSize.value) || pageSizeOptions[0])
-const placeholderRowCount = computed(() => {
-  if (matchesLoading.value || matchListError.value || visibleMatches.value.length === 0) return 0
-
-  return Math.max(0, pageSizeNumber.value - visibleMatches.value.length)
-})
-const emptyResultHeight = computed(() => `${pageSizeNumber.value * RESULT_ROW_HEIGHT}px`)
 
 const createModalVisible = ref(false)
 const broadcastPanel = ref({ visible: false, match: null })
@@ -1135,162 +1095,21 @@ function toErrorMessage(value) {
 </script>
 
 <style scoped>
-.match-list-wrap {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
+.match-filter-fields {
+  display: grid;
+  max-width: 680px;
+  flex: 1 1 620px;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 14px var(--admin-filter-gap);
 }
 
-.tab-bar {
-  display: flex;
-  align-items: center;
-  min-height: 40px;
-  padding: 0 12px;
-  background: #fff;
-  border-bottom: 1px solid #d1d5db;
+.match-filter-fields .field-group {
+  width: auto;
+  min-width: 0;
 }
 
-.page-title {
-  padding: 10px 12px;
-  color: #374151;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.search-box {
-  flex: 0 0 auto;
-  margin: 12px 12px 8px;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-}
-
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.filter-label {
-  color: #6b7280;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.filter-sport,
-.filter-status,
-.filter-use,
-.filter-page-size {
-  width: 120px;
-}
-
-.filter-league-search {
-  width: 180px;
-}
-
-.filter-league {
-  width: 220px;
-}
-
-.filter-date {
-  width: 150px;
-}
-
-.filter-btns {
-  display: flex;
-  flex-direction: row;
-  gap: 6px;
-  align-items: flex-end;
-  margin-left: auto;
-}
-
-.date-input,
-.row-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 7px 12px;
-  color: #232323;
-  font-family: inherit;
-  font-size: 12px;
-  background: #f3f3f3;
-  border: 1px solid #e9e9e9;
-  border-radius: 4px;
-  outline: none;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.date-input:focus,
-.row-input:focus {
-  background: #fff;
-  border-color: #1c67ff;
-}
-
-.table-wrap {
-  --match-row-height: 78px;
-
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  margin: 0 12px 12px;
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-}
-
-.toolbar {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.total-count {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.total-count strong {
-  color: #374151;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar-hint {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.table-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-table {
-  width: 100%;
-  min-width: 1480px;
-  table-layout: fixed;
-  border-collapse: collapse;
-  font-size: 12px;
+.match-table {
+  --match-row-height: 64px;
 }
 
 .col-match-id { width: 118px; }
@@ -1298,62 +1117,28 @@ table {
 .col-data { width: 110px; }
 .col-league { width: 170px; }
 .col-type { width: 64px; }
-.col-date-time { width: 156px; }
+.col-date-time { width: 280px; }
 .col-status { width: 118px; }
 .col-save { width: 92px; }
 .col-team { width: 120px; }
 .col-exposure { width: 116px; }
 .col-detail-actions { width: 220px; }
 
-thead tr {
-  background: #f3f4f6;
-  border-bottom: 1px solid #d1d5db;
-}
-
-th {
-  padding: 8px 12px;
-  color: #374151;
-  font-weight: 600;
-  text-align: center;
-  white-space: nowrap;
-}
-
 th.action-area-start,
 td.action-area-start {
-  border-left: 1px solid #cbd5e1;
+  border-left: 1px solid var(--admin-color-divider);
 }
 
-tbody tr {
-  border-bottom: 1px solid #f3f4f6;
+.match-table tbody tr.match-row {
   transition: background 0.1s;
-}
-
-tbody tr.match-row,
-tbody tr.result-placeholder-row {
   height: var(--match-row-height);
 }
 
-tbody tr:hover {
-  background: #eff6ff;
+.match-table tbody tr.match-row:hover {
+  background: var(--admin-color-table-row-hover);
 }
 
-tbody tr.row-even {
-  background: #f9fafb;
-}
-
-tbody tr.row-even:hover {
-  background: #eff6ff;
-}
-
-tbody tr.result-placeholder-row:hover {
-  background: transparent;
-}
-
-td {
-  padding: 8px 12px;
-  color: #374151;
-  vertical-align: middle;
-  text-align: center;
+.match-table .match-row td {
   white-space: nowrap;
 }
 
@@ -1387,29 +1172,29 @@ td {
   gap: 2px;
   width: 92px;
   padding: 2px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: #f1f4f8;
+  border: 0;
+  border-radius: 7px;
 }
 
 .data-mode-option,
 .exposure-mode-option {
   height: 26px;
   padding: 0;
-  color: #6b7280;
+  color: var(--admin-color-text-muted);
   font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
 }
 
 .data-mode-option:hover,
 .exposure-mode-option:hover {
-  color: #111827;
-  background: #e5e7eb;
+  color: var(--admin-color-text-title);
+  background: #e8ecf2;
 }
 
 .data-mode-option:disabled,
@@ -1418,25 +1203,11 @@ td {
   cursor: not-allowed;
 }
 
-.data-mode-option.active.auto {
-  color: #075985;
-  background: #e0f2fe;
-}
-
-.data-mode-option.active.manual {
-  color: #374151;
+.data-mode-option.active,
+.exposure-mode-option.active {
+  color: var(--admin-color-primary);
   background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
-}
-
-.exposure-mode-option.active.visible {
-  color: #075985;
-  background: #e0f2fe;
-}
-
-.exposure-mode-option.active.inactive {
-  color: #b91c1c;
-  background: #fee2e2;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 12%);
 }
 
 .center {
@@ -1444,10 +1215,23 @@ td {
 }
 
 .date-time-editor {
-  display: flex;
+  display: grid;
   width: 100%;
-  flex-direction: column;
-  gap: 5px;
+  grid-template-columns: minmax(140px, 1fr) 108px;
+  gap: 6px;
+}
+
+.row-input,
+:deep(.base-select.status-control) {
+  min-width: 0;
+}
+
+.row-input[type='date'] {
+  min-width: 140px;
+}
+
+.row-input[type='time'] {
+  min-width: 108px;
 }
 
 .team-cell {
@@ -1493,8 +1277,6 @@ td {
 }
 
 :deep(.base-btn.match-action-btn) {
-  border: none;
-  color: #fff;
   font-weight: 600;
   width: 100%;
 }
@@ -1513,121 +1295,44 @@ td {
 }
 
 :deep(.base-btn.match-action-btn.action-save-loading) {
-  background: #64748b;
+  color: #5f6878;
+  background: #eef1f5;
+  border-color: #dce2eb;
 }
 
 :deep(.base-btn.match-action-btn.action-save-done) {
-  background: #059669;
+  color: #18734b;
+  background: #eaf8f1;
+  border-color: #bfe7d2;
 }
 
 :deep(.base-btn.match-action-btn.action-save-error) {
-  background: #dc2626;
+  color: #c53c46;
+  background: #fff0f0;
+  border-color: #f1c6ca;
 }
 
-:deep(.base-btn.match-action-btn.action-broadcast) {
-  background: #0891b2;
-}
-
-:deep(.base-btn.match-action-btn.action-broadcast:hover:not(.disabled)) {
-  background: #0e7490;
-}
-
-:deep(.base-btn.match-action-btn.action-lineup) {
-  background: #92400e;
-}
-
-:deep(.base-btn.match-action-btn.action-lineup:hover:not(.disabled)) {
-  background: #78350f;
-}
-
-:deep(.base-btn.match-action-btn.action-stadium) {
-  background: #f59e0b;
-}
-
-:deep(.base-btn.match-action-btn.action-stadium:hover:not(.disabled)) {
-  background: #d97706;
-}
-
-:deep(.base-btn.create-match-btn) {
-  background: #047857;
-  color: #fff;
-  font-weight: 600;
-}
-
-:deep(.base-btn.create-match-btn:hover:not(.disabled)) {
-  background: #065f46;
-}
-
-:deep(.base-btn.reset-filter-btn) {
-  background: #64748b;
-  color: #fff;
-  font-weight: 600;
-}
-
-:deep(.base-btn.reset-filter-btn:hover:not(.disabled)) {
-  background: #475569;
-}
-
-.empty {
-  padding: 40px;
-  color: #9ca3af;
-  text-align: center;
-}
-
-.result-placeholder-cell {
-  padding: 0;
-  color: transparent;
-  pointer-events: none;
-}
-
-.error-empty {
-  color: #dc2626;
-}
-
-.stadium-toast {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 1500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 460px;
-  padding: 11px 15px;
-  border-radius: var(--admin-toast-radius);
-  color: var(--admin-color-surface);
-  background: var(--admin-color-toast-surface);
-  box-shadow: var(--admin-toast-shadow);
-  font-size: var(--admin-font-size-label);
-}
-
-.stadium-toast span {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  color: var(--admin-color-toast-surface);
-  background: var(--admin-color-toast-accent);
-  font-size: var(--admin-font-size-table-heading);
-  font-weight: 900;
-}
-
-@media (max-width: 960px) {
-  .filter-sport,
-  .filter-status,
-  .filter-use,
-  .filter-page-size,
-  .filter-date,
-  .filter-league-search,
-  .filter-league {
-    width: calc(50% - 6px);
+@container admin-content (min-width: 601px) and (max-width: 960px) {
+  .match-filter-fields {
+    max-width: none;
+    flex-basis: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .filter-btns {
+  :deep(.filter-actions) {
     width: 100%;
+    justify-content: flex-end;
     margin-left: 0;
+  }
+}
+
+@container admin-content (max-width: 600px) {
+  .match-filter-fields {
+    grid-template-columns: 1fr;
+  }
+
+  :deep(.filter-actions) {
+    justify-content: stretch;
   }
 }
 </style>

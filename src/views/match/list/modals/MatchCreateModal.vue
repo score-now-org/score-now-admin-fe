@@ -1,6 +1,6 @@
 <template>
-  <BaseModal v-model="visible" title="경기 등록" width="640px">
-    <div class="form">
+  <BaseModal v-model="visible" title="경기 등록" size="lg" :close-disabled="saving">
+    <div class="form modal-form">
       <div class="form-grid">
         <div class="form-row">
           <label class="form-label">종목</label>
@@ -32,21 +32,20 @@
 
         <div class="form-row">
           <label class="form-label">시작 날짜</label>
-          <input v-model="form.startDate" class="form-input" type="date" />
+          <BaseInput v-model="form.startDate" type="date" />
         </div>
 
         <div class="form-row">
           <label class="form-label">시작 시간</label>
-          <input
+          <BaseInput
             v-model="form.startTime"
-            class="form-input"
             type="time"
           />
         </div>
       </div>
 
       <div class="team-search-grid">
-        <div class="team-search-box">
+        <div class="team-search-box form-field">
           <label class="form-label">홈팀</label>
           <input
             ref="homeTeamInput"
@@ -112,7 +111,7 @@
           </div>
         </div>
 
-        <div class="team-search-box">
+        <div class="team-search-box form-field">
           <label class="form-label">원정팀</label>
           <input
             v-model="form.awayTeamKeyword"
@@ -194,6 +193,7 @@
 
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import { getMatchTeamCandidates } from '../../../../api/match'
 
 const props = defineProps({
@@ -560,56 +560,6 @@ function normalizeTime(value) {
 </script>
 
 <style scoped>
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.form-label {
-  color: #4b5563;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.form-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 7px 12px;
-  color: #232323;
-  font-family: inherit;
-  font-size: 12px;
-  background: #f3f3f3;
-  border: 1px solid #e9e9e9;
-  border-radius: 4px;
-  outline: none;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.form-input:focus {
-  background: #fff;
-  border-color: #1c67ff;
-}
-
-.form-input:disabled {
-  color: #9ca3af;
-  background: #f9fafb;
-  border-color: #e5e7eb;
-  cursor: not-allowed;
-}
-
 .team-search-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -626,9 +576,9 @@ function normalizeTime(value) {
 .team-result-panel {
   height: 154px;
   overflow: auto;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
 }
 
 .team-result-item {
@@ -638,13 +588,13 @@ function normalizeTime(value) {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  color: #374151;
+  color: var(--admin-color-text-body);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--admin-font-size-description);
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid var(--admin-color-divider);
   cursor: pointer;
 }
 
@@ -653,7 +603,7 @@ function normalizeTime(value) {
 }
 
 .team-result-item:hover {
-  background: #eff6ff;
+  background: var(--admin-color-table-row-hover);
 }
 
 .team-result-name {
@@ -675,8 +625,8 @@ function normalizeTime(value) {
 
 .team-result-sub {
   flex: 0 0 auto;
-  color: #6b7280;
-  font-size: 11px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
 }
 
 .team-search-guide {
@@ -686,25 +636,25 @@ function normalizeTime(value) {
   box-sizing: border-box;
   justify-content: center;
   margin: 0;
-  color: #9ca3af;
-  font-size: 12px;
+  color: var(--admin-color-text-empty-description);
+  font-size: var(--admin-font-size-description);
   line-height: 1.5;
   padding: 0 16px;
   text-align: center;
 }
 
 .team-search-guide.error {
-  color: #ef4444;
+  color: #c53c46;
 }
 
 .team-search-note {
   margin: 0;
   padding: 8px 10px;
-  color: #6b7280;
-  font-size: 11px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
   line-height: 1.5;
-  background: #fff;
-  border-top: 1px solid #edf2f7;
+  background: var(--admin-color-surface);
+  border-top: 1px solid var(--admin-color-divider);
 }
 
 .selected-team-card {
@@ -716,8 +666,8 @@ function normalizeTime(value) {
   gap: 8px;
   justify-content: center;
   padding: 16px;
-  color: #1f2937;
-  background: #fff;
+  color: var(--admin-color-text-body);
+  background: var(--admin-color-surface);
   border: none;
   border-radius: 0;
 }
@@ -742,11 +692,11 @@ function normalizeTime(value) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #2563eb;
+  color: var(--admin-color-primary);
   font-size: 10px;
   font-weight: 700;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: #edf3ff;
+  border: 1px solid #cfdfff;
 }
 
 .selected-team-card strong {
@@ -758,20 +708,15 @@ function normalizeTime(value) {
 }
 
 .selected-team-label {
-  color: #2563eb;
-  font-size: 11px;
+  padding: 5px 8px;
+  color: #3864bd;
+  font-size: var(--admin-font-size-table-heading);
   font-weight: 700;
-}
-
-.error-msg {
-  margin: 0;
-  color: #ef4444;
-  font-size: 12px;
-  text-align: center;
+  background: #edf3ff;
+  border-radius: 999px;
 }
 
 @media (max-width: 640px) {
-  .form-grid,
   .team-search-grid {
     grid-template-columns: 1fr;
   }
