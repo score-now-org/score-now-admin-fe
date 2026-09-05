@@ -13,6 +13,7 @@
         <LeagueMngr v-else-if="activeSidebar === '리그'" />
         <TeamMngr v-else-if="activeSidebar === '팀'" />
         <StadiumMngr v-else-if="activeSidebar === '경기장'" />
+        <CasterMngr v-else-if="activeSidebar === '캐스터'" />
 
         <div v-else class="coming-soon">
           {{ activeSidebar }} 준비 중입니다.
@@ -30,6 +31,7 @@ import LeagueMngr from './league/LeagueMngr.vue'
 import FeaturedMatchMngr from './featured/FeaturedMatchMngr.vue'
 import TeamMngr from './team/TeamMngr.vue'
 import StadiumMngr from './stadium/StadiumMngr.vue'
+import CasterMngr from './caster/CasterMngr.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +45,7 @@ const sidebarItems = [
   { label: '선수', path: '/admin/match/players' },
   { label: '스쿼드/결장자', path: '/admin/match/squads' },
   { label: '경기장', path: '/admin/match/stadiums' },
+  { label: '캐스터', path: '/admin/match/casters' },
 ]
 
 const activeSidebar = ref(resolveActiveSidebar(route.path))

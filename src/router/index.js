@@ -60,6 +60,12 @@ const routes = [
     component: MatchAdmin,
     meta: { adminSection: 'match' },
   },
+  {
+    path: '/admin/match/casters',
+    name: 'admin-match-casters',
+    component: MatchAdmin,
+    meta: { adminSection: 'match' },
+  },
 ];
 
 const router = createRouter({
