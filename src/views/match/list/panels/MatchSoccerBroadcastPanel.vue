@@ -1,5 +1,5 @@
 <template>
-  <aside class="broadcast-panel">
+  <aside class="broadcast-panel" tabindex="-1" @keydown.esc.stop="closePanel">
     <div class="panel-header">
       <div>
         <p class="panel-kicker">{{ matchLeague }}</p>
@@ -12,16 +12,16 @@
         <BaseButton
           variant="outline"
           size="sm"
-          :disabled="isWorking('detail') || isWorking('refresh')"
+          :disabled="panelBusy"
           @click="refreshMatch"
         >
           {{ isWorking('refresh') ? '새로고침중' : '새로고침' }}
         </BaseButton>
-        <button class="panel-close" type="button" @click="$emit('close')">×</button>
+        <button class="panel-close" type="button" :disabled="panelBusy" aria-label="축구 중계 패널 닫기" @click="closePanel">×</button>
       </div>
     </div>
 
-    <div class="panel-body">
+    <fieldset class="panel-body" :disabled="panelBusy || !panelLoaded">
       <p v-if="detailError" class="panel-error">{{ detailError }}</p>
 
       <section class="work-section">
@@ -515,7 +515,7 @@
           </BaseButton>
         </div>
       </section>
-    </div>
+    </fieldset>
 
     <BaseModal v-model="chatModalVisible" title="채팅 보기" size="lg">
       <ul class="modal-list">
@@ -563,10 +563,14 @@
         <BaseButton :variant="confirmModal.variant" @click="confirmAction">확인</BaseButton>
       </template>
     </BaseModal>
+    <AdminUnsavedChangesModal :action="pendingAction" @confirm="confirmDiscard" @cancel="cancelDiscard" />
   </aside>
 </template>
 
 <script setup>
+import AdminUnsavedChangesModal from '@/components/admin/AdminUnsavedChangesModal.vue'
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
+
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import {
@@ -591,31 +595,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'match-updated'])
 
-const statusOptions = [
-  { value: 'NOT_STARTED', label: '경기전' },
-  { value: 'IN_PLAY', label: '진행중' },
-  { value: 'TO_BE_FIXED', label: '수정예정' },
-  { value: 'ENDED', label: '종료' },
-  { value: 'POSTPONED', label: '연기' },
-  { value: 'CANCELLED', label: '취소' },
-  { value: 'WALKOVER', label: '부전승' },
-  { value: 'INTERRUPTED', label: '중지' },
-  { value: 'ABANDONED', label: '취소' },
-  { value: 'RETIRED', label: '기권' },
-  { value: 'REMOVED', label: '삭제' },
-]
-
-const soccerClockStateOptions = [
-  { value: 'FIRST_HALF', label: '전반' },
-  { value: 'HALF_TIME', label: '하프타임' },
-  { value: 'SECOND_HALF', label: '후반' },
-  { value: 'EXTRA_TIME_WAITING', label: '연장 대기' },
-  { value: 'EXTRA_FIRST_HALF', label: '연장 전반' },
-  { value: 'EXTRA_SECOND_HALF', label: '연장 후반' },
-  { value: 'PENALTY_SHOOTOUT', label: '승부차기' },
-  { value: 'EXTRA_TIME_ENDED', label: '연장 종료' },
-  { value: 'FULL_TIME', label: '경기 종료' },
-]
+const statusOptions = ref([])
+const soccerClockStateOptions = ref([])
 
 const extraTimeFields = [
   { key: 'firstHalf', label: '전반' },
@@ -658,11 +639,39 @@ const detailRequestId = ref(0)
 const clockNow = ref(Date.now())
 let clockTickTimer = null
 
+const clone = (value) => JSON.parse(JSON.stringify(value))
+const persisted = ref({})
+const panelLoaded = ref(false)
+const panelBusy = computed(() => Object.values(loading.value).some(Boolean))
+const editorGroups = {
+  schedule: { get: () => ({ startDate: timeForm.value.startDate, startTime: timeForm.value.startTime }), set: (v) => Object.assign(timeForm.value, v) },
+  status: { get: () => timeForm.value.status, set: (v) => { timeForm.value.status = v } },
+  clockState: { get: () => timeForm.value.clockState, set: (v) => { timeForm.value.clockState = v } },
+  clockCorrection: { get: () => clockCorrectionForm.value, set: (v) => { clockCorrectionForm.value = v } },
+  extraTime: { get: () => timeForm.value.extraTime, set: (v) => { timeForm.value.extraTime = v } },
+  score: { get: () => ({ homeScore: scoreForm.value.homeScore, awayScore: scoreForm.value.awayScore }), set: (v) => Object.assign(scoreForm.value, v) },
+  shootOutScore: { get: () => ({ homePenaltyScore: scoreForm.value.homePenaltyScore, awayPenaltyScore: scoreForm.value.awayPenaltyScore }), set: (v) => Object.assign(scoreForm.value, v) },
+  stats: { get: () => statsForm.value, set: (v) => { statsForm.value = v } },
+  comment: { get: () => commentForm.value, set: (v) => { commentForm.value = v } },
+}
+const snapshot = () => clone(Object.fromEntries(Object.entries(editorGroups).map(([key, group]) => [key, group.get()])))
+const hasUnsavedChanges = computed(() => panelLoaded.value && JSON.stringify(snapshot()) !== JSON.stringify(persisted.value))
+const { pendingAction, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, panelBusy)
+function closePanel() {
+  if (pendingAction.value) return cancelDiscard()
+  if (confirmModal.value.visible || chatModalVisible.value || commentHistoryModalVisible.value) return
+  return requestDiscard('close', () => emit('close'))
+}
+defineExpose({ requestSwitch: (work) => {
+  if (confirmModal.value.visible || chatModalVisible.value || commentHistoryModalVisible.value) return
+  return requestDiscard('switch', work)
+} })
+
 const homeTeamName = computed(() => props.match?.homeTeam?.name || '홈팀')
 const awayTeamName = computed(() => props.match?.awayTeam?.name || '원정팀')
 const matchLeague = computed(() => props.match?.leagueName || props.match?.leagueId || '-')
 const clockStatePreview = computed(() => {
-  return soccerClockStateOptions.find((item) => item.value === timeForm.value.clockState)?.label || '선택된 문구 없음'
+  return soccerClockStateOptions.value.find((item) => item.value === timeForm.value.clockState)?.label || '선택된 문구 없음'
 })
 const clockInitialized = computed(() => (
   Boolean(footballClock.value.phaseCode)
@@ -674,7 +683,7 @@ const clockInitialized = computed(() => (
 const currentPhaseLabel = computed(() => {
   if (footballClock.value.phaseName) return footballClock.value.phaseName
 
-  return soccerClockStateOptions.find((item) => (
+  return soccerClockStateOptions.value.find((item) => (
     item.value === footballClock.value.phaseCode
   ))?.label || '미설정'
 })
@@ -725,6 +734,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  detailRequestId.value += 1
+  commentHistoryRequestId.value += 1
   if (clockTickTimer != null) {
     window.clearInterval(clockTickTimer)
   }
@@ -740,6 +751,11 @@ watch(
 )
 
 function resetPanelState() {
+  panelLoaded.value = false
+  persisted.value = {}
+  cancelDiscard()
+  statusOptions.value = []
+  soccerClockStateOptions.value = []
   timeForm.value = defaultTimeForm()
   persistedMatchStatus.value = props.match?.status || 'NOT_STARTED'
   footballClock.value = defaultFootballClock()
@@ -873,11 +889,11 @@ async function fetchCommentHistory() {
   }
 }
 
-async function refreshMatch() {
-  await fetchMatchDetail('refresh', true)
+function refreshMatch() {
+  return requestDiscard('refresh', () => fetchMatchDetail('refresh', true))
 }
 
-async function fetchMatchDetail(loadingKey = 'detail', showAlert = false) {
+async function fetchMatchDetail(loadingKey = 'detail', showAlert = false, preserveEdits = false, affectedGroups = []) {
   if (!props.match?.id) return
 
   const requestId = detailRequestId.value + 1
@@ -890,7 +906,7 @@ async function fetchMatchDetail(loadingKey = 'detail', showAlert = false) {
 
     if (requestId !== detailRequestId.value) return
 
-    applyMatchDetail(detail)
+    applyMatchDetail(detail, preserveEdits, affectedGroups)
   } catch (error) {
     if (requestId !== detailRequestId.value) return
 
@@ -906,7 +922,21 @@ async function fetchMatchDetail(loadingKey = 'detail', showAlert = false) {
   }
 }
 
-function applyMatchDetail(detail = {}) {
+function applyMatchDetail(detail = {}, preserveEdits = false, affectedGroups = []) {
+  const drafts = snapshot()
+  const dirtyGroups = preserveEdits ? Object.keys(editorGroups).filter((key) =>
+    !affectedGroups.includes(key) && JSON.stringify(drafts[key]) !== JSON.stringify(persisted.value[key])) : []
+  // 누락된 서버 필드의 기본값에 미저장 입력이 섞이지 않도록 저장 기준으로 변환한다.
+  if (preserveEdits) {
+    for (const [key, group] of Object.entries(editorGroups)) group.set(clone(persisted.value[key]))
+  } else {
+    timeForm.value = defaultTimeForm()
+    scoreForm.value = defaultScoreForm()
+    statsForm.value = defaultStatsForm()
+    clockCorrectionForm.value = defaultClockCorrectionForm()
+  }
+  statusOptions.value = detail.statusOptions ?? []
+  soccerClockStateOptions.value = detail.phaseOptions ?? []
   const startAt = splitDateTime(detail.startAt)
   const footballDetail = detail.footballDetail || {}
   const nextStatus = detail.statusCode || timeForm.value.status
@@ -947,6 +977,14 @@ function applyMatchDetail(detail = {}) {
   }
 
   currentCommentary.value = normalizeCurrentComment(detail)
+  if (!preserveEdits) commentForm.value = defaultCommentForm()
+  const serverValues = snapshot()
+  // 멘트 입력은 상세 응답에 포함되지 않는 새 글 초안이다.
+  if (preserveEdits) serverValues.comment = clone(persisted.value.comment)
+  persisted.value = serverValues
+  for (const key of dirtyGroups) editorGroups[key].set(clone(drafts[key]))
+  panelLoaded.value = true
+
 
   emit('match-updated', {
     matchId: props.match?.id,
@@ -997,6 +1035,7 @@ function normalizeCommentaries(comments) {
 }
 
 function requestAction(action) {
+  if (panelBusy.value || pendingAction.value) return
   const config = actionConfig(action)
   if (!config) return
 
@@ -1012,6 +1051,7 @@ function requestAction(action) {
 }
 
 async function confirmAction() {
+  if (panelBusy.value) return
   const action = confirmModal.value.action
   if (!action) return
 
@@ -1039,7 +1079,12 @@ async function saveFootballDetail(action) {
 
   await executeFootballDetailUpdate(action, payload)
   applyFootballDetailUpdatePayload(payload)
-  await fetchMatchDetail('detail')
+  const group = ['currentTime', 'manualTime'].includes(action) ? 'schedule' : action
+  if (editorGroups[group]) persisted.value[group] = clone(editorGroups[group].get())
+  // Phase 전환은 시계와 경기 상태도 변경할 수 있으므로 함께 갱신한다.
+  const affectedGroups = action === 'clockState' ? ['clockState', 'clockCorrection'] : [group]
+  if (action === 'clockState' && ['FIRST_HALF', 'FULL_TIME'].includes(payload.footballPhase)) affectedGroups.push('status')
+  await fetchMatchDetail('detail', false, true, affectedGroups)
 }
 
 async function executeFootballDetailUpdate(action, payload) {
@@ -1113,6 +1158,7 @@ async function saveCommentary() {
     ]
   }
   commentForm.value.message = ''
+  persisted.value.comment = clone(commentForm.value)
 }
 
 function buildFootballDetailUpdatePayload(action) {
@@ -1513,12 +1559,7 @@ function correctionFormFromSeconds(value) {
 }
 
 function isClockRunningPhase(phaseCode) {
-  return [
-    'FIRST_HALF',
-    'SECOND_HALF',
-    'EXTRA_FIRST_HALF',
-    'EXTRA_SECOND_HALF',
-  ].includes(phaseCode)
+  return soccerClockStateOptions.value.find((option) => option.value === phaseCode)?.clockRunningPhase === true
 }
 
 function formatClockDuration(value) {
@@ -1571,7 +1612,7 @@ function normalizeFootballPhaseCode(value) {
 
   const normalizedValue = String(value).trim().toUpperCase()
 
-  return soccerClockStateOptions.some((option) => option.value === normalizedValue)
+  return soccerClockStateOptions.value.some((option) => option.value === normalizedValue)
     ? normalizedValue
     : ''
 }
@@ -1581,7 +1622,7 @@ function findFootballPhaseCodeByName(value) {
 
   const normalizedName = String(value).trim().replaceAll(' ', '')
 
-  return soccerClockStateOptions.find((option) => (
+  return soccerClockStateOptions.value.find((option) => (
     option.label.replaceAll(' ', '') === normalizedName
   ))?.value || ''
 }
@@ -1693,7 +1734,7 @@ function notifyUnsupportedFeature(featureName) {
 }
 
 function statusLabel(status) {
-  return statusOptions.find((item) => item.value === status)?.label || status
+  return statusOptions.value.find((item) => item.value === status)?.label || status
 }
 
 function statusBadgeVariant(status) {
@@ -1869,6 +1910,9 @@ function makeMockChats() {
 }
 
 .panel-body {
+  margin: 0;
+  border: 0;
+  min-width: 0;
   flex: 1;
   overflow: auto;
   padding: 14px 16px 18px;
