@@ -299,6 +299,8 @@
                     variant="outline"
                     size="sm"
                     class="match-action-btn action-broadcast"
+                    :disabled="!isBroadcastSupported(match)"
+                    :title="isBroadcastSupported(match) ? '중계 패널 열기' : '중계를 지원하지 않는 종목입니다.'"
                     @click="openBroadcastModal(match)"
                   >
                     중계
@@ -335,13 +337,18 @@
     />
 
     <MatchBaseballBroadcastPanel
-      v-if="broadcastPanel.visible && broadcastPanel.match?.sport === 'baseball'"
+      ref="broadcastPanelRef"
+      v-if="broadcastPanel.visible && broadcastSportCode(broadcastPanel.match) === 'BASEBALL'"
+      :key="broadcastPanel.match.id"
       :match="broadcastPanel.match"
       @close="closeBroadcastPanel"
+      @match-updated="applyMatchUpdate"
     />
 
     <MatchSoccerBroadcastPanel
-      v-else-if="broadcastPanel.visible"
+      ref="broadcastPanelRef"
+      v-else-if="broadcastPanel.visible && broadcastSportCode(broadcastPanel.match) === 'FOOTBALL'"
+      :key="broadcastPanel.match.id"
       :match="broadcastPanel.match"
       @close="closeBroadcastPanel"
       @match-updated="applyMatchUpdate"
@@ -462,6 +469,7 @@ const maxPage = computed(() => Math.max(1, totalPages.value))
 const visibleMatches = computed(() => matches.value)
 
 const createModalVisible = ref(false)
+const broadcastPanelRef = ref(null)
 const broadcastPanel = ref({ visible: false, match: null })
 const stadiumModal = ref({ visible: false, match: null })
 const stadiumToastMessage = ref('')
@@ -853,7 +861,22 @@ function revertMatchEdits(match) {
 }
 
 function openBroadcastModal(match) {
-  broadcastPanel.value = { visible: true, match }
+  if (!isBroadcastSupported(match)) return
+  if (broadcastPanel.value.visible && String(broadcastPanel.value.match?.id) === String(match.id)) return
+  const open = () => { broadcastPanel.value = { visible: true, match } }
+  if (broadcastPanelRef.value) {
+    broadcastPanelRef.value.requestSwitch(open)
+  } else {
+    open()
+  }
+}
+
+function broadcastSportCode(match) {
+  return String(match?.sportCode ?? '').trim().toUpperCase()
+}
+
+function isBroadcastSupported(match) {
+  return ['FOOTBALL', 'BASEBALL'].includes(broadcastSportCode(match))
 }
 
 function closeBroadcastPanel() {
