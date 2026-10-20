@@ -369,96 +369,15 @@
         </div>
       </section>
 
-      <section class="work-section">
-        <div class="section-head">
-          <div>
-            <h4 class="section-title">중계 멘트</h4>
-            <p class="section-desc">중계 멘트를 등록하고 현재 등록된 멘트를 확인합니다.</p>
-          </div>
-          <div class="section-actions">
-            <BaseButton
-              variant="outline"
-              size="sm"
-              :class="{ 'highlight-toggle-active': commentForm.highlight }"
-              @click="commentForm.highlight = !commentForm.highlight"
-            >
-              강조
-            </BaseButton>
-            <BaseButton variant="outline" size="sm" @click="openCommentHistoryModal">
-              중계글 모음
-            </BaseButton>
-            <BaseButton
-              variant="outline"
-              size="sm"
-              :class="commentForm.recordEnabled ? 'record-toggle-on' : 'record-toggle-off'"
-              @click="commentForm.recordEnabled = !commentForm.recordEnabled"
-            >
-              기록 저장 {{ commentForm.recordEnabled ? 'ON' : 'OFF' }}
-            </BaseButton>
-          </div>
-        </div>
-
-        <div
-          class="current-comment-summary"
-          :class="{
-            empty: !currentComment,
-            highlighted: currentComment?.highlight,
-          }"
-        >
-          <div class="current-comment-meta-row">
-            <span class="current-comment-label">최근 멘트</span>
-          </div>
-          <p
-            v-if="currentComment"
-            class="current-comment-message"
-          >
-              {{ currentComment.message }}
-          </p>
-          <p v-else class="current-comment-message muted">
-            등록된 멘트가 없습니다.
-          </p>
-        </div>
-
-        <div
-          class="comment-box"
-          :class="{ highlighted: commentForm.highlight }"
-        >
-          <BaseTextarea
-            v-model="commentForm.message"
-            class="comment-textarea"
-            placeholder="중계 멘트를 입력하세요."
-            rows="4"
-          />
-          <div class="comment-tools">
-            <button
-              class="upload-btn"
-              type="button"
-              @click="notifyUnsupportedFeature('사진 추가')"
-            >
-              사진 추가
-            </button>
-            <span class="upload-summary">이미지 서버 구축 후 제공됩니다.</span>
-          </div>
-        </div>
-
-        <div class="action-row">
-          <BaseButton
-            variant="primary"
-            size="sm"
-            :disabled="isWorking('comment')"
-            @click="requestAction('comment')"
-          >
-            {{ buttonLabel('comment', '멘트 저장') }}
-          </BaseButton>
-          <BaseButton
-            variant="warn"
-            size="sm"
-            @click="notifyUnsupportedFeature('푸시 발송')"
-          >
-            멘트 저장 & 푸시 발송
-          </BaseButton>
-        </div>
-      </section>
+      <MatchCommentarySection
+        ref="commentarySection"
+        :match-id="match?.id"
+        :current-comment="currentCommentary"
+        @saved="currentCommentary = $event"
+        @dirty-change="commentaryDirty = $event"
+        @busy-change="commentaryBusy = $event"
+        @modal-change="commentaryModalOpen = $event"
+      />
 
       <section class="work-section">
         <div class="section-head">
@@ -530,32 +449,6 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="commentHistoryModalVisible" title="중계글 모음" size="lg">
-      <p v-if="commentHistoryLoading" class="modal-empty">
-        중계글 모음을 불러오는 중입니다.
-      </p>
-      <p v-else-if="commentHistoryError" class="modal-empty error">
-        {{ commentHistoryError }}
-      </p>
-      <ul v-else-if="visibleCommentHistory.length" class="modal-list">
-        <li v-for="comment in visibleCommentHistory" :key="comment.id" class="comment-history-item">
-          <div class="history-meta">
-            <span v-if="comment.time">{{ comment.time }}</span>
-            <BaseBadge :variant="comment.highlight ? 'red' : 'gray'">
-              {{ comment.highlight ? '강조' : '일반' }}
-            </BaseBadge>
-          </div>
-          <p>{{ comment.message }}</p>
-        </li>
-      </ul>
-      <p v-else class="modal-empty">
-        중계글 모음에 표시할 멘트가 없습니다.
-      </p>
-      <template #footer>
-        <BaseButton variant="outline" @click="commentHistoryModalVisible = false">닫기</BaseButton>
-      </template>
-    </BaseModal>
-
     <BaseModal v-model="confirmModal.visible" :title="confirmModal.title" size="sm">
       <p class="confirm-message">{{ confirmModal.message }}</p>
       <template #footer>
@@ -570,14 +463,13 @@
 <script setup>
 import AdminUnsavedChangesModal from '@/components/admin/AdminUnsavedChangesModal.vue'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
+import MatchCommentarySection from './components/MatchCommentarySection.vue'
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import {
   correctFootballClock,
-  createMatchCommentary,
   getAdminMatchDetail,
-  getMatchCommentaries,
   pauseFootballClock,
   resumeFootballClock,
   transitionFootballPhase,
@@ -622,18 +514,16 @@ const persistedMatchStatus = ref(props.match?.status || 'NOT_STARTED')
 const footballClock = ref(defaultFootballClock())
 const clockCorrectionForm = ref(defaultClockCorrectionForm())
 const scoreForm = ref(defaultScoreForm())
-const commentForm = ref(defaultCommentForm())
 const statsForm = ref(defaultStatsForm())
 const loading = ref({})
 const chatModalVisible = ref(false)
-const commentHistoryModalVisible = ref(false)
 const confirmModal = ref(defaultConfirmModal())
 const chats = ref([])
 const currentCommentary = ref(null)
-const commentHistory = ref([])
-const commentHistoryLoading = ref(false)
-const commentHistoryError = ref('')
-const commentHistoryRequestId = ref(0)
+const commentarySection = ref(null)
+const commentaryDirty = ref(false)
+const commentaryBusy = ref(false)
+const commentaryModalOpen = ref(false)
 const detailError = ref('')
 const detailRequestId = ref(0)
 const clockNow = ref(Date.now())
@@ -642,7 +532,7 @@ let clockTickTimer = null
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const persisted = ref({})
 const panelLoaded = ref(false)
-const panelBusy = computed(() => Object.values(loading.value).some(Boolean))
+const panelBusy = computed(() => commentaryBusy.value || Object.values(loading.value).some(Boolean))
 const editorGroups = {
   schedule: { get: () => ({ startDate: timeForm.value.startDate, startTime: timeForm.value.startTime }), set: (v) => Object.assign(timeForm.value, v) },
   status: { get: () => timeForm.value.status, set: (v) => { timeForm.value.status = v } },
@@ -652,18 +542,19 @@ const editorGroups = {
   score: { get: () => ({ homeScore: scoreForm.value.homeScore, awayScore: scoreForm.value.awayScore }), set: (v) => Object.assign(scoreForm.value, v) },
   shootOutScore: { get: () => ({ homePenaltyScore: scoreForm.value.homePenaltyScore, awayPenaltyScore: scoreForm.value.awayPenaltyScore }), set: (v) => Object.assign(scoreForm.value, v) },
   stats: { get: () => statsForm.value, set: (v) => { statsForm.value = v } },
-  comment: { get: () => commentForm.value, set: (v) => { commentForm.value = v } },
 }
 const snapshot = () => clone(Object.fromEntries(Object.entries(editorGroups).map(([key, group]) => [key, group.get()])))
-const hasUnsavedChanges = computed(() => panelLoaded.value && JSON.stringify(snapshot()) !== JSON.stringify(persisted.value))
+const hasUnsavedChanges = computed(() => panelLoaded.value && (
+  commentaryDirty.value || JSON.stringify(snapshot()) !== JSON.stringify(persisted.value)
+))
 const { pendingAction, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, panelBusy)
 function closePanel() {
   if (pendingAction.value) return cancelDiscard()
-  if (confirmModal.value.visible || chatModalVisible.value || commentHistoryModalVisible.value) return
+  if (confirmModal.value.visible || chatModalVisible.value || commentaryModalOpen.value) return
   return requestDiscard('close', () => emit('close'))
 }
 defineExpose({ requestSwitch: (work) => {
-  if (confirmModal.value.visible || chatModalVisible.value || commentHistoryModalVisible.value) return
+  if (confirmModal.value.visible || chatModalVisible.value || commentaryModalOpen.value) return
   return requestDiscard('switch', work)
 } })
 
@@ -724,9 +615,6 @@ const canTransitionPhase = computed(() => (
 const isPenaltyShootoutPhase = computed(() => (
   footballClock.value.phaseCode === 'PENALTY_SHOOTOUT'
 ))
-const currentComment = computed(() => currentCommentary.value)
-const visibleCommentHistory = computed(() => commentHistory.value)
-
 onMounted(() => {
   clockTickTimer = window.setInterval(() => {
     clockNow.value = Date.now()
@@ -735,7 +623,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   detailRequestId.value += 1
-  commentHistoryRequestId.value += 1
   if (clockTickTimer != null) {
     window.clearInterval(clockTickTimer)
   }
@@ -761,14 +648,13 @@ function resetPanelState() {
   footballClock.value = defaultFootballClock()
   clockCorrectionForm.value = defaultClockCorrectionForm()
   scoreForm.value = defaultScoreForm()
-  commentForm.value = defaultCommentForm()
   statsForm.value = defaultStatsForm()
   loading.value = {}
   chats.value = makeMockChats()
   currentCommentary.value = null
-  commentHistory.value = []
-  commentHistoryLoading.value = false
-  commentHistoryError.value = ''
+  commentaryDirty.value = false
+  commentaryBusy.value = false
+  commentaryModalOpen.value = false
   detailError.value = ''
   closeConfirmModal()
 }
@@ -814,14 +700,6 @@ function defaultScoreForm() {
   }
 }
 
-function defaultCommentForm() {
-  return {
-    highlight: false,
-    recordEnabled: true,
-    message: '',
-  }
-}
-
 function defaultStatsForm() {
   return {
     home: defaultFootballStats(),
@@ -857,40 +735,11 @@ function openChatModal() {
   chatModalVisible.value = true
 }
 
-async function openCommentHistoryModal() {
-  commentHistoryModalVisible.value = true
-  await fetchCommentHistory()
-}
-
-async function fetchCommentHistory() {
-  if (!props.match?.id) return
-
-  const requestId = commentHistoryRequestId.value + 1
-  commentHistoryRequestId.value = requestId
-  commentHistoryError.value = ''
-  commentHistoryLoading.value = true
-
-  try {
-    const comments = await getMatchCommentaries(props.match.id)
-
-    if (requestId !== commentHistoryRequestId.value) return
-
-    commentHistory.value = normalizeCommentaries(comments)
-  } catch (error) {
-    if (requestId !== commentHistoryRequestId.value) return
-
-    console.error('중계글 모음 조회에 실패했습니다.', error)
-    commentHistory.value = []
-    commentHistoryError.value = extractApiErrorMessage(error, '중계글 모음을 불러오지 못했습니다.')
-  } finally {
-    if (requestId === commentHistoryRequestId.value) {
-      commentHistoryLoading.value = false
-    }
-  }
-}
-
 function refreshMatch() {
-  return requestDiscard('refresh', () => fetchMatchDetail('refresh', true))
+  return requestDiscard('refresh', () => {
+    commentarySection.value?.resetDraft()
+    return fetchMatchDetail('refresh', true)
+  })
 }
 
 async function fetchMatchDetail(loadingKey = 'detail', showAlert = false, preserveEdits = false, affectedGroups = []) {
@@ -977,10 +826,7 @@ function applyMatchDetail(detail = {}, preserveEdits = false, affectedGroups = [
   }
 
   currentCommentary.value = normalizeCurrentComment(detail)
-  if (!preserveEdits) commentForm.value = defaultCommentForm()
   const serverValues = snapshot()
-  // 멘트 입력은 상세 응답에 포함되지 않는 새 글 초안이다.
-  if (preserveEdits) serverValues.comment = clone(persisted.value.comment)
   persisted.value = serverValues
   for (const key of dirtyGroups) editorGroups[key].set(clone(drafts[key]))
   panelLoaded.value = true
@@ -1010,30 +856,6 @@ function normalizeCurrentComment(detail = {}) {
   }
 }
 
-function normalizeSavedCommentary(commentary = {}, fallback = {}) {
-  const content = commentary.content
-    || commentary.commentary
-    || commentary.currentCommentary
-    || fallback.content
-
-  return {
-    id: commentary.id || commentary.commentaryId || `saved-${Date.now()}`,
-    time: formatHistoryDateTime(commentary.createdAt),
-    message: content,
-    highlight: commentary.highlighted ?? commentary.highlight ?? fallback.highlighted ?? false,
-    recorded: commentary.recordEnabled ?? commentary.recorded ?? fallback.recordEnabled ?? true,
-  }
-}
-
-function normalizeCommentaries(comments) {
-  return ensureArray(comments).map((comment, index) => ({
-    id: comment.id || comment.commentaryId || `${comment.createdAt || 'comment'}-${index}`,
-    time: formatHistoryDateTime(comment.createdAt),
-    message: comment.content || '',
-    highlight: Boolean(comment.highlighted),
-  }))
-}
-
 function requestAction(action) {
   if (panelBusy.value || pendingAction.value) return
   const config = actionConfig(action)
@@ -1059,11 +881,6 @@ async function confirmAction() {
   setLoading(action, true)
 
   try {
-    if (action === 'comment') {
-      await saveCommentary()
-      return
-    }
-
     await saveFootballDetail(action)
   } catch (error) {
     console.error('중계 패널 작업 처리에 실패했습니다.', error)
@@ -1138,27 +955,6 @@ async function executeFootballDetailUpdate(action, payload) {
   if (action === 'stats') {
     await updateFootballStatistics(matchId, payload)
   }
-}
-
-async function saveCommentary() {
-  const requestPayload = {
-    content: commentForm.value.message.trim(),
-    recordEnabled: commentForm.value.recordEnabled,
-    highlighted: commentForm.value.highlight,
-  }
-
-  const response = await createMatchCommentary(props.match.id, requestPayload)
-  const savedComment = normalizeSavedCommentary(response, requestPayload)
-
-  currentCommentary.value = savedComment
-  if (savedComment.recorded !== false) {
-    commentHistory.value = [
-      savedComment,
-      ...commentHistory.value.filter((comment) => String(comment.id) !== String(savedComment.id)),
-    ]
-  }
-  commentForm.value.message = ''
-  persisted.value.comment = clone(commentForm.value)
 }
 
 function buildFootballDetailUpdatePayload(action) {
@@ -1348,13 +1144,6 @@ function validateAction(action) {
     return false
   }
 
-  if (action === 'comment') {
-    if (!commentForm.value.message.trim()) {
-      alert('중계 멘트를 입력해주세요.')
-      return false
-    }
-  }
-
   if (action === 'extraTime' && !isValidExtraTime()) {
     alert('추가시간은 0 이상의 숫자로 입력해주세요.')
     return false
@@ -1433,11 +1222,6 @@ function actionConfig(action) {
     shootOutScore: {
       title: '승부차기 점수 저장',
       message: shootOutScoreSaveMessage(),
-      variant: 'primary',
-    },
-    comment: {
-      title: '멘트 저장',
-      message: '작성한 중계 멘트를 저장합니다.',
       variant: 'primary',
     },
     stats: {
@@ -1729,10 +1513,6 @@ function buttonLabel(key, label) {
   return isWorking(key) ? '저장중' : label
 }
 
-function notifyUnsupportedFeature(featureName) {
-  alert(`${featureName} 기능은 아직 지원하지 않습니다.`)
-}
-
 function statusLabel(status) {
   return statusOptions.value.find((item) => item.value === status)?.label || status
 }
@@ -1751,12 +1531,6 @@ function statusBadgeVariant(status) {
     RETIRED: 'red',
     REMOVED: 'gray',
   }[status] || 'gray'
-}
-
-function formatHistoryDateTime(value) {
-  if (!value) return ''
-
-  return String(value).replace('T', ' ').slice(0, 16)
 }
 
 function splitDateTime(value) {
@@ -1795,10 +1569,6 @@ function toErrorMessage(value) {
   }
 
   return String(value)
-}
-
-function ensureArray(value) {
-  return Array.isArray(value) ? value : []
 }
 
 function makeMockChats() {
@@ -1956,13 +1726,6 @@ function makeMockChats() {
   margin: 0;
   color: var(--admin-color-text-subtle);
   font-size: 11px;
-}
-
-.section-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
 }
 
 .time-grid {
@@ -2512,159 +2275,6 @@ function makeMockChats() {
   grid-column: 4;
 }
 
-.comment-box {
-  background: var(--admin-color-surface-subtle);
-  border: 1px solid var(--admin-color-control-border);
-  border-radius: var(--admin-control-radius);
-}
-
-.comment-box.highlighted {
-  background: #fff7ed;
-  border-color: #fb923c;
-}
-
-:deep(.base-btn.highlight-toggle-active) {
-  color: #9a3412;
-  background: #ffedd5;
-  border: 1px solid #fb923c;
-  font-weight: 700;
-}
-
-:deep(.base-btn.highlight-toggle-active:hover:not(.disabled)) {
-  background: #fed7aa;
-}
-
-:deep(.base-btn.record-toggle-on) {
-  color: #18734b;
-  background: #eaf8f1;
-  border-color: #bfe7d2;
-  font-weight: 700;
-}
-
-:deep(.base-btn.record-toggle-on:hover:not(.disabled)) {
-  background: #ddf3e8;
-}
-
-:deep(.base-btn.record-toggle-off) {
-  color: #5f6878;
-  background: #eef1f5;
-  border-color: #dce2eb;
-  font-weight: 700;
-}
-
-:deep(.base-btn.record-toggle-off:hover:not(.disabled)) {
-  background: #e4e8ee;
-}
-
-:deep(.base-textarea.comment-textarea) {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 12px;
-  color: #232323;
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 1.5;
-  resize: vertical;
-  background: transparent;
-  border: none;
-  outline: none;
-}
-
-:deep(.base-textarea.comment-textarea:focus) {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-
-.comment-box:focus-within {
-  border-color: #fb923c;
-  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.16);
-}
-
-.comment-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.upload-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 26px;
-  padding: 0 10px;
-  color: #374151;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.upload-btn:hover {
-  background: #f3f4f6;
-}
-
-.upload-summary {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
-.current-comment-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-}
-
-.current-comment-summary.highlighted {
-  background: #fff7ed;
-  border-color: #fed7aa;
-}
-
-.current-comment-summary.empty {
-  background: #f9fafb;
-}
-
-.current-comment-meta-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-
-.current-comment-label {
-  flex: 0 0 auto;
-  color: #374151;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.current-comment-message {
-  width: 100%;
-  margin: 0;
-  color: #374151;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.current-comment-message.muted {
-  color: #9ca3af;
-  font-weight: 500;
-}
-
 .stats-table {
   overflow-x: auto;
   border: 1px solid var(--admin-color-border);
@@ -2747,8 +2357,7 @@ function makeMockChats() {
   border-radius: var(--admin-control-radius);
 }
 
-.chat-time,
-.history-meta {
+.chat-time {
   color: #9ca3af;
   font-size: 12px;
 }
@@ -2761,37 +2370,6 @@ function makeMockChats() {
 .chat-message {
   color: #374151;
   font-size: 12px;
-}
-
-.comment-history-item {
-  padding: 10px;
-  border: 1px solid var(--admin-color-border);
-  border-radius: var(--admin-control-radius);
-}
-
-.comment-history-item p {
-  margin: 8px 0 0;
-  color: #374151;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.modal-empty {
-  margin: 0;
-  padding: 28px 0;
-  color: #9ca3af;
-  font-size: 12px;
-  text-align: center;
-}
-
-.modal-empty.error {
-  color: #dc2626;
-}
-
-.history-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .confirm-message {
