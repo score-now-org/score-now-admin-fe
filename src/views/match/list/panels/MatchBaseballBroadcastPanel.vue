@@ -7,16 +7,16 @@
       </div>
       <div class="panel-header-actions">
         <BaseButton variant="outline" size="sm" disabled title="채팅 기능은 준비 중입니다.">채팅 보기</BaseButton>
-        <BaseButton variant="outline" size="sm" :disabled="!!busy" @click="refreshMatch">{{ busy === 'load' ? '조회 중…' : '새로고침' }}</BaseButton>
-        <button class="panel-close" type="button" :disabled="!!busy" aria-label="야구 중계 패널 닫기" @click="closePanel">×</button>
+        <BaseButton variant="outline" size="sm" :disabled="panelBusy" @click="refreshMatch">{{ busy === 'load' ? '조회 중…' : '새로고침' }}</BaseButton>
+        <button class="panel-close" type="button" :disabled="panelBusy" aria-label="야구 중계 패널 닫기" @click="closePanel">×</button>
       </div>
     </header>
     <!-- <p class="feedback" role="status" aria-live="polite">{{ busy ? (busy === 'load' ? '중계 정보를 불러오는 중입니다.' : '변경 사항을 저장하는 중입니다.') : feedback }}</p> -->
     <div v-if="errorMessage" class="panel-error" role="alert">
       {{ errorMessage }}
-      <BaseButton v-if="!loaded" variant="outline" size="sm" :disabled="!!busy" @click="fetchDetail">다시 시도</BaseButton>
+      <BaseButton v-if="!loaded" variant="outline" size="sm" :disabled="panelBusy" @click="fetchDetail">다시 시도</BaseButton>
     </div>
-    <fieldset class="panel-body" :disabled="!!busy || !loaded" :aria-busy="!!busy">
+    <fieldset class="panel-body" :disabled="panelBusy || !loaded" :aria-busy="panelBusy">
       <legend class="sr-only">야구 중계 편집</legend>
       <section class="work-section" aria-labelledby="detail-toggle-title">
         <div class="section-head">
@@ -149,6 +149,15 @@
           <BaseButton type="submit" size="sm">이닝 점수 저장</BaseButton>
         </div>
       </form>
+      <MatchCommentarySection
+        ref="commentarySection"
+        :match-id="match?.id"
+        :current-comment="currentCommentary"
+        @saved="currentCommentary = $event"
+        @dirty-change="commentaryDirty = $event"
+        @busy-change="commentaryBusy = $event"
+        @modal-change="commentaryModalOpen = $event"
+      />
       <div v-if="detailedBroadcastEnabled && !detailsReady" class="detail-load-error" role="alert">
         상세 정보를 불러오지 못했습니다. 다시 조회한 뒤 편집할 수 있습니다.
         <BaseButton variant="outline" size="sm" @click="retryDetailed">상세 다시 조회</BaseButton>
@@ -277,6 +286,7 @@
 <script setup>
 import AdminUnsavedChangesModal from '@/components/admin/AdminUnsavedChangesModal.vue'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
+import MatchCommentarySection from './components/MatchCommentarySection.vue'
 
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
@@ -321,6 +331,11 @@ const busy = ref('')
 const feedback = ref('')
 const errorMessage = ref('')
 const persisted = ref({})
+const commentarySection = ref(null)
+const currentCommentary = ref(null)
+const commentaryDirty = ref(false)
+const commentaryBusy = ref(false)
+const commentaryModalOpen = ref(false)
 const detailFields = { counts, baseStates, pitcher, batter, statistics }
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const zeroCounts = () => ({ balls: 0, strikes: 0, outs: 0 })
@@ -340,10 +355,16 @@ const batterTeam = computed(() => !savedProgress.value.currentHalfInning ? '이�
 const occupiedBases = computed(() => baseStates.value.filter((base) => base.runnerOnBase).length)
 const snapshot = () => clone({ progress: progress.value, schedule: schedule.value, inningScores: inningScores.value,
   ...Object.fromEntries(Object.entries(detailFields).map(([key, field]) => [key, field.value])) })
-const hasUnsavedChanges = computed(() => loaded.value && JSON.stringify(snapshot()) !== JSON.stringify(persisted.value))
+const panelBusy = computed(() => Boolean(busy.value) || commentaryBusy.value)
+const hasUnsavedChanges = computed(() => loaded.value && (
+  commentaryDirty.value || JSON.stringify(snapshot()) !== JSON.stringify(persisted.value)
+))
 
-const { pendingAction, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, computed(() => !!busy.value))
-defineExpose({ requestSwitch: (work) => requestDiscard('switch', work) })
+const { pendingAction, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, panelBusy)
+defineExpose({ requestSwitch: (work) => {
+  if (commentaryModalOpen.value) return
+  return requestDiscard('switch', work)
+} })
 
 function inputValue(value) { return value == null ? '' : String(value) }
 function teamStats(stats) {
@@ -419,11 +440,20 @@ function statusLabel(value) { return statuses.value.find((status) => status.valu
 function total(side, values) { return values.reduce((sum, value) => sum + (Number(value[`${side}Score`]) || 0), 0) }
 function publishPatch(patch) { emit('match-updated', { matchId: props.match.id, patch }) }
 function errorText(error) { return error.response?.data?.message || error.message || '요청을 처리하지 못했습니다.' }
+function normalizeCurrentComment(response = {}) {
+  if (!response.currentCommentary) return null
+  return {
+    id: `current-${props.match?.id}`,
+    message: response.currentCommentary,
+    highlight: Boolean(response.currentCommentaryHighlighted),
+    recorded: true,
+  }
+}
 
 // One operation at a time prevents a count save from racing an inning reset.
 // A generation guard discards responses after closing or selecting another match.
 async function run(key, work) {
-  if (busy.value || !props.match?.id) return
+  if (panelBusy.value || !props.match?.id) return
   const current = generation
   const matchId = props.match.id
   const isCurrent = () => generation === current
@@ -449,6 +479,7 @@ function applyFullDetail(response) {
   savedTotals.value = data.totals
   schedule.value = data.schedule
   detailedBroadcastEnabled.value = data.detailedBroadcastEnabled
+  currentCommentary.value = normalizeCurrentComment(response)
   for (const [key, field] of Object.entries(detailFields)) field.value = data[key]
   detailsReady.value = data.detailedBroadcastEnabled
   persisted.value = snapshot()
@@ -466,7 +497,12 @@ async function fetchDetail() {
     feedback.value = '중계 정보를 불러왔습니다.'
   })
 }
-function refreshMatch() { return requestDiscard('refresh', fetchDetail) }
+function refreshMatch() {
+  return requestDiscard('refresh', () => {
+    commentarySection.value?.resetDraft()
+    return fetchDetail()
+  })
+}
 
 async function loadDetailed(matchId, isCurrent) {
   const response = await getBaseballMatchDetail(matchId)
@@ -593,6 +629,7 @@ function toggleBase(index) {
 }
 function closePanel() {
   if (pendingAction.value) return cancelDiscard()
+  if (commentaryModalOpen.value) return
   return requestDiscard('close', () => emit('close'))
 }
 watch(() => props.match?.id, () => {
@@ -600,6 +637,10 @@ watch(() => props.match?.id, () => {
   busy.value = ''
   loaded.value = false
   detailsReady.value = false
+  currentCommentary.value = null
+  commentaryDirty.value = false
+  commentaryBusy.value = false
+  commentaryModalOpen.value = false
   fetchDetail()
 }, { immediate: true })
 onMounted(async () => {

@@ -102,14 +102,14 @@ export const createMatchCommentary = async (matchId, payload) => {
     formData.append('image', image);
   }
 
-  const response = await client.post(`/api/v1/matches/${matchId}/commentaries`, formData);
+  const response = await client.post(`/api/v1/admin/matches/${matchId}/commentaries`, formData);
 
   return response.data?.data ?? response.data;
 };
 
 // 중계 멘트 목록 조회 API
 export const getMatchCommentaries = async (matchId) => {
-  const response = await client.get(`/api/v1/matches/${matchId}/commentaries`);
+  const response = await client.get(`/api/v1/admin/matches/${matchId}/commentaries`);
 
   return response.data?.data ?? response.data;
 };
