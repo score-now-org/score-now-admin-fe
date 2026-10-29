@@ -99,7 +99,7 @@
       </template>
     </AdminFilterCard>
 
-    <AdminTableCard scroll-label="경기 목록" table-min-width="1610px">
+    <AdminTableCard scroll-label="경기 목록" table-min-width="1740px">
       <template #summary>
         <strong>검색 결과</strong>
         <span>총 {{ totalMatches }}건</span>
@@ -320,6 +320,16 @@
                   >
                     경기장
                   </BaseButton>
+                  <BaseButton
+                    variant="outline"
+                    size="sm"
+                    class="match-action-btn action-odds"
+                    :disabled="!isOddsSupported(match)"
+                    :title="isOddsSupported(match) ? '해외 배당률 관리 모달 열기' : '배당률 관리를 지원하지 않는 종목입니다.'"
+                    @click="openOverseasOddsModal(match)"
+                  >
+                    해외배당률
+                  </BaseButton>
                 </div>
               </td>
               </tr>
@@ -360,6 +370,11 @@
       @completed="handleStadiumMappingCompleted"
     />
 
+    <MatchOverseasOddsModal
+      v-model="oddsModal.visible"
+      :match="oddsModal.match"
+    />
+
     <div v-if="stadiumToastMessage" class="toast" role="status">
       <span>✓</span>{{ stadiumToastMessage }}
     </div>
@@ -381,6 +396,7 @@ import {
   updateAdminMatch,
 } from '../../../api/match'
 import MatchCreateModal from './modals/MatchCreateModal.vue'
+import MatchOverseasOddsModal from './modals/MatchOverseasOddsModal.vue'
 import MatchStadiumModal from './modals/MatchStadiumModal.vue'
 import MatchSoccerBroadcastPanel from './panels/MatchSoccerBroadcastPanel.vue'
 import MatchBaseballBroadcastPanel from './panels/MatchBaseballBroadcastPanel.vue'
@@ -472,6 +488,7 @@ const createModalVisible = ref(false)
 const broadcastPanelRef = ref(null)
 const broadcastPanel = ref({ visible: false, match: null })
 const stadiumModal = ref({ visible: false, match: null })
+const oddsModal = ref({ visible: false, match: null })
 const stadiumToastMessage = ref('')
 let stadiumToastTimer
 
@@ -919,6 +936,15 @@ function openStadiumModal(match) {
   stadiumModal.value = { visible: true, match }
 }
 
+function openOverseasOddsModal(match) {
+  if (!isOddsSupported(match)) return
+  oddsModal.value = { visible: true, match }
+}
+
+function isOddsSupported(match) {
+  return ['FOOTBALL', 'BASEBALL'].includes(broadcastSportCode(match))
+}
+
 function handleStadiumMappingCompleted({ message }) {
   stadiumToastMessage.value = message || '경기장 매핑이 변경되었습니다.'
   window.clearTimeout(stadiumToastTimer)
@@ -1145,7 +1171,7 @@ function toErrorMessage(value) {
 .col-save { width: 92px; }
 .col-team { width: 120px; }
 .col-exposure { width: 116px; }
-.col-detail-actions { width: 220px; }
+.col-detail-actions { width: 330px; }
 
 th.action-area-start,
 td.action-area-start {
@@ -1288,7 +1314,7 @@ td.action-area-start {
 }
 
 .detail-actions-cell {
-  min-width: 210px;
+  min-width: 320px;
   padding-right: 12px;
   padding-left: 12px;
 }

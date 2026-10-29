@@ -1,20 +1,13 @@
 <template>
-  <BaseModal v-model="visible" :title="modalTitle" size="xl" :close-disabled="submitting">
+  <BaseModal v-model="visible" title="경기장 매핑" size="xl" :close-disabled="submitting">
     <div class="stadium-dialog">
-      <div class="match-context">
-        <div class="context-copy">
-          <span>대상 경기</span>
-          <strong>{{ match?.homeTeam?.name || '-' }} <em>vs</em> {{ match?.awayTeam?.name || '-' }}</strong>
-          <small>{{ matchTime }} · 경기 ID {{ match?.id || '-' }}</small>
-        </div>
-        <AdminSportBadge
-          :sport-code="match?.sportCode"
-          :sport-name="match?.sportName || match?.sport"
-        />
-        <BaseBadge :variant="currentMappingBadgeVariant">
-          {{ currentMappingLabel }}
-        </BaseBadge>
-      </div>
+      <MatchContextSummary :match="match">
+        <template #badges>
+          <BaseBadge :variant="currentMappingBadgeVariant">
+            {{ currentMappingLabel }}
+          </BaseBadge>
+        </template>
+      </MatchContextSummary>
 
       <div v-if="initialLoading" class="modal-state" role="status">
         <span class="state-spinner"></span>
@@ -270,6 +263,7 @@ import BaseModal from '@/components/common/BaseModal.vue'
 import AdminDataOriginBadge from '@/components/common/AdminDataOriginBadge.vue'
 import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import BaseBadge from '@/components/common/BaseBadge.vue'
+import MatchContextSummary from './components/MatchContextSummary.vue'
 import {
   assignMatchStadium,
   assignMatchTemporaryStadium,
@@ -317,15 +311,6 @@ const visible = computed({
     if (!value && submitting.value) return
     emit('update:modelValue', value)
   },
-})
-
-const modalTitle = computed(() => (
-  props.match ? `경기장 매핑 · #${props.match.id}` : '경기장 매핑'
-))
-
-const matchTime = computed(() => {
-  if (!props.match) return '-'
-  return [props.match.startDate, props.match.startTime].filter(Boolean).join(' ') || '-'
 })
 
 const currentMappingType = computed(() => {
@@ -688,12 +673,6 @@ function sportKey(source = {}) {
 
 <style scoped>
 .stadium-dialog { display: flex; flex-direction: column; gap: 16px; color: var(--admin-color-text-body); }
-.match-context { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--admin-color-border); border-radius: var(--admin-card-radius); background: var(--admin-color-surface-subtle); }
-.context-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.context-copy > span { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-table-heading); font-weight: 800; }
-.context-copy strong { overflow: hidden; color: var(--admin-color-text-body); font-size: var(--admin-font-size-description); text-overflow: ellipsis; white-space: nowrap; }
-.context-copy em { padding: 0 4px; color: var(--admin-color-text-subtle); font-size: var(--admin-font-size-table-heading); font-style: normal; }
-.context-copy small { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-table-heading); }
 .modal-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 108px; padding: 16px; border: 1px solid var(--admin-color-border); border-radius: var(--admin-control-radius); color: var(--admin-color-text-muted); background: var(--admin-color-surface-subtle); font-size: var(--admin-font-size-label); }
 .modal-state.error { flex-direction: column; color: #a4434b; border-color: #efc9cc; background: #fff8f8; }
 .state-spinner { width: 14px; height: 14px; border: 2px solid #d5e1f5; border-top-color: #1c67ff; border-radius: 50%; animation: stadium-spin .8s linear infinite; }
@@ -784,8 +763,6 @@ function sportKey(source = {}) {
 .selection-summary small { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-table-heading); }
 
 @media (max-width: 720px) {
-  .match-context { grid-template-columns: 1fr auto; }
-  .match-context > :deep(.base-badge) { display: none; }
   .mapping-type-grid, .temporary-form, .candidate-toolbar { grid-template-columns: 1fr; }
   .section-title > small:not(.result-count) { display: none; }
   .candidate-list > button { grid-template-columns: 16px 1fr auto; }
