@@ -12,6 +12,7 @@
         <FeaturedMatchMngr v-else-if="activeSidebar === '상단고정/핫매치'" />
         <LeagueMngr v-else-if="activeSidebar === '리그'" />
         <TeamMngr v-else-if="activeSidebar === '팀'" />
+        <PlayerMngr v-else-if="activeSidebar === '선수'" />
         <StadiumMngr v-else-if="activeSidebar === '경기장'" />
         <CasterMngr v-else-if="activeSidebar === '캐스터'" />
 
@@ -30,6 +31,7 @@ import MatchListMngr from './list/MatchListMngr.vue'
 import LeagueMngr from './league/LeagueMngr.vue'
 import FeaturedMatchMngr from './featured/FeaturedMatchMngr.vue'
 import TeamMngr from './team/TeamMngr.vue'
+import PlayerMngr from './player/PlayerMngr.vue'
 import StadiumMngr from './stadium/StadiumMngr.vue'
 import CasterMngr from './caster/CasterMngr.vue'
 
