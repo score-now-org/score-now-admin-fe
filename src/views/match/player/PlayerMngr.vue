@@ -281,102 +281,170 @@
     <h3>선수 등록</h3>
 
     <form @submit.prevent="submitCreatePlayer">
-      <div class="create-fields">
 
-        <label>
-          종목 *
-          <select v-model="createForm.sportId" required>
-            <option value="">종목 선택</option>
-            <option
-              v-for="sport in sportOptions"
-              :key="sport.id"
-              :value="String(sport.id)"
-            >
-              {{ sport.name }}
-            </option>
-          </select>
-        </label>
+<div class="create-fields">
 
-        
-<!-- Provider 선택 -->
-<label>
-  Provider *
-  <select v-model="createForm.provider" required>
-    <option value="" disabled>Provider 선택</option>
-    <option
-      v-for="provider in providerOptions"
-      :key="provider"
-      :value="provider"
-    >
-      {{ provider }}
-    </option>
-  </select>
-</label>
+  <!-- 1줄: 종목 -->
+  <label class="create-field--full">
+    종목 *
+    <select v-model="createForm.sportId" required>
+      <option value="">종목 선택</option>
+      <option
+        v-for="sport in sportOptions"
+        :key="sport.id"
+        :value="String(sport.id)"
+      >
+        {{ sport.name }}
+      </option>
+    </select>
+  </label>
 
-<!-- BETS일 때 API Player ID 입력 -->
-<label v-if="createForm.provider === 'BETS'">
-  API Player ID *
-  <input
-    v-model.trim="createForm.apiPlayerId"
-    type="text"
-    placeholder="BETS 선수 ID 입력"
-    required
-  />
-</label>
+  <!-- 2줄: 팀 ID -->
+  <label class="create-field--full">
+    팀 ID *
+    <input
+      v-model="createForm.teamId"
+      type="number"
+      min="1"
+      placeholder="팀 ID 입력"
+      required
+    />
+  </label>
 
+  <!-- 3줄: Provider / API Player ID -->
+  <label
+    :class="{
+      'create-field--full':
+        !createForm.provider || createForm.provider === 'MANUAL'
+    }"
+  >
+    Provider *
+    <select v-model="createForm.provider" required>
+      <option value="" disabled>Provider 선택</option>
+      <option
+        v-for="provider in providerOptions"
+        :key="provider"
+        :value="provider"
+      >
+        {{ provider }}
+      </option>
+    </select>
+  </label>
 
-        <label>
-          팀 ID *
-          <input
-            v-model="createForm.teamId"
-            type="number"
-            min="1"
-            required
-          />
-        </label>
+  <label
+    v-if="createForm.provider && createForm.provider !== 'MANUAL'"
+  >
+    API Player ID *
+    <input
+      v-model.trim="createForm.apiPlayerId"
+      type="text"
+      placeholder="API Player ID 입력"
+      required
+    />
+  </label>
 
-        <label>
-          선수명 *
-          <input v-model="createForm.kName" required />
-        </label>
+  <!-- 4줄: 선수명 / 영문 선수명 -->
+  <label>
+    선수명 *
+    <input
+      v-model="createForm.kName"
+      placeholder="선수명 입력"
+      required
+    />
+  </label>
 
-        <label>
-          영문 선수명 *
-          <input v-model="createForm.eName" required />
-        </label>
+  <label>
+    영문 선수명 *
+    <input
+      v-model="createForm.eName"
+      placeholder="영문 선수명 입력"
+      required
+    />
+  </label>
 
-        <label>
-          국가
-          <input
-            v-model="createForm.cc"
-            placeholder="KR"
-            maxlength="2"
-          />
-        </label>
+  <!-- 5줄: 등번호 / 국가 -->
+  <label>
+    등번호
+    <input
+      v-model="createForm.shirtNumber"
+      type="number"
+      min="0"
+      placeholder="등번호 입력"
+    />
+  </label>
 
-        <label>
-          생년월일
-          <input v-model="createForm.birthdate" type="date" />
-        </label>
+  <label>
+    국가
+    <input
+      v-model="createForm.cc"
+      placeholder="KR"
+      maxlength="2"
+    />
+  </label>
 
-        <label>
-          키 (cm)
-          <input
-            v-model="createForm.height"
-            type="number"
-            min="1"
-          />
-        </label>
+  <!-- 6줄: 생년월일 -->
+  <div class="create-field--full create-birthdate">
+    <span class="create-field-label">생년월일</span>
 
-        <label>
-          등번호
-          <input
-            v-model="createForm.shirtNumber"
-            type="number"
-            min="0"
-          />
-        </label>
-      </div>
+    <div class="create-birthdate-selects">
+      <select
+        v-model="createForm.birthYear"
+        aria-label="출생 연도"
+      >
+        <option value="">년</option>
+        <option
+          v-for="year in birthYears"
+          :key="year"
+          :value="String(year)"
+        >
+          {{ year }}년
+        </option>
+      </select>
+
+      <select
+        v-model="createForm.birthMonth"
+        aria-label="출생 월"
+      >
+        <option value="">월</option>
+        <option
+          v-for="month in 12"
+          :key="month"
+          :value="String(month)"
+        >
+          {{ month }}월
+        </option>
+      </select>
+
+      <select
+        v-model="createForm.birthDay"
+        aria-label="출생 일"
+        :disabled="!createForm.birthYear || !createForm.birthMonth"
+      >
+        <option value="">일</option>
+        <option
+          v-for="day in birthDays"
+          :key="day"
+          :value="String(day)"
+        >
+          {{ day }}일
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 7줄: 신장 -->
+  <label class="create-field--full">
+    신장 (cm)
+    <input
+      v-model="createForm.height"
+      type="number"
+      min="1"
+      placeholder="신장 입력"
+    />
+  </label>
+
+</div>
+
 
       <div class="create-actions">
         <button
@@ -428,7 +496,6 @@ import { getAdminPlayers, updateAdminPlayer, updateAdminPlayerSquad, createAdmin
 import { getTeamAdminOptions } from '@/api/team'
 import { getAdminLeagues } from '@/api/league'
 
-
 // 선수 목록
 const players = ref([])
 const createModalOpen = ref(false)
@@ -442,10 +509,66 @@ const createForm = reactive({
   kName: '',
   eName: '',
   cc: '',
-  birthdate: '',
+  birthYear: '',
+  birthMonth: '',
+  birthDay: '',
   height: '',
   shirtNumber: '',
 })
+
+const birthdate = computed(() => {
+  const { birthYear, birthMonth, birthDay } = createForm
+
+  if (!birthYear || !birthMonth || !birthDay) {
+    return null
+  }
+
+  const month = String(birthMonth).padStart(2, '0')
+  const day = String(birthDay).padStart(2, '0')
+
+  return `${birthYear}-${month}-${day}`
+})
+
+// 출생 연도: 현재 연도부터 1900년까지
+const birthYears = Array.from(
+  { length: new Date().getFullYear() - 1899 },
+  (_, i) => new Date().getFullYear() - i
+)
+
+// 선택한 년도와 월에 맞는 일수 계산
+const birthDays = computed(() => {
+  const year = Number(createForm.birthYear)
+  const month = Number(createForm.birthMonth)
+
+  if (!year || !month) return []
+
+  const lastDay = new Date(year, month, 0).getDate()
+
+  return Array.from(
+    { length: lastDay },
+    (_, i) => i + 1
+  )
+})
+
+// 년도 또는 월 변경 시 유효하지 않은 날짜 초기화
+watch(
+  () => [createForm.birthYear, createForm.birthMonth],
+  () => {
+    if (
+      createForm.birthDay &&
+      Number(createForm.birthDay) > birthDays.value.length
+    ) {
+      createForm.birthDay = ''
+    }
+  }
+)
+
+watch(
+  () => createForm.provider,
+  () => {
+    createForm.apiPlayerId = ''
+  }
+)
 
 function openCreateModal() {
   Object.keys(createForm).forEach((key) => {
@@ -462,6 +585,23 @@ function closeCreateModal() {
 async function submitCreatePlayer() {
   if (createSaving.value) return
 
+  const birthParts = [
+  createForm.birthYear,
+  createForm.birthMonth,
+  createForm.birthDay
+]
+
+if (
+  birthParts.some(Boolean) &&
+  !birthParts.every(Boolean)
+) {
+  showToast(
+    '생년월일은 년, 월, 일을 모두 선택해 주세요.',
+    'error'
+  )
+  return
+}
+
   createSaving.value = true
 
   try {
@@ -470,18 +610,19 @@ async function submitCreatePlayer() {
 
     await createAdminPlayer({
       provider: createForm.provider,
-  apiPlayerId: createForm.provider === 'BETS'
-    ? createForm.apiPlayerId.trim()
-    : null,
+apiPlayerId: createForm.provider === 'MANUAL'
+  ? null
+  : createForm.apiPlayerId.trim(),
+
 
       sportId: Number(createForm.sportId),
       teamId: Number(createForm.teamId),
       kName: createForm.kName.trim(),
       eName: createForm.eName.trim(),
       cc: createForm.cc.trim().toUpperCase() || null,
-      birthdate: createForm.birthdate || null,
+      birthdate: birthdate.value,
       height: optionalNumber(createForm.height),
-      shirtNumber: optionalNumber(createForm.shirtNumber),
+      shirtNumber: createForm.shirtNumber.trim() || null,
     })
 
     createModalOpen.value = false
@@ -1093,7 +1234,40 @@ th:nth-child(12) {
   cursor: not-allowed;
 }
 
+/* 한 줄 전체 너비 */
+.create-field--full {
+  grid-column: 1 / -1;
+}
 
+/* 생년월일 영역 */
+.create-birthdate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-field-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 년 / 월 / 일 3열 */
+.create-birthdate-selects {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.create-birthdate-selects select {
+  width: 100%;
+  min-width: 0;
+}
+
+.create-birthdate-selects select:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
 
 
 /* 선수 목록 컬럼 너비 */
