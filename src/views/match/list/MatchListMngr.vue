@@ -309,6 +309,7 @@
                     variant="outline"
                     size="sm"
                     class="match-action-btn action-lineup"
+                    @click="openLineupModal(match)"
                   >
                     라인업
                   </BaseButton>
@@ -364,6 +365,11 @@
       @match-updated="applyMatchUpdate"
     />
 
+    <MatchLineupModal
+      v-model="lineupModal.visible"
+      :match="lineupModal.match"
+    />
+
     <MatchStadiumModal
       v-model="stadiumModal.visible"
       :match="stadiumModal.match"
@@ -397,6 +403,7 @@ import {
 } from '../../../api/match'
 import MatchCreateModal from './modals/MatchCreateModal.vue'
 import MatchOverseasOddsModal from './modals/MatchOverseasOddsModal.vue'
+import MatchLineupModal from './modals/MatchLineupModal.vue'
 import MatchStadiumModal from './modals/MatchStadiumModal.vue'
 import MatchSoccerBroadcastPanel from './panels/MatchSoccerBroadcastPanel.vue'
 import MatchBaseballBroadcastPanel from './panels/MatchBaseballBroadcastPanel.vue'
@@ -487,6 +494,7 @@ const visibleMatches = computed(() => matches.value)
 const createModalVisible = ref(false)
 const broadcastPanelRef = ref(null)
 const broadcastPanel = ref({ visible: false, match: null })
+const lineupModal = ref({ visible: false, match: null})
 const stadiumModal = ref({ visible: false, match: null })
 const oddsModal = ref({ visible: false, match: null })
 const stadiumToastMessage = ref('')
@@ -930,6 +938,10 @@ function applyMatchUpdate({ matchId, patch = {} }) {
   if (patch.awayScore != null) {
     match.awayScore = patch.awayScore
   }
+}
+
+function openLineupModal(match) {
+  lineupModal.value = { visible: true, match }
 }
 
 function openStadiumModal(match) {

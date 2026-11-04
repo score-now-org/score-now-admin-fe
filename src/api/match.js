@@ -162,3 +162,69 @@ export const removeMatchTemporaryStadium = async (matchId) => {
 
   return response.data?.data ?? response.data;
 };
+
+// 경기별 라인업 조회 API
+export const getMatchLineup = async (matchId) => {
+  const response = await client.get(`/api/v1/admin/matches/${matchId}/lineup`);
+
+  return response.data?.data ?? response.data;
+};
+
+// 라인업 팀 설정 수정 API (포메이션, 유니폼 컬러)
+export const updateMatchLineupTeam = async (matchId, teamId, payload) => {
+  const response = await client.patch(
+    `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}`,
+    payload
+  );
+
+  return response.data?.data ?? response.data;
+};
+
+// 라인업 선수 정보 수정 API (포지션, 등번호, 득점)
+export const updateMatchLineupPlayer = async (matchId, teamId, playerId, payload) => {
+  const response = await client.patch(
+    `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}/players/${playerId}`,
+    payload
+  );
+
+  return response.data?.data ?? response.data;
+};
+
+
+// 선수추가 모달 최초 목록 조회
+export const getMatchLineupPlayerCandidates = async (matchId, teamId) => {
+  const response = await client.get(
+    `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}/players`
+  )
+
+  return response.data?.data ?? response.data
+}
+
+// 선수 검색
+export const searchMatchLineupPlayers = async (matchId, teamId, keyword) => {
+  const response = await client.get(
+    `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}/players/search`,
+    { params: { keyword } }
+  )
+
+  return response.data?.data ?? response.data
+}
+
+// 선수 선택
+export const addMatchLineupPlayer = async (matchId, teamId, payload) => {
+  const response = await client.post(
+    `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}/players`,
+    payload
+  )
+
+  return response.data?.data ?? response.data
+}
+
+// 선수 선택 해제
+export const removeMatchLineupPlayer = async (matchId, teamId, playerId) => {
+  const response = await client.delete(
+    `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}/players/${playerId}`
+  )
+
+  return response.data?.data ?? response.data
+}
