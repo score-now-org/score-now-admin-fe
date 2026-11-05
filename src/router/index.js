@@ -61,6 +61,13 @@ const routes = [
     meta: { adminSection: 'match' },
   },
   {
+    path: '/admin/match/pushes',
+    name: 'admin-match-pushes',
+    component: MatchAdmin,
+    meta: { adminSection: 'match' },
+
+  },
+  {
     path: '/admin/match/casters',
     name: 'admin-match-casters',
     component: MatchAdmin,
