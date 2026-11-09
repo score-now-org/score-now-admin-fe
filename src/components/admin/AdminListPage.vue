@@ -5,7 +5,9 @@
         <h1>{{ title }}</h1>
         <slot name="title-after" />
       </div>
-      <slot name="header-actions" />
+      <div v-if="$slots['header-actions']" class="header-actions">
+        <slot name="header-actions" />
+      </div>
     </header>
 
     <slot name="summary" />
@@ -46,6 +48,14 @@ defineProps({
   gap: 10px;
 }
 
+.header-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--admin-action-gap);
+}
+
 h1 {
   margin: 0;
   color: var(--admin-color-text-title);
@@ -63,6 +73,15 @@ h1 {
 @container admin-content (max-width: 600px) {
   .admin-list-page {
     padding: 20px 12px 32px;
+  }
+
+  .page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
   }
 }
 </style>

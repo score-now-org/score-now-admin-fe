@@ -1,5 +1,32 @@
 <template>
   <AdminListPage title="리그 관리">
+    <template #header-actions>
+      <BaseButton
+        v-if="activeTab === 'leagues'"
+        variant="success"
+        size="md"
+        @click="openCreateLeagueModal"
+      >
+        + 리그 등록
+      </BaseButton>
+      <BaseButton
+        v-else-if="activeTab === 'seasons'"
+        variant="success"
+        size="md"
+        @click="openCreateSeasonModal"
+      >
+        + 시즌 등록
+      </BaseButton>
+      <BaseButton
+        v-else
+        variant="success"
+        size="md"
+        @click="openCreateStandingsModal"
+      >
+        + 순위 관리 설정 등록
+      </BaseButton>
+    </template>
+
     <nav class="tab-bar" aria-label="리그 관리 메뉴" role="tablist">
       <button
         v-for="tab in tabs"
@@ -43,9 +70,6 @@
           </BaseButton>
           <BaseButton variant="primary" size="md" :disabled="leagueLoading" @click="fetchLeagues">
             {{ leagueLoading ? '검색중' : '검색' }}
-          </BaseButton>
-          <BaseButton variant="success" size="md" @click="openCreateLeagueModal">
-            + 리그 등록
           </BaseButton>
         </template>
       </AdminFilterCard>
@@ -195,9 +219,6 @@
           <BaseButton variant="primary" size="md" :disabled="seasonLoading" @click="searchLeagueSeasons">
             {{ seasonLoading ? '검색중' : '검색' }}
           </BaseButton>
-          <BaseButton variant="success" size="md" @click="openCreateSeasonModal">
-            + 시즌 등록
-          </BaseButton>
         </template>
       </AdminFilterCard>
 
@@ -318,9 +339,6 @@
           </BaseButton>
           <BaseButton variant="primary" size="md" :disabled="standingsLoading" @click="searchStandings">
             {{ standingsLoading ? '검색중' : '검색' }}
-          </BaseButton>
-          <BaseButton variant="success" size="md" @click="openCreateStandingsModal">
-            + 순위 관리 설정 등록
           </BaseButton>
         </template>
       </AdminFilterCard>
@@ -2254,6 +2272,7 @@ function toErrorMessage(value) {
   margin-bottom: var(--admin-section-margin-bottom);
   padding: 0 2px;
   overflow-x: auto;
+  overflow-y: hidden;
   border-bottom: 1px solid var(--admin-color-divider);
 }
 

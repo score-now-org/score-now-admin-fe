@@ -1,5 +1,11 @@
 <template>
   <AdminListPage title="상단고정/핫매치">
+    <template #header-actions>
+      <BaseButton variant="success" size="md" @click="openRegisterModal">
+        + 경기 등록
+      </BaseButton>
+    </template>
+
     <template #summary>
       <section class="summary-grid" aria-label="등록 현황">
         <article class="summary-card pinned">
@@ -42,9 +48,6 @@
         <BaseButton variant="secondary" size="md" :disabled="matchesLoading" @click="resetSearch">초기화</BaseButton>
         <BaseButton variant="primary" size="md" :disabled="matchesLoading" @click="applySearch">
           {{ matchesLoading ? '조회 중' : '조회' }}
-        </BaseButton>
-        <BaseButton variant="success" size="md" @click="openRegisterModal">
-          + 경기 등록
         </BaseButton>
       </template>
     </AdminFilterCard>

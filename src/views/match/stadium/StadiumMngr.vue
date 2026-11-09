@@ -1,5 +1,11 @@
 <template>
   <AdminListPage title="경기장 관리">
+    <template #header-actions>
+      <BaseButton variant="success" size="md" @click="openCreateModal">
+        + 경기장 등록
+      </BaseButton>
+    </template>
+
     <AdminFilterCard aria-label="경기장 검색 조건">
       <div class="field-group id-search">
         <label for="stadium-id">경기장 ID</label>
@@ -12,7 +18,6 @@
       <template #actions>
         <BaseButton variant="secondary" size="md" :disabled="loading" @click="resetSearch">초기화</BaseButton>
         <BaseButton variant="primary" size="md" :disabled="loading" @click="searchStadiums">검색</BaseButton>
-        <BaseButton variant="success" size="md" @click="openCreateModal">+ 경기장 등록</BaseButton>
       </template>
     </AdminFilterCard>
 

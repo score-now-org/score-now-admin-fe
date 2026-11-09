@@ -1,5 +1,11 @@
 <template>
   <AdminListPage title="경기 리스트">
+    <template #header-actions>
+      <BaseButton variant="success" size="md" @click="openCreateModal">
+        + 경기 등록
+      </BaseButton>
+    </template>
+
     <AdminFilterCard aria-label="경기 검색 조건">
       <div class="match-filter-fields">
         <div class="field-group filter-sport">
@@ -88,13 +94,6 @@
             @click="doSearch"
           >
             {{ matchesLoading ? '검색중' : '검색' }}
-          </BaseButton>
-          <BaseButton
-            variant="success"
-            size="md"
-            @click="openCreateModal"
-          >
-            + 경기 등록
           </BaseButton>
       </template>
     </AdminFilterCard>
@@ -1382,7 +1381,7 @@ td.action-area-start {
 
   :deep(.filter-actions) {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin-left: 0;
   }
 }
