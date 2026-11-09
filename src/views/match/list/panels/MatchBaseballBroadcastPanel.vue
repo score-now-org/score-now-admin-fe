@@ -168,7 +168,7 @@
           <div class="section-head">
             <div>
               <h4 class="section-title">볼 · 스트라이크 · 아웃</h4>
-              <p class="section-desc">램프를 눌러 카운트를 조정합니다. 켜진 램프를 누르면 해당 위치부터 꺼집니다.</p>
+              <p class="section-desc">램프를 눌러 카운트를 조정합니다. 초기화 버튼은 볼·스트라이크만 0으로 변경하고 아웃은 유지합니다.</p>
             </div>
           </div>
           <div class="count-board">
@@ -188,7 +188,7 @@
           </div>
           <div class="action-row">
             <BaseButton type="submit" size="sm">카운트 저장</BaseButton>
-            <BaseButton type="button" variant="outline" size="sm" @click="counts = zeroCounts()">카운트 초기화</BaseButton>
+            <BaseButton type="button" variant="outline" size="sm" @click="resetPitchCounts">카운트 초기화</BaseButton>
           </div>
         </form>
         <form class="work-section" @submit.prevent="saveBases">
@@ -257,14 +257,14 @@
           <div class="section-head">
             <div>
               <h4 class="section-title">팀별 H / E / B</h4>
-              <p class="section-desc">각 팀의 안타, 실책, 볼넷 수치를 수동으로 보정합니다.</p>
+              <p class="section-desc">각 팀의 안타, 실책, 사사구 수치를 수동으로 보정합니다.</p>
             </div>
           </div>
           <div class="stats-grid stats-heading">
             <span>팀</span>
             <span>H · 안타</span>
             <span>E · 실책</span>
-            <span>B · 볼넷</span>
+            <span>B · 사사구</span>
           </div>
           <div v-for="team in teams" :key="team.side" class="stats-grid">
             <strong class="stats-team">
@@ -312,7 +312,7 @@ const countFields = [
   { key: 'strikes', code: 'S', label: '스트라이크', max: 2, color: '#eab308' },
   { key: 'outs', code: 'O', label: '아웃', max: 2, color: '#dc2626' },
 ]
-const statLabels = { hits: '안타', errors: '실책', basesOnBalls: '볼넷' }
+const statLabels = { hits: '안타', errors: '실책', basesOnBalls: '사사구' }
 const empty = createBaseballForm()
 const progress = ref(empty.progress)
 const savedProgress = ref({ ...empty.progress })
@@ -428,7 +428,7 @@ function inningScoresPayload(scores) {
 }
 
 function statisticsPayload(statistics) {
-  const labels = { hits: '안타', errors: '실책', basesOnBalls: '볼넷' }
+  const labels = { hits: '안타', errors: '실책', basesOnBalls: '사사구' }
   return Object.fromEntries(['homeStats', 'awayStats'].map((team) => [team,
     Object.fromEntries(Object.entries(labels).map(([field, label]) => [
       field, nonNegativeInteger(statistics[team][field], label),
@@ -618,6 +618,10 @@ function saveBases() { return saveDetailField('baseStates', updateBaseballBaseSt
 function savePitcher() { return saveDetailField('pitcher', updateBaseballPitcher, (value) => ({ pitcher: value })) }
 function saveBatter() { return saveDetailField('batter', updateBaseballBatter, (value) => ({ batter: value })) }
 function saveStatistics() { return saveDetailField('statistics', updateBaseballStatistics, statisticsPayload) }
+function resetPitchCounts() {
+  counts.value.balls = 0
+  counts.value.strikes = 0
+}
 function toggleCount(key, value) {
   for (const item of countFields) counts.value[item.key] ??= 0
   counts.value[key] = counts.value[key] >= value ? value - 1 : value
