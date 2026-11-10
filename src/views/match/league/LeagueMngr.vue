@@ -133,9 +133,18 @@
                 />
               </td>
               <td class="league-name-cell">
-                <div class="name-stack">
-                  <strong>{{ displayLeagueName(league) }}</strong>
-                  <span>{{ leagueEName(league) || '-' }}</span>
+                <div class="league-identity">
+                  <img
+                    v-if="league.imageUrl"
+                    class="league-emblem"
+                    :src="league.imageUrl"
+                    :alt="`${displayLeagueName(league)} 엠블럼`"
+                  />
+                  <span v-else class="league-emblem league-emblem-placeholder" aria-label="엠블럼 없음">–</span>
+                  <div class="name-stack">
+                    <strong>{{ displayLeagueName(league) }}</strong>
+                    <span>{{ leagueEName(league) || '-' }}</span>
+                  </div>
                 </div>
               </td>
               <td>{{ leagueSName(league) || '-' }}</td>
@@ -557,6 +566,47 @@
               <option value="true">활성</option>
             </BaseSelect>
           </div>
+          <div class="form-row form-row-wide">
+            <label class="form-label" for="create-league-emblem">리그 엠블럼 (선택)</label>
+            <div class="emblem-editor">
+              <div class="emblem-preview">
+                <img v-if="leagueForm.imagePreviewUrl" :src="leagueForm.imagePreviewUrl" alt="선택한 리그 엠블럼 미리보기" />
+                <span v-else>미리보기</span>
+              </div>
+              <div class="emblem-controls">
+                <input
+                  id="create-league-emblem"
+                  ref="createLeagueEmblemInput"
+                  class="file-input-hidden"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  :disabled="createLeagueModal.saving"
+                  @change="onCreateLeagueEmblemChange"
+                />
+                <p v-if="leagueForm.image" class="emblem-file-name">{{ leagueForm.image.name }}</p>
+                <div class="emblem-actions">
+                  <BaseButton
+                    variant="outline"
+                    size="sm"
+                    :disabled="createLeagueModal.saving"
+                    @click="openCreateLeagueEmblemPicker"
+                  >
+                    {{ leagueForm.image ? '다른 이미지 선택' : '이미지 등록' }}
+                  </BaseButton>
+                  <BaseButton
+                    v-if="leagueForm.image"
+                    variant="outline"
+                    size="sm"
+                    :disabled="createLeagueModal.saving"
+                    @click="cancelSelectedCreateLeagueEmblem"
+                  >
+                    선택 취소
+                  </BaseButton>
+                </div>
+                <p class="emblem-help">JPG, PNG, WEBP · 최대 5MB</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <template #footer>
@@ -607,6 +657,70 @@
               <option value="HOME_AWAY">홈팀 먼저</option>
               <option value="AWAY_HOME">원정팀 먼저</option>
             </BaseSelect>
+          </div>
+          <div class="form-row form-row-wide">
+            <label class="form-label" for="edit-league-emblem">리그 엠블럼</label>
+            <div class="emblem-editor">
+              <div class="emblem-preview" :class="{ 'is-removed': leagueEditForm.removeEmblem }">
+                <img v-if="editLeagueEmblemPreviewUrl" :src="editLeagueEmblemPreviewUrl" alt="리그 엠블럼 미리보기" />
+                <span v-else>{{ leagueEditForm.removeEmblem ? '저장 시 제거' : '등록된 엠블럼 없음' }}</span>
+              </div>
+              <div class="emblem-controls">
+                <input
+                  id="edit-league-emblem"
+                  ref="editLeagueEmblemInput"
+                  class="file-input-hidden"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  :disabled="editLeagueModal.saving"
+                  @change="onEditLeagueEmblemChange"
+                />
+                <p v-if="leagueEditForm.image" class="emblem-file-name">{{ leagueEditForm.image.name }}</p>
+                <div class="emblem-actions">
+                  <BaseButton
+                    v-if="!leagueEditForm.removeEmblem"
+                    variant="outline"
+                    size="sm"
+                    :disabled="editLeagueModal.saving"
+                    @click="openEditLeagueEmblemPicker"
+                  >
+                    {{ leagueEditForm.image
+                      ? '다른 이미지 선택'
+                      : leagueEditForm.currentImageUrl
+                        ? '이미지 변경'
+                        : '이미지 등록' }}
+                  </BaseButton>
+                  <BaseButton
+                    v-if="leagueEditForm.image"
+                    variant="outline"
+                    size="sm"
+                    :disabled="editLeagueModal.saving"
+                    @click="cancelSelectedLeagueEmblem"
+                  >
+                    선택 취소
+                  </BaseButton>
+                  <BaseButton
+                    v-if="leagueEditForm.currentImageUrl && !leagueEditForm.image && !leagueEditForm.removeEmblem"
+                    variant="danger"
+                    size="sm"
+                    :disabled="editLeagueModal.saving"
+                    @click="markLeagueEmblemForRemoval"
+                  >
+                    엠블럼 제거
+                  </BaseButton>
+                  <BaseButton
+                    v-if="leagueEditForm.removeEmblem"
+                    variant="outline"
+                    size="sm"
+                    :disabled="editLeagueModal.saving"
+                    @click="cancelLeagueEmblemRemoval"
+                  >
+                    제거 취소
+                  </BaseButton>
+                </div>
+                <p class="emblem-help">JPG, PNG, WEBP · 최대 5MB</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1001,6 +1115,8 @@ const leagueSearch = ref({ leagueId: '', keyword: '' })
 const leagues = ref([])
 const leagueLoading = ref(false)
 const leagueError = ref('')
+const createLeagueEmblemInput = ref(null)
+const editLeagueEmblemInput = ref(null)
 
 const seasonSearch = ref({ leagueId: '', leagueName: '' })
 const leagueSeasons = ref([])
@@ -1048,6 +1164,8 @@ const defaultLeagueForm = () => ({
   dataOrigin: '',
   apiLeagueId: '',
   syncEnabled: 'false',
+  image: null,
+  imagePreviewUrl: '',
 })
 
 const defaultLeagueEditForm = () => ({
@@ -1057,6 +1175,10 @@ const defaultLeagueEditForm = () => ({
   eName: '',
   sName: '',
   teamDisplayOrder: 'HOME_AWAY',
+  currentImageUrl: '',
+  image: null,
+  imagePreviewUrl: '',
+  removeEmblem: false,
 })
 
 const defaultSeasonForm = () => ({
@@ -1117,6 +1239,11 @@ const selectedSeasonLeague = computed(() => {
       sportName: seasonForm.value.leagueSportName,
     }),
   }
+})
+const editLeagueEmblemPreviewUrl = computed(() => {
+  if (leagueEditForm.value.removeEmblem) return ''
+
+  return leagueEditForm.value.imagePreviewUrl || leagueEditForm.value.currentImageUrl || ''
 })
 const showSeasonLeagueSearchGuide = computed(() => (
   !seasonForm.value.leagueId && hasShortKeyword(seasonForm.value.leagueKeyword)
@@ -1253,6 +1380,7 @@ async function resetLeagueSearch() {
 
 async function openCreateLeagueModal() {
   leagueForm.value = defaultLeagueForm()
+  if (createLeagueEmblemInput.value) createLeagueEmblemInput.value.value = ''
   createLeagueModal.value = { visible: true, saving: false }
   await loadLeagueOptions()
 }
@@ -1264,7 +1392,7 @@ async function saveNewLeague() {
   createLeagueModal.value.saving = true
 
   try {
-    await createAdminLeague(payload)
+    await createAdminLeague(payload, leagueForm.value.image)
     createLeagueModal.value.visible = false
     await fetchLeagues()
     await loadLeagueOptions()
@@ -1329,7 +1457,12 @@ function openEditLeagueModal(league) {
     eName: normalizedLeague.eName ?? '',
     sName: normalizedLeague.sName ?? '',
     teamDisplayOrder: normalizedLeague.teamDisplayOrder || 'HOME_AWAY',
+    currentImageUrl: normalizedLeague.imageUrl || '',
+    image: null,
+    imagePreviewUrl: '',
+    removeEmblem: false,
   }
+  if (editLeagueEmblemInput.value) editLeagueEmblemInput.value.value = ''
   editLeagueModal.value = { visible: true, saving: false }
 }
 
@@ -1340,7 +1473,7 @@ async function saveLeagueEdit() {
   editLeagueModal.value.saving = true
 
   try {
-    await updateAdminLeague(leagueEditForm.value.id, payload)
+    await updateAdminLeague(leagueEditForm.value.id, payload, leagueEditForm.value.image)
     editLeagueModal.value.visible = false
     await fetchLeagues()
     await loadLeagueOptions()
@@ -1382,7 +1515,98 @@ function buildLeagueEditPayload() {
     kName: normalizeOptionalText(form.kName),
     sName,
     teamDisplayOrder: form.teamDisplayOrder || null,
+    removeEmblem: form.removeEmblem === true,
   }
+}
+
+function onCreateLeagueEmblemChange(event) {
+  const image = resolveEmblemFile(event)
+  if (!image) return
+
+  leagueForm.value.image = image
+  setImagePreview(image, (previewUrl) => {
+    leagueForm.value.imagePreviewUrl = previewUrl
+  })
+}
+
+function onEditLeagueEmblemChange(event) {
+  const image = resolveEmblemFile(event)
+  if (!image) return
+
+  leagueEditForm.value.image = image
+  leagueEditForm.value.removeEmblem = false
+  setImagePreview(image, (previewUrl) => {
+    leagueEditForm.value.imagePreviewUrl = previewUrl
+  })
+}
+
+function openCreateLeagueEmblemPicker() {
+  if (!createLeagueEmblemInput.value) return
+
+  createLeagueEmblemInput.value.value = ''
+  createLeagueEmblemInput.value.click()
+}
+
+function openEditLeagueEmblemPicker() {
+  if (!editLeagueEmblemInput.value) return
+
+  editLeagueEmblemInput.value.value = ''
+  editLeagueEmblemInput.value.click()
+}
+
+function resolveEmblemFile(event) {
+  const input = event.target
+  const image = input.files?.[0] ?? null
+
+  if (!image) return null
+
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowedTypes.includes(image.type)) {
+    alert('JPG, PNG, WEBP 이미지만 등록할 수 있습니다.')
+    input.value = ''
+    return null
+  }
+
+  if (image.size > 5 * 1024 * 1024) {
+    alert('엠블럼 이미지는 5MB 이하만 등록할 수 있습니다.')
+    input.value = ''
+    return null
+  }
+
+  return image
+}
+
+function setImagePreview(image, assignPreview) {
+  if (!image) {
+    assignPreview('')
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => assignPreview(typeof reader.result === 'string' ? reader.result : '')
+  reader.onerror = () => assignPreview('')
+  reader.readAsDataURL(image)
+}
+
+function cancelSelectedCreateLeagueEmblem() {
+  leagueForm.value.image = null
+  leagueForm.value.imagePreviewUrl = ''
+  if (createLeagueEmblemInput.value) createLeagueEmblemInput.value.value = ''
+}
+
+function cancelSelectedLeagueEmblem() {
+  leagueEditForm.value.image = null
+  leagueEditForm.value.imagePreviewUrl = ''
+  if (editLeagueEmblemInput.value) editLeagueEmblemInput.value.value = ''
+}
+
+function markLeagueEmblemForRemoval() {
+  cancelSelectedLeagueEmblem()
+  leagueEditForm.value.removeEmblem = true
+}
+
+function cancelLeagueEmblemRemoval() {
+  leagueEditForm.value.removeEmblem = false
 }
 
 function openLeagueApiModal(league) {
@@ -2098,6 +2322,7 @@ function normalizeLeagueResponse(league = {}) {
     eName: league.eName ?? league.ename ?? league.EName ?? '',
     sName: league.sName ?? league.sname ?? league.SName ?? '',
     sportCode: league.sportCode ?? '',
+    imageUrl: league.imageUrl ?? league.image_url ?? '',
     syncEnabled: normalizeBoolean(league.syncEnabled ?? league.sync_enabled ?? league.SyncEnabled),
   }
 }
@@ -2341,6 +2566,101 @@ function toErrorMessage(value) {
 
 .league-table .league-name-cell .name-stack {
   align-items: flex-start;
+}
+
+.league-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.league-emblem {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  object-fit: contain;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
+}
+
+.league-emblem-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--admin-color-text-muted);
+  background: var(--admin-color-surface-subtle);
+}
+
+.emblem-editor {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  background: var(--admin-color-surface-subtle);
+  border: 1px solid var(--admin-color-border);
+  border-radius: var(--admin-control-radius);
+}
+
+.emblem-preview {
+  display: grid;
+  width: 112px;
+  height: 88px;
+  place-items: center;
+  overflow: hidden;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
+  text-align: center;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
+}
+
+.emblem-preview.is-removed {
+  color: var(--admin-color-text-muted);
+  border-style: dashed;
+}
+
+.emblem-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.emblem-controls {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.emblem-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-action-gap);
+}
+
+.emblem-help {
+  margin: 0;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
+}
+
+.emblem-file-name {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--admin-color-text-body);
+  font-size: var(--admin-font-size-label);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .name-stack {
@@ -2622,13 +2942,27 @@ function toErrorMessage(value) {
   width: 96px;
 }
 
+.league-table .col-id {
+  width: 84px;
+}
+
+.league-table .col-sport {
+  width: 64px;
+}
+
 .col-sport,
-.col-order,
-.col-origin,
-.col-linked,
 .col-current,
 .col-type {
   width: 128px;
+}
+
+.league-table .col-order {
+  width: 112px;
+}
+
+.league-table .col-origin,
+.league-table .col-linked {
+  width: 96px;
 }
 
 .col-name {
@@ -2636,7 +2970,7 @@ function toErrorMessage(value) {
 }
 
 .col-short {
-  width: 110px;
+  width: 84px;
 }
 
 .col-period {
@@ -2664,6 +2998,10 @@ function toErrorMessage(value) {
 
 @media (max-width: 900px) {
   .date-row {
+    grid-template-columns: 1fr;
+  }
+
+  .emblem-editor {
     grid-template-columns: 1fr;
   }
 }
