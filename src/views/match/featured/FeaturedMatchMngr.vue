@@ -6,43 +6,10 @@
       </BaseButton>
     </template>
 
-    <template #summary>
-      <section class="summary-grid" aria-label="등록 현황">
-        <article class="summary-card pinned">
-          <div class="summary-icon" aria-hidden="true">P</div>
-          <div>
-            <span>상단고정</span>
-            <strong>{{ filteredTypeCount('pinned') }}경기</strong>
-          </div>
-        </article>
-        <article class="summary-card hot">
-          <div class="summary-icon" aria-hidden="true">H</div>
-          <div>
-            <span>핫매치</span>
-            <strong>{{ filteredTypeCount('hot') }}경기</strong>
-          </div>
-        </article>
-      </section>
-    </template>
-
     <AdminFilterCard aria-label="경기 조회 조건">
       <div class="field-group featured-date-field">
         <label for="featured-date">경기 시작일</label>
         <BaseInput id="featured-date" v-model="searchDate" type="date" />
-      </div>
-      <div class="field-group type-filter">
-        <span class="field-label">노출 유형</span>
-        <div class="segmented-control" role="group" aria-label="노출 유형 필터">
-          <button
-            v-for="option in filterTypeOptions"
-            :key="option.value"
-            type="button"
-            :class="{ active: searchType === option.value }"
-            @click="searchType = option.value"
-          >
-            {{ option.label }}
-          </button>
-        </div>
       </div>
       <template #actions>
         <BaseButton variant="secondary" size="md" :disabled="matchesLoading" @click="resetSearch">초기화</BaseButton>
@@ -91,7 +58,7 @@
               v-else-if="visibleFeaturedMatches.length === 0"
               :colspan="9"
               title="조회 조건에 맞는 경기가 없습니다."
-              description="다른 날짜나 노출 유형을 선택해 보세요."
+              description="다른 날짜를 선택해 보세요."
             />
             <tr v-for="match in visibleFeaturedMatches" :key="match.featuredMatchId">
               <td class="id-cell">{{ match.matchId }}</td>
@@ -281,21 +248,13 @@ import {
 
 const defaultDate = toInputDate(new Date())
 
-const filterTypeOptions = [
-  { value: 'all', label: '전체' },
-  { value: 'pinned', label: '상단고정' },
-  { value: 'hot', label: '핫매치' },
-]
-
 const registerTypeOptions = [
   { value: 'pinned', label: '상단고정' },
   { value: 'hot', label: '핫매치' },
 ]
 
 const searchDate = ref(defaultDate)
-const searchType = ref('all')
 const appliedDate = ref(defaultDate)
-const appliedType = ref('all')
 const featuredMatches = ref([])
 const matchesLoading = ref(false)
 const orderSaving = ref(false)
@@ -313,10 +272,7 @@ const toastMessage = ref('')
 const toastType = ref('success')
 let toastTimer
 
-const visibleFeaturedMatches = computed(() => featuredMatches.value.filter((match) => {
-  const typeMatches = appliedType.value === 'all' || match.featuredType === appliedType.value
-  return typeMatches
-}))
+const visibleFeaturedMatches = computed(() => featuredMatches.value)
 
 const formattedAppliedDate = computed(() => {
   const [, month = '', day = ''] = appliedDate.value.split('-')
@@ -337,10 +293,6 @@ function formatTime(dateTime) {
   return dateTime?.slice(11, 16) || '-'
 }
 
-function filteredTypeCount(type) {
-  return featuredMatches.value.filter((match) => match.featuredType === type).length
-}
-
 async function applySearch() {
   if (!searchDate.value) {
     showToast('조회할 날짜를 선택해 주세요.', 'error')
@@ -353,7 +305,6 @@ async function applySearch() {
     const response = await getFeaturedMatches(toApiDate(searchDate.value))
     applyFeaturedMatchesResponse(response)
     appliedDate.value = searchDate.value
-    appliedType.value = searchType.value
   } catch (error) {
     featuredMatches.value = []
     listError.value = apiErrorMessage(error, '등록 경기 조회에 실패했습니다.')
@@ -364,7 +315,6 @@ async function applySearch() {
 
 async function resetSearch() {
   searchDate.value = defaultDate
-  searchType.value = 'all'
   await applySearch()
 }
 
@@ -483,7 +433,6 @@ async function registerSelectedMatches() {
   }
 
   searchDate.value = registerDate.value
-  searchType.value = 'all'
   registerModalOpen.value = false
   listError.value = ''
 
@@ -491,7 +440,6 @@ async function registerSelectedMatches() {
     const response = await getFeaturedMatches(toApiDate(registerDate.value))
     applyFeaturedMatchesResponse(response)
     appliedDate.value = registerDate.value
-    appliedType.value = 'all'
     showToast(`${registeredCount}개 경기를 ${featuredTypeLabel(registerType.value)}로 등록했습니다.`)
   } catch (error) {
     listError.value = apiErrorMessage(error, '등록은 완료되었지만 최신 목록 조회에 실패했습니다.')
@@ -572,20 +520,7 @@ onMounted(applySearch)
 </script>
 
 <style scoped>
-.summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-.summary-card { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 12px; min-height: 74px; padding: 14px 16px; background: var(--admin-color-surface); border: 1px solid #e7ebf2; border-radius: var(--admin-card-radius); box-shadow: 0 1px 2px rgba(15, 23, 42, .03); }
-.summary-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 9px; font-size: 12px; font-weight: 900; }
-.summary-card.pinned .summary-icon { color: #1763da; background: #eaf2ff; }
-.summary-card.hot .summary-icon { color: #d94747; background: #fff0f0; }
-.summary-card > div:nth-child(2) { display: flex; flex-direction: column; gap: 3px; }
-.summary-card span { font-size: 11px; color: #7b8496; }
-.summary-card strong { font-size: 18px; line-height: 1; color: #1d2738; }
-
 .featured-date-field { width: 170px; flex: 0 0 170px; }
-.type-filter { min-width: 260px; }
-.segmented-control { display: flex; padding: 3px; border-radius: 7px; background: #f1f4f8; }
-.segmented-control button { flex: 1; height: 28px; padding: 0 14px; border: 0; border-radius: 5px; color: #778195; background: transparent; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
-.segmented-control button.active { color: #1c67ff; background: #fff; box-shadow: 0 1px 4px rgba(15, 23, 42, .12); }
 th:nth-child(1) { width: 80px; } th:nth-child(2) { width: 64px; } th:nth-child(3) { width: 120px; }
 th:nth-child(4), th:nth-child(5) { width: 135px; } th:nth-child(6) { width: 112px; }
 th:nth-child(7) { width: 104px; } th:nth-child(8) { width: 120px; } th:nth-child(9) { width: 70px; }
@@ -634,8 +569,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #1c67ff; curso
 .selection-summary strong { display: block; color: #28549b; font-size: 11px; }
 
 @container admin-content (max-width: 600px) {
-  .summary-grid { grid-template-columns: 1fr; }
-  .featured-date-field, .type-filter { width: 100%; min-width: 0; }
+  .featured-date-field { width: 100%; min-width: 0; }
   .featured-date-field { flex-basis: auto; }
 }
 
