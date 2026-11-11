@@ -1,5 +1,11 @@
 <template>
   <AdminListPage title="팀 관리">
+    <template #header-actions>
+      <BaseButton variant="success" size="md" @click="openCreateModal">
+        + 팀 등록
+      </BaseButton>
+    </template>
+
     <AdminFilterCard aria-label="팀 검색 조건">
       <div class="field-group id-search">
         <label for="team-id">팀 ID</label>
@@ -12,7 +18,6 @@
       <template #actions>
         <BaseButton variant="secondary" size="md" :disabled="loading" @click="resetSearch">초기화</BaseButton>
         <BaseButton variant="primary" size="md" :disabled="loading" @click="searchTeams">검색</BaseButton>
-        <BaseButton variant="success" size="md" @click="openCreateModal">+ 팀 등록</BaseButton>
       </template>
     </AdminFilterCard>
 

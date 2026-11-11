@@ -1,7 +1,7 @@
 <template>
   <section class="filter-card" :aria-label="ariaLabel">
     <slot />
-    <div class="filter-actions">
+    <div v-if="$slots.actions" class="filter-actions">
       <slot name="actions" />
     </div>
   </section>
@@ -17,7 +17,7 @@ defineProps({
 </script>
 
 <style scoped>
-/* 검색 조건 필드와 초기화·조회·등록 액션을 담는 공통 카드 */
+/* 검색 조건 필드와 초기화·조회 액션을 담는 공통 카드 */
 .filter-card {
   display: flex;
   flex-wrap: wrap;
@@ -45,8 +45,8 @@ defineProps({
 
 .filter-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--admin-action-gap);
-  margin-left: auto;
 }
 
 @container admin-content (max-width: 600px) {

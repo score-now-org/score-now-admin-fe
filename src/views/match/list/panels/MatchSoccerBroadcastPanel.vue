@@ -423,6 +423,10 @@
           </div>
         </div>
 
+        <p class="stats-help">
+          점유율은 양 팀 모두 비워두거나, 두 값을 모두 입력해 합계가 100이 되도록 설정해 주세요.
+        </p>
+
         <div class="action-row">
           <BaseButton
             variant="primary"
@@ -711,7 +715,7 @@ function defaultFootballStats() {
   return {
     shots: 0,
     shotsOnTarget: 0,
-    possession: 0,
+    possession: null,
     corners: 0,
     freeKicks: 0,
     offsides: 0,
@@ -1164,8 +1168,13 @@ function validateAction(action) {
     return false
   }
 
-  if (action === 'stats' && !isValidStats()) {
-    alert('경기 스탯은 0 이상의 정수로 입력하고, 점유율은 100 이하로 입력해주세요.')
+  if (action === 'stats' && !isValidNonPossessionStats()) {
+    alert('경기 스탯은 0 이상의 정수로 입력해주세요.')
+    return false
+  }
+
+  if (action === 'stats' && !isValidPossession()) {
+    alert('점유율은 양 팀 모두 입력하거나 모두 비워야 하며, 입력 시 합계가 100이어야 합니다.')
     return false
   }
 
@@ -1277,13 +1286,35 @@ function isValidShootOutScore() {
     && isNonNegativeIntegerValue(scoreForm.value.awayPenaltyScore)
 }
 
-function isValidStats() {
-  return statFields.every((stat) => (
-    isNonNegativeIntegerValue(statsForm.value.home[stat.key])
-      && isNonNegativeIntegerValue(statsForm.value.away[stat.key])
-      && (stat.max == null || Number(statsForm.value.home[stat.key]) <= stat.max)
-      && (stat.max == null || Number(statsForm.value.away[stat.key]) <= stat.max)
-  ))
+function isValidNonPossessionStats() {
+  return statFields
+    .filter((stat) => stat.key !== 'possession')
+    .every((stat) => (
+      isNonNegativeIntegerValue(statsForm.value.home[stat.key])
+        && isNonNegativeIntegerValue(statsForm.value.away[stat.key])
+        && (stat.max == null || Number(statsForm.value.home[stat.key]) <= stat.max)
+        && (stat.max == null || Number(statsForm.value.away[stat.key]) <= stat.max)
+    ))
+}
+
+function isValidPossession() {
+  const homePossession = statsForm.value.home.possession
+  const awayPossession = statsForm.value.away.possession
+  const homeBlank = isBlankStatValue(homePossession)
+  const awayBlank = isBlankStatValue(awayPossession)
+
+  if (homeBlank && awayBlank) return true
+  if (homeBlank || awayBlank) return false
+
+  return isNonNegativeIntegerValue(homePossession)
+    && isNonNegativeIntegerValue(awayPossession)
+    && Number(homePossession) <= 100
+    && Number(awayPossession) <= 100
+    && Number(homePossession) + Number(awayPossession) === 100
+}
+
+function isBlankStatValue(value) {
+  return value == null || String(value).trim() === ''
 }
 
 function buildStartAt(date, time) {
@@ -1307,7 +1338,9 @@ function getKstNowDateTime() {
 
 function buildStatsPayload(stats) {
   return statFields.reduce((payload, stat) => {
-    payload[stat.key] = toNonNegativeInteger(stats[stat.key])
+    payload[stat.key] = stat.key === 'possession' && isBlankStatValue(stats[stat.key])
+      ? null
+      : toNonNegativeInteger(stats[stat.key])
     return payload
   }, {})
 }
@@ -2335,6 +2368,13 @@ function makeMockChats() {
   background: #f6f9ff;
   border-color: transparent #e5e7eb transparent transparent;
   box-shadow: inset 0 0 0 1px #93c5fd;
+}
+
+.stats-help {
+  margin: 8px 0 0;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
+  line-height: 1.5;
 }
 
 .modal-list {

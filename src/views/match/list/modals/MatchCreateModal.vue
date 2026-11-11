@@ -46,14 +46,39 @@
 
       <div class="team-search-grid">
         <div class="team-search-box form-field">
-          <label class="form-label">홈팀</label>
+          <div class="team-search-header">
+            <label class="form-label" for="home-team-search">홈팀</label>
+            <div class="team-search-mode" role="radiogroup" aria-label="홈팀 검색 방식">
+              <label>
+                <input
+                  v-model="form.homeTeamSearchMode"
+                  type="radio"
+                  value="name"
+                  @change="handleTeamSearchModeChange('home')"
+                />
+                이름 검색
+              </label>
+              <label>
+                <input
+                  v-model="form.homeTeamSearchMode"
+                  type="radio"
+                  value="id"
+                  @change="handleTeamSearchModeChange('home')"
+                />
+                ID 검색
+              </label>
+            </div>
+          </div>
           <input
+            id="home-team-search"
             ref="homeTeamInput"
             v-model="form.homeTeamKeyword"
             class="form-input"
             type="text"
+            autocomplete="off"
             :disabled="!selectedSportId"
-            :placeholder="teamSearchPlaceholder"
+            :inputmode="teamSearchInputMode('home')"
+            :placeholder="teamSearchPlaceholder('home')"
             @input="handleTeamKeywordInput('home')"
           />
           <div class="team-result-panel">
@@ -69,7 +94,10 @@
                 <span v-else class="selected-team-image fallback">
                   {{ teamInitials(selectedHomeTeam.name) }}
                 </span>
-                <strong>{{ selectedHomeTeam.name }}</strong>
+                <span class="selected-team-text">
+                  <strong>{{ selectedHomeTeam.name }}</strong>
+                  <small>ID {{ selectedHomeTeam.id }}</small>
+                </span>
               </div>
             </div>
             <template v-else>
@@ -87,7 +115,9 @@
                   :alt="`${team.name} 이미지`"
                 />
                 <span class="team-result-name">{{ team.name }}</span>
-                <span v-if="team.shortName" class="team-result-sub">{{ team.shortName }}</span>
+                <span class="team-result-sub">
+                  ID {{ team.id }}<template v-if="team.shortName"> · {{ team.shortName }}</template>
+                </span>
               </button>
               <p v-if="homeTeamLoading" class="team-search-guide">
                 팀을 검색하는 중입니다.
@@ -96,13 +126,13 @@
                 종목을 먼저 선택하면 팀 검색을 사용할 수 있습니다.
               </p>
               <p v-else-if="showHomeSearchGuide" class="team-search-guide">
-                팀명을 2글자 이상 입력해주세요.
+                {{ teamSearchGuide('home') }}
               </p>
               <p v-else-if="homeTeamSearchError" class="team-search-guide error">
                 {{ homeTeamSearchError }}
               </p>
               <p v-else-if="showHomeEmptyResult" class="team-search-guide">
-                검색 결과가 없습니다. 원하는 팀이 보이지 않으면 팀명을 더 상세하게 입력해주세요.
+                {{ teamEmptyMessage('home') }}
               </p>
               <p v-if="showHomeLimitGuide" class="team-search-note">
                 검색 결과는 최대 10개까지 표시됩니다. 원하는 팀이 보이지 않으면 팀명을 더 상세하게 입력해주세요.
@@ -112,13 +142,39 @@
         </div>
 
         <div class="team-search-box form-field">
-          <label class="form-label">원정팀</label>
+          <div class="team-search-header">
+            <label class="form-label" for="away-team-search">원정팀</label>
+            <div class="team-search-mode" role="radiogroup" aria-label="원정팀 검색 방식">
+              <label>
+                <input
+                  v-model="form.awayTeamSearchMode"
+                  type="radio"
+                  value="name"
+                  @change="handleTeamSearchModeChange('away')"
+                />
+                이름 검색
+              </label>
+              <label>
+                <input
+                  v-model="form.awayTeamSearchMode"
+                  type="radio"
+                  value="id"
+                  @change="handleTeamSearchModeChange('away')"
+                />
+                ID 검색
+              </label>
+            </div>
+          </div>
           <input
+            id="away-team-search"
+            ref="awayTeamInput"
             v-model="form.awayTeamKeyword"
             class="form-input"
             type="text"
+            autocomplete="off"
             :disabled="!selectedSportId"
-            :placeholder="teamSearchPlaceholder"
+            :inputmode="teamSearchInputMode('away')"
+            :placeholder="teamSearchPlaceholder('away')"
             @input="handleTeamKeywordInput('away')"
           />
           <div class="team-result-panel">
@@ -134,7 +190,10 @@
                 <span v-else class="selected-team-image fallback">
                   {{ teamInitials(selectedAwayTeam.name) }}
                 </span>
-                <strong>{{ selectedAwayTeam.name }}</strong>
+                <span class="selected-team-text">
+                  <strong>{{ selectedAwayTeam.name }}</strong>
+                  <small>ID {{ selectedAwayTeam.id }}</small>
+                </span>
               </div>
             </div>
             <template v-else>
@@ -152,7 +211,9 @@
                   :alt="`${team.name} 이미지`"
                 />
                 <span class="team-result-name">{{ team.name }}</span>
-                <span v-if="team.shortName" class="team-result-sub">{{ team.shortName }}</span>
+                <span class="team-result-sub">
+                  ID {{ team.id }}<template v-if="team.shortName"> · {{ team.shortName }}</template>
+                </span>
               </button>
               <p v-if="awayTeamLoading" class="team-search-guide">
                 팀을 검색하는 중입니다.
@@ -161,13 +222,13 @@
                 종목을 먼저 선택하면 팀 검색을 사용할 수 있습니다.
               </p>
               <p v-else-if="showAwaySearchGuide" class="team-search-guide">
-                팀명을 2글자 이상 입력해주세요.
+                {{ teamSearchGuide('away') }}
               </p>
               <p v-else-if="awayTeamSearchError" class="team-search-guide error">
                 {{ awayTeamSearchError }}
               </p>
               <p v-else-if="showAwayEmptyResult" class="team-search-guide">
-                검색 결과가 없습니다. 원하는 팀이 보이지 않으면 팀명을 더 상세하게 입력해주세요.
+                {{ teamEmptyMessage('away') }}
               </p>
               <p v-if="showAwayLimitGuide" class="team-search-note">
                 검색 결과는 최대 10개까지 표시됩니다. 원하는 팀이 보이지 않으면 팀명을 더 상세하게 입력해주세요.
@@ -208,6 +269,7 @@ const emit = defineEmits(['update:modelValue', 'save'])
 const visible = ref(props.modelValue)
 const errorMsg = ref('')
 const homeTeamInput = ref(null)
+const awayTeamInput = ref(null)
 
 const defaultForm = () => ({
   sport: '',
@@ -218,10 +280,12 @@ const defaultForm = () => ({
   homeTeamName: '',
   homeTeamKeyword: '',
   homeTeamImageUrl: '',
+  homeTeamSearchMode: 'name',
   awayId: '',
   awayTeamName: '',
   awayTeamKeyword: '',
   awayTeamImageUrl: '',
+  awayTeamSearchMode: 'name',
 })
 
 const form = ref(defaultForm())
@@ -243,9 +307,6 @@ const selectedSportId = computed(() => {
   const selectedSport = props.sportOptions.find((sport) => sport.value === form.value.sport)
   return selectedSport?.serverValue ?? selectedSport?.id ?? ''
 })
-const teamSearchPlaceholder = computed(() => (
-  selectedSportId.value ? '팀명 2글자 이상 검색' : '종목을 먼저 선택해주세요'
-))
 
 const filteredHomeTeams = computed(() => (
   form.value.homeId ? [] : excludeSelectedTeam(homeTeamCandidates.value, form.value.awayId)
@@ -258,27 +319,31 @@ const selectedAwayTeam = computed(() => selectedTeam('away'))
 const showHomeSportGuide = computed(() => !form.value.homeId && !selectedSportId.value)
 const showAwaySportGuide = computed(() => !form.value.awayId && !selectedSportId.value)
 const showHomeSearchGuide = computed(() => (
-  !form.value.homeId && Boolean(selectedSportId.value) && hasShortKeyword(form.value.homeTeamKeyword)
+  !form.value.homeId && Boolean(selectedSportId.value) && !isTeamSearchReady('home')
 ))
 const showAwaySearchGuide = computed(() => (
-  !form.value.awayId && Boolean(selectedSportId.value) && hasShortKeyword(form.value.awayTeamKeyword)
+  !form.value.awayId && Boolean(selectedSportId.value) && !isTeamSearchReady('away')
 ))
 const showHomeEmptyResult = computed(() => (
   !form.value.homeId
     && !homeTeamLoading.value
     && !homeTeamSearchError.value
-    && hasEnoughKeyword(form.value.homeTeamKeyword)
+    && isTeamSearchReady('home')
     && filteredHomeTeams.value.length === 0
 ))
 const showAwayEmptyResult = computed(() => (
   !form.value.awayId
     && !awayTeamLoading.value
     && !awayTeamSearchError.value
-    && hasEnoughKeyword(form.value.awayTeamKeyword)
+    && isTeamSearchReady('away')
     && filteredAwayTeams.value.length === 0
 ))
-const showHomeLimitGuide = computed(() => !form.value.homeId && homeTeamCandidates.value.length >= 10)
-const showAwayLimitGuide = computed(() => !form.value.awayId && awayTeamCandidates.value.length >= 10)
+const showHomeLimitGuide = computed(() => (
+  !form.value.homeId && isNameSearch('home') && homeTeamCandidates.value.length >= 10
+))
+const showAwayLimitGuide = computed(() => (
+  !form.value.awayId && isNameSearch('away') && awayTeamCandidates.value.length >= 10
+))
 
 watch(
   () => props.modelValue,
@@ -369,11 +434,21 @@ function handleTeamKeywordInput(type) {
   scheduleTeamSearch(type)
 }
 
+async function handleTeamSearchModeChange(type) {
+  clearTeamSelection(type)
+  clearTeamSearchTimer(type)
+  resetTeamSearchResult(type)
+  errorMsg.value = ''
+
+  await nextTick()
+  teamSearchInput(type)?.focus()
+}
+
 function selectTeam(type, team) {
   const prefix = teamFieldPrefix(type)
   form.value[`${prefix}Id`] = team.id
   form.value[`${prefix}TeamName`] = team.name
-  form.value[`${prefix}TeamKeyword`] = team.name
+  form.value[`${prefix}TeamKeyword`] = isNameSearch(type) ? team.name : String(team.id)
   form.value[`${prefix}TeamImageUrl`] = team.imageUrl || ''
   errorMsg.value = ''
 }
@@ -388,6 +463,40 @@ function clearTeamSelection(type) {
 
 function teamFieldPrefix(type) {
   return type === 'home' ? 'home' : 'away'
+}
+
+function teamSearchInput(type) {
+  return type === 'home' ? homeTeamInput.value : awayTeamInput.value
+}
+
+function teamSearchMode(type) {
+  const prefix = teamFieldPrefix(type)
+  return form.value[`${prefix}TeamSearchMode`]
+}
+
+function isNameSearch(type) {
+  return teamSearchMode(type) === 'name'
+}
+
+function teamSearchInputMode(type) {
+  return isNameSearch(type) ? 'search' : 'numeric'
+}
+
+function teamSearchPlaceholder(type) {
+  if (!selectedSportId.value) return '종목을 먼저 선택해주세요'
+  return isNameSearch(type) ? '팀명 2글자 이상 검색' : '팀 ID 입력'
+}
+
+function teamSearchGuide(type) {
+  return isNameSearch(type)
+    ? '팀명을 2글자 이상 입력해주세요.'
+    : '숫자로 된 팀 ID를 입력해주세요.'
+}
+
+function teamEmptyMessage(type) {
+  return isNameSearch(type)
+    ? '검색 결과가 없습니다. 원하는 팀이 보이지 않으면 팀명을 더 상세하게 입력해주세요.'
+    : '일치하는 팀 ID가 없습니다.'
 }
 
 function selectedTeam(type) {
@@ -413,7 +522,7 @@ function scheduleTeamSearch(type) {
 
   const keyword = getTeamKeyword(type)
 
-  if (!selectedSportId.value || !hasEnoughKeyword(keyword)) {
+  if (!selectedSportId.value || !isTeamSearchReady(type, keyword)) {
     return
   }
 
@@ -427,7 +536,7 @@ async function fetchTeamCandidates(type) {
   const keyword = getTeamKeyword(type)
   const sportId = selectedSportId.value
 
-  if (!sportId || !hasEnoughKeyword(keyword)) {
+  if (!sportId || !isTeamSearchReady(type, keyword)) {
     return
   }
 
@@ -435,10 +544,9 @@ async function fetchTeamCandidates(type) {
   setTeamSearchError(type, '')
 
   try {
-    const candidates = normalizeTeamCandidates(await getMatchTeamCandidates({
-      keyword: keyword.trim(),
-      sportId,
-    }))
+    const candidates = normalizeTeamCandidates(await getMatchTeamCandidates(
+      buildTeamSearchParams(type, keyword, sportId),
+    ))
 
     if (requestId !== teamSearchRequestIds[type]) return
 
@@ -475,6 +583,16 @@ function excludeSelectedTeam(candidates, excludedTeamId) {
 function getTeamKeyword(type) {
   const prefix = teamFieldPrefix(type)
   return form.value[`${prefix}TeamKeyword`]
+}
+
+function buildTeamSearchParams(type, keyword, sportId) {
+  const normalizedKeyword = String(keyword || '').trim()
+
+  if (isNameSearch(type)) {
+    return { keyword: normalizedKeyword, sportId }
+  }
+
+  return { teamId: normalizedKeyword, sportId }
 }
 
 function setTeamCandidates(type, candidates) {
@@ -529,13 +647,14 @@ function clearAllTeamSearchTimers() {
   clearTeamSearchTimer('away')
 }
 
-function hasShortKeyword(keyword) {
-  const normalizedKeyword = normalizeSearchText(keyword)
-  return normalizedKeyword.length < 2
-}
+function isTeamSearchReady(type, keyword = getTeamKeyword(type)) {
+  const normalizedKeyword = String(keyword || '').trim()
 
-function hasEnoughKeyword(keyword) {
-  return normalizeSearchText(keyword).length >= 2
+  if (isNameSearch(type)) {
+    return normalizeSearchText(normalizedKeyword).length >= 2
+  }
+
+  return /^[1-9]\d*$/.test(normalizedKeyword)
 }
 
 function normalizeSearchText(value) {
@@ -560,6 +679,43 @@ function normalizeTime(value) {
 </script>
 
 <style scoped>
+.team-search-header {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.team-search-mode {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.team-search-mode label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
+  cursor: pointer;
+}
+
+.team-search-mode input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--admin-color-primary);
+}
+
+.team-search-mode input:focus-visible {
+  outline: 2px solid var(--admin-color-primary);
+  outline-offset: 2px;
+}
+
 .team-search-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -707,6 +863,19 @@ function normalizeTime(value) {
   white-space: nowrap;
 }
 
+.selected-team-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.selected-team-text small {
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-table-heading);
+  font-variant-numeric: tabular-nums;
+}
+
 .selected-team-label {
   padding: 5px 8px;
   color: #3864bd;
@@ -719,6 +888,16 @@ function normalizeTime(value) {
 @media (max-width: 640px) {
   .team-search-grid {
     grid-template-columns: 1fr;
+  }
+
+  .team-search-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .team-search-mode {
+    justify-content: flex-start;
   }
 }
 </style>

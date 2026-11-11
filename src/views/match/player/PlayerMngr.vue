@@ -1,6 +1,12 @@
 
 <template>
   <AdminListPage title="선수 관리">
+    <template #header-actions>
+      <BaseButton variant="success" size="md" @click="openCreateModal">
+        + 선수 등록
+      </BaseButton>
+    </template>
+
     <!-- 선수 검색 -->
     <AdminFilterCard aria-label="선수 검색 조건">
       <!-- 종목 선택 -->
@@ -97,26 +103,16 @@
       </template>
 
       <template #toolbar-actions>
-  <div class="player-toolbar">
-    <BaseButton
-      variant="primary"
-      size="md"
-      @click="openCreateModal"
-    >
-      선수 등록
-    </BaseButton>
-
-    <AdminTablePagination
-      v-model:page-size="pageSize"
-      :page-size-options="pageSizeOptions"
-      :page="page"
-      :total-pages="maxPage"
-      :loading="loading"
-      @change-page="changePage"
-      @change-page-size="changePageSize"
-    />
-  </div>
-</template>
+        <AdminTablePagination
+          v-model:page-size="pageSize"
+          :page-size-options="pageSizeOptions"
+          :page="page"
+          :total-pages="maxPage"
+          :loading="loading"
+          @change-page="changePage"
+          @change-page-size="changePageSize"
+        />
+      </template>
 
       <table>
         <thead>
@@ -1118,13 +1114,6 @@ function showToast(message, type = 'success') {
   cursor: not-allowed;
 }
 
-
-.player-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
 
 .create-modal-backdrop {
   position: fixed;

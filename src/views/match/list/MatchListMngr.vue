@@ -1,5 +1,11 @@
 <template>
   <AdminListPage title="경기 리스트">
+    <template #header-actions>
+      <BaseButton variant="success" size="md" @click="openCreateModal">
+        + 경기 등록
+      </BaseButton>
+    </template>
+
     <AdminFilterCard aria-label="경기 검색 조건">
       <div class="match-filter-fields">
         <div class="field-group filter-sport">
@@ -15,26 +21,53 @@
           </BaseSelect>
         </div>
 
-        <div class="field-group filter-league-search">
-          <label class="filter-label">리그명</label>
-          <BaseInput
-            v-model="searchForm.leagueKeyword"
-            placeholder="리그 검색"
-          />
-        </div>
-
         <div class="field-group filter-league">
-          <label class="filter-label">하위 리그</label>
-          <BaseSelect v-model="searchForm.leagueId">
-            <option value="">전체</option>
-            <option
-              v-for="league in filteredLeagueOptions"
-              :key="league.id"
-              :value="league.id"
+          <label class="filter-label" for="match-league-search">리그</label>
+          <div class="league-combobox">
+            <BaseInput
+              id="match-league-search"
+              v-model="searchForm.leagueQuery"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="match-league-options"
+              :aria-expanded="leagueDropdownOpen"
+              :aria-describedby="leagueSearchError ? 'match-league-error' : undefined"
+              :aria-invalid="!!leagueSearchError"
+              :aria-activedescendant="activeLeagueOptionId"
+              @focus="openLeagueDropdown"
+              @blur="closeLeagueDropdown"
+              @keydown.down.prevent="moveLeagueOption(1)"
+              @keydown.up.prevent="moveLeagueOption(-1)"
+              @keydown.enter.prevent="selectActiveLeague"
+              @keydown.esc.prevent="closeLeagueDropdown"
+            />
+            <div
+              v-if="leagueDropdownOpen"
+              id="match-league-options"
+              class="league-options"
+              role="listbox"
             >
-              {{ league.name }}
-            </option>
-          </BaseSelect>
+              <button
+                v-for="(league, index) in leagueCandidateOptions"
+                :id="leagueOptionId(index)"
+                :key="league.id"
+                class="league-option"
+                :class="{ active: index === activeLeagueOptionIndex }"
+                type="button"
+                role="option"
+                :aria-selected="String(searchForm.leagueId) === String(league.id)"
+                @mousedown.prevent="selectLeague(league)"
+              >
+                {{ league.name }}
+              </button>
+              <p v-if="leagueCandidateOptions.length === 0" class="league-option-empty">
+                일치하는 리그가 없습니다.
+              </p>
+            </div>
+          </div>
+          <small v-if="leagueSearchError" id="match-league-error" class="field-error" role="alert">
+            {{ leagueSearchError }}
+          </small>
         </div>
 
         <div class="field-group filter-status">
@@ -51,7 +84,7 @@
         </div>
 
         <div class="field-group filter-use">
-          <label class="filter-label">사용 유무</label>
+          <label class="filter-label">앱 노출</label>
           <BaseSelect v-model="searchForm.useStatus">
             <option
               v-for="useStatus in useStatusOptions"
@@ -73,33 +106,26 @@
       </div>
 
       <template #actions>
-          <BaseButton
-            variant="secondary"
-            size="md"
-            :disabled="matchesLoading"
-            @click="resetSearch"
-          >
-            초기화
-          </BaseButton>
-          <BaseButton
-            variant="primary"
-            size="md"
-            :disabled="matchesLoading"
-            @click="doSearch"
-          >
-            {{ matchesLoading ? '검색중' : '검색' }}
-          </BaseButton>
-          <BaseButton
-            variant="success"
-            size="md"
-            @click="openCreateModal"
-          >
-            + 경기 등록
-          </BaseButton>
+        <BaseButton
+          variant="secondary"
+          size="md"
+          :disabled="matchesLoading"
+          @click="resetSearch"
+        >
+          초기화
+        </BaseButton>
+        <BaseButton
+          variant="primary"
+          size="md"
+          :disabled="matchesLoading"
+          @click="doSearch"
+        >
+          {{ matchesLoading ? '검색중' : '검색' }}
+        </BaseButton>
       </template>
     </AdminFilterCard>
 
-    <AdminTableCard scroll-label="경기 목록" table-min-width="1740px">
+    <AdminTableCard scroll-label="경기 목록" table-min-width="1440px">
       <template #summary>
         <strong>검색 결과</strong>
         <span>총 {{ totalMatches }}건</span>
@@ -123,9 +149,9 @@
             <col class="col-type" />
             <col class="col-team" />
             <col class="col-team" />
-            <col class="col-data" />
             <col class="col-date-time" />
             <col class="col-status" />
+            <col class="col-data" />
             <col class="col-exposure" />
             <col class="col-save" />
             <col class="col-detail-actions" />
@@ -138,9 +164,9 @@
               <th>타입</th>
               <th>홈팀</th>
               <th>원정팀</th>
-              <th>데이터 관리</th>
               <th>날짜/시간</th>
               <th>경기상태</th>
+              <th>데이터 관리</th>
               <th>앱 노출</th>
               <th>저장</th>
               <th class="action-area-start">상세 관리</th>
@@ -202,43 +228,32 @@
                   <span class="team-name">{{ match.awayTeam.name }}</span>
                 </div>
               </td>
-              <td class="data-source-cell">
+              <td>
                 <div
-                  class="data-mode-toggle"
-                  role="group"
-                  :aria-label="`${match.id} 데이터 관리 방식`"
+                  class="date-time-editor"
+                  :class="{ locked: !canEditDateTime(match) }"
                 >
                   <button
-                    class="data-mode-option auto"
-                    :class="{ active: match.editDataSourceType === 'external' }"
-                    :disabled="isSaving(match)"
+                    v-if="!canEditDateTime(match)"
+                    class="date-time-lock"
                     type="button"
-                    @click="setDataSourceType(match, 'external')"
+                    :aria-label="`${match.id} 날짜 및 시간 변경 안내`"
+                    title="데이터 관리를 수동으로 변경하고 저장한 뒤 수정할 수 있습니다."
+                    @click="showDateTimeGuard"
                   >
-                    자동
+                    <span class="visually-hidden">날짜 및 시간 변경 안내</span>
                   </button>
-                  <button
-                    class="data-mode-option manual"
-                    :class="{ active: match.editDataSourceType === 'manual' }"
-                    :disabled="isSaving(match)"
-                    type="button"
-                    @click="setDataSourceType(match, 'manual')"
-                  >
-                    수동
-                  </button>
-                </div>
-              </td>
-              <td>
-                <div class="date-time-editor">
                   <input
                     v-model="match.editDate"
                     class="row-control row-input"
                     type="date"
+                    :disabled="!canEditDateTime(match) || isSaving(match)"
                   />
                   <input
                     v-model="match.editTime"
                     class="row-control row-input"
                     type="time"
+                    :disabled="!canEditDateTime(match) || isSaving(match)"
                   />
                 </div>
               </td>
@@ -253,37 +268,35 @@
                   </option>
                 </BaseSelect>
               </td>
-              <td class="exposure-cell">
-                <div
-                  class="exposure-mode-toggle"
-                  role="group"
-                  :aria-label="`${match.id} 앱 노출 여부`"
+              <td class="data-source-cell">
+                <button
+                  class="mode-toggle-button data-mode-button"
+                  :class="{ manual: match.editDataSourceType === 'manual' }"
+                  :disabled="isSaving(match)"
+                  type="button"
+                  :aria-label="`${match.id} 데이터 관리: ${dataSourceTypeLabel(match)}. 클릭하여 변경`"
+                  @click="toggleDataSourceType(match)"
                 >
-                  <button
-                    class="exposure-mode-option visible"
-                    :class="{ active: match.editUseStatus === 'active' }"
-                    :disabled="isSaving(match)"
-                    type="button"
-                    @click="setUseStatus(match, 'active')"
-                  >
-                    노출
-                  </button>
-                  <button
-                    class="exposure-mode-option inactive"
-                    :class="{ active: match.editUseStatus === 'inactive' }"
-                    :disabled="isSaving(match)"
-                    type="button"
-                    @click="setUseStatus(match, 'inactive')"
-                  >
-                    숨김
-                  </button>
-                </div>
+                  {{ dataSourceTypeLabel(match) }}
+                </button>
+              </td>
+              <td class="exposure-cell">
+                <button
+                  class="mode-toggle-button exposure-mode-button"
+                  :class="{ 'exposure-hidden': match.editUseStatus === 'inactive' }"
+                  :disabled="isSaving(match)"
+                  type="button"
+                  :aria-label="`${match.id} 앱 노출: ${useStatusLabel(match)}. 클릭하여 변경`"
+                  @click="toggleUseStatus(match)"
+                >
+                  {{ useStatusLabel(match) }}
+                </button>
               </td>
               <td class="save-cell">
                 <BaseButton
                   variant="primary"
                   size="sm"
-                  :disabled="isSaving(match)"
+                  :disabled="isSaving(match) || !isMatchDirty(match)"
                   :class="[
                     'match-action-btn',
                     saveButtonClass(match),
@@ -381,6 +394,43 @@
       :match="oddsModal.match"
     />
 
+    <BaseModal
+      :model-value="optionChangeConfirm.visible"
+      :title="optionChangeConfirm.title"
+      size="sm"
+      @update:model-value="handleOptionConfirmVisibility"
+    >
+      <p class="confirm-message">{{ optionChangeConfirm.message }}</p>
+      <template #footer>
+        <div class="confirm-actions">
+          <BaseButton variant="outline" size="md" @click="closeOptionChangeConfirm">
+            취소
+          </BaseButton>
+          <BaseButton variant="primary" size="md" @click="confirmOptionChange">
+            확인
+          </BaseButton>
+        </div>
+      </template>
+    </BaseModal>
+
+    <BaseModal
+      :model-value="dateTimeGuardVisible"
+      title="날짜·시간 변경 안내"
+      size="sm"
+      @update:model-value="dateTimeGuardVisible = $event"
+    >
+      <p class="confirm-message">
+        데이터 관리를 수동으로 변경하고 먼저 저장한 뒤 날짜와 시간을 수정해 주세요.
+      </p>
+      <template #footer>
+        <div class="confirm-actions">
+          <BaseButton variant="primary" size="md" @click="dateTimeGuardVisible = false">
+            확인
+          </BaseButton>
+        </div>
+      </template>
+    </BaseModal>
+
     <div v-if="stadiumToastMessage" class="toast" role="status">
       <span>✓</span>{{ stadiumToastMessage }}
     </div>
@@ -395,6 +445,7 @@ import AdminTableCard from '@/components/admin/AdminTableCard.vue'
 import AdminTablePagination from '@/components/admin/AdminTablePagination.vue'
 import AdminTableState from '@/components/admin/AdminTableState.vue'
 import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import {
   createAdminMatch,
   getAdminMatches,
@@ -440,8 +491,8 @@ const fallbackStatusOptions = [
 
 const fallbackUseStatusOptions = [
   { value: '', label: '전체' },
-  { value: 'active', label: '사용중' },
-  { value: 'inactive', label: '미사용중' },
+  { value: 'active', label: '노출', serverValue: true },
+  { value: 'inactive', label: '숨김', serverValue: false },
 ]
 
 const sportOptions = ref([...fallbackSportOptions])
@@ -453,8 +504,8 @@ const isManualOptions = ref([])
 const sportOptionsWithoutAll = computed(() => sportOptions.value.filter((sport) => sport.value))
 const rowStatusOptions = computed(() => statusOptions.value.filter((status) => status.value))
 
-const pageSizeOptions = [10, 20, 50]
-const pageSize = ref(10)
+const pageSizeOptions = [50, 80, 100]
+const pageSize = ref(50)
 const page = ref(1)
 const totalMatches = ref(0)
 const totalPages = ref(1)
@@ -462,14 +513,17 @@ const saveStates = ref({})
 const matchesLoading = ref(false)
 const createSaving = ref(false)
 const matchListError = ref('')
+const leagueDropdownOpen = ref(false)
+const activeLeagueOptionIndex = ref(-1)
+const leagueSearchError = ref('')
 
 const defaultSearchForm = () => ({
   sport: '',
-  leagueKeyword: '',
+  leagueQuery: '',
   leagueId: '',
-  status: '',
-  useStatus: '',
-  matchDate: '',
+  status: 'NOT_STARTED',
+  useStatus: 'active',
+  matchDate: todayInSeoul(),
 })
 
 const searchForm = ref(defaultSearchForm())
@@ -477,19 +531,26 @@ const appliedFilter = ref(defaultSearchForm())
 
 const matches = ref([])
 
-const filteredLeagueOptions = computed(() => {
+const leagueCandidateOptions = computed(() => {
   const sport = searchForm.value.sport
-  const keyword = searchForm.value.leagueKeyword.trim().toLowerCase()
+  const keyword = searchForm.value.leagueQuery.trim().toLowerCase()
 
-  return leagueOptions.value.filter((league) => {
-    if (sport && league.sport !== sport) return false
-    if (keyword && !league.name.toLowerCase().includes(keyword)) return false
-    return true
-  })
+  return leagueOptions.value
+    .filter((league) => {
+      if (sport && league.sport !== sport) return false
+      if (keyword && !league.name.toLowerCase().includes(keyword)) return false
+      return true
+    })
+    .slice(0, 20)
 })
 
 const maxPage = computed(() => Math.max(1, totalPages.value))
 const visibleMatches = computed(() => matches.value)
+const activeLeagueOptionId = computed(() => (
+  leagueDropdownOpen.value && activeLeagueOptionIndex.value >= 0
+    ? leagueOptionId(activeLeagueOptionIndex.value)
+    : undefined
+))
 
 const createModalVisible = ref(false)
 const broadcastPanelRef = ref(null)
@@ -497,18 +558,39 @@ const broadcastPanel = ref({ visible: false, match: null })
 const lineupModal = ref({ visible: false, match: null})
 const stadiumModal = ref({ visible: false, match: null })
 const oddsModal = ref({ visible: false, match: null })
+const optionChangeConfirm = ref(defaultOptionChangeConfirm())
+const dateTimeGuardVisible = ref(false)
 const stadiumToastMessage = ref('')
 let stadiumToastTimer
 
 onMounted(async () => {
   await loadSearchOptions()
+  await fetchMatches()
 })
 
 watch(
   () => searchForm.value.sport,
   () => {
     searchForm.value.leagueId = ''
-    searchForm.value.leagueKeyword = ''
+    searchForm.value.leagueQuery = ''
+    activeLeagueOptionIndex.value = -1
+    leagueSearchError.value = ''
+  },
+)
+
+watch(
+  () => searchForm.value.leagueQuery,
+  (query) => {
+    const selectedLeague = leagueOptions.value.find(
+      (league) => String(league.id) === String(searchForm.value.leagueId),
+    )
+
+    if (!selectedLeague || selectedLeague.name !== query) {
+      searchForm.value.leagueId = ''
+    }
+
+    activeLeagueOptionIndex.value = -1
+    leagueSearchError.value = ''
   },
 )
 
@@ -518,6 +600,8 @@ watch(pageSize, async () => {
 })
 
 async function doSearch() {
+  if (!validateLeagueSelection()) return
+
   appliedFilter.value = { ...searchForm.value }
   page.value = 1
   await fetchMatches()
@@ -526,6 +610,9 @@ async function doSearch() {
 async function resetSearch() {
   searchForm.value = defaultSearchForm()
   appliedFilter.value = defaultSearchForm()
+  leagueDropdownOpen.value = false
+  activeLeagueOptionIndex.value = -1
+  leagueSearchError.value = ''
   page.value = 1
   await fetchMatches()
 }
@@ -539,6 +626,60 @@ async function changePage(nextPage) {
 
 function openCreateModal() {
   createModalVisible.value = true
+}
+
+function openLeagueDropdown() {
+  leagueDropdownOpen.value = true
+}
+
+function closeLeagueDropdown() {
+  leagueDropdownOpen.value = false
+  activeLeagueOptionIndex.value = -1
+}
+
+function moveLeagueOption(direction) {
+  const optionCount = leagueCandidateOptions.value.length
+  if (!optionCount) return
+
+  leagueDropdownOpen.value = true
+  activeLeagueOptionIndex.value = (
+    activeLeagueOptionIndex.value + direction + optionCount
+  ) % optionCount
+}
+
+function selectActiveLeague() {
+  if (!leagueDropdownOpen.value) {
+    openLeagueDropdown()
+    return
+  }
+
+  const selectedIndex = activeLeagueOptionIndex.value >= 0
+    ? activeLeagueOptionIndex.value
+    : 0
+  const league = leagueCandidateOptions.value[selectedIndex]
+  if (league) selectLeague(league)
+}
+
+function selectLeague(league) {
+  searchForm.value.leagueId = league.id
+  searchForm.value.leagueQuery = league.name
+  leagueSearchError.value = ''
+  closeLeagueDropdown()
+}
+
+function leagueOptionId(index) {
+  return `match-league-option-${index}`
+}
+
+function validateLeagueSelection() {
+  if (!searchForm.value.leagueQuery.trim() || searchForm.value.leagueId !== '') {
+    leagueSearchError.value = ''
+    return true
+  }
+
+  leagueSearchError.value = '검색할 리그를 후보 목록에서 선택해 주세요.'
+  leagueDropdownOpen.value = true
+  return false
 }
 
 async function loadSearchOptions() {
@@ -590,10 +731,11 @@ function buildMatchSearchParams() {
   return compactQueryParams({
     sportId: sportOption?.serverValue,
     leagueId: filter.leagueId,
-    leagueName: filter.leagueKeyword.trim(),
     status: filter.status,
     isActive: useStatusOption?.serverValue,
     date: formatSearchDate(filter.matchDate),
+    sortBy: 'date',
+    sortDirection: 'ASC',
     page: Math.max(0, page.value - 1),
     size: Number(pageSize.value),
   })
@@ -642,6 +784,8 @@ function normalizeSearchOptions(options = {}) {
     isActiveOptions: normalizeBooleanOptions(options.isActiveOptions, {
       trueValue: 'active',
       falseValue: 'inactive',
+      trueLabel: '노출',
+      falseLabel: '숨김',
     }),
     isManualOptions: normalizeBooleanOptions(options.isManualOptions, {
       trueValue: 'manual',
@@ -709,7 +853,9 @@ function normalizeBooleanOptions(options, values) {
 
       return {
         value: boolValue ? values.trueValue : values.falseValue,
-        label: optionLabel(option),
+        label: boolValue
+          ? values.trueLabel || optionLabel(option)
+          : values.falseLabel || optionLabel(option),
         serverValue: boolValue,
       }
     })
@@ -802,12 +948,17 @@ async function saveMatch(match) {
   setSaveState(match.id, 'saving')
 
   try {
-    await updateAdminMatch(match.id, {
-      startAt: `${normalizedDate}T${normalizedTime}:00`,
+    const requestPayload = {
       statusCode: match.editStatus,
       isManual: match.editDataSourceType === 'manual',
       isActive: match.editUseStatus === 'active',
-    })
+    }
+
+    if (normalizedDate !== match.startDate || normalizedTime !== match.startTime) {
+      requestPayload.startAt = `${normalizedDate}T${normalizedTime}:00`
+    }
+
+    await updateAdminMatch(match.id, requestPayload)
 
     match.startDate = normalizedDate
     match.editDate = normalizedDate
@@ -845,6 +996,14 @@ function isSaving(match) {
   return saveStates.value[match.id] === 'saving'
 }
 
+function isMatchDirty(match) {
+  return String(match.editDate ?? '') !== String(match.startDate ?? '')
+    || String(match.editTime ?? '') !== String(match.startTime ?? '')
+    || String(match.editStatus ?? '') !== String(match.status ?? '')
+    || String(match.editDataSourceType ?? '') !== String(match.dataSource?.type ?? 'external')
+    || String(match.editUseStatus ?? '') !== String(match.useStatus ?? 'inactive')
+}
+
 function saveButtonLabel(match) {
   const state = saveStates.value[match.id]
   if (state === 'saving') return '저장중'
@@ -873,8 +1032,92 @@ function setDataSourceType(match, type) {
   match.editDataSourceType = type
 }
 
+function toggleDataSourceType(match) {
+  const nextType = match.editDataSourceType === 'manual' ? 'external' : 'manual'
+  openOptionChangeConfirm({
+    match,
+    field: 'dataSource',
+    nextValue: nextType,
+    title: '데이터 관리 변경',
+    message: `데이터 관리를 ${nextType === 'manual' ? '수동' : '자동'}으로 변경하시겠습니까?`,
+  })
+}
+
+function dataSourceTypeLabel(match) {
+  return match.editDataSourceType === 'manual' ? '수동' : '자동'
+}
+
 function setUseStatus(match, useStatus) {
   match.editUseStatus = useStatus
+}
+
+function toggleUseStatus(match) {
+  const nextStatus = match.editUseStatus === 'active' ? 'inactive' : 'active'
+  openOptionChangeConfirm({
+    match,
+    field: 'useStatus',
+    nextValue: nextStatus,
+    title: '앱 노출 변경',
+    message: `앱 노출을 ${nextStatus === 'active' ? '노출' : '숨김'}으로 변경하시겠습니까?`,
+  })
+}
+
+function useStatusLabel(match) {
+  return match.editUseStatus === 'active' ? '노출' : '숨김'
+}
+
+function defaultOptionChangeConfirm() {
+  return {
+    visible: false,
+    match: null,
+    field: '',
+    nextValue: '',
+    title: '',
+    message: '',
+  }
+}
+
+function openOptionChangeConfirm({ match, field, nextValue, title, message }) {
+  optionChangeConfirm.value = {
+    visible: true,
+    match,
+    field,
+    nextValue,
+    title,
+    message,
+  }
+}
+
+function closeOptionChangeConfirm() {
+  optionChangeConfirm.value = defaultOptionChangeConfirm()
+}
+
+function handleOptionConfirmVisibility(visible) {
+  if (!visible) closeOptionChangeConfirm()
+}
+
+function confirmOptionChange() {
+  const { match, field, nextValue } = optionChangeConfirm.value
+  if (!match) {
+    closeOptionChangeConfirm()
+    return
+  }
+
+  if (field === 'dataSource') {
+    setDataSourceType(match, nextValue)
+  } else if (field === 'useStatus') {
+    setUseStatus(match, nextValue)
+  }
+
+  closeOptionChangeConfirm()
+}
+
+function canEditDateTime(match) {
+  return match.dataSource?.type === 'manual' && match.editDataSourceType === 'manual'
+}
+
+function showDateTimeGuard() {
+  dateTimeGuardVisible.value = true
 }
 
 function revertMatchEdits(match) {
@@ -1063,6 +1306,18 @@ function formatSearchDate(date) {
   return date ? date.replaceAll('-', '') : ''
 }
 
+function todayInSeoul() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+
+  return `${values.year}-${values.month}-${values.day}`
+}
+
 function splitStartAt(startAt) {
   if (!startAt) {
     return { date: '', time: '' }
@@ -1158,10 +1413,10 @@ function toErrorMessage(value) {
 <style scoped>
 .match-filter-fields {
   display: grid;
-  max-width: 680px;
-  flex: 1 1 620px;
-  grid-template-columns: repeat(3, minmax(150px, 1fr));
-  gap: 14px var(--admin-filter-gap);
+  max-width: 100%;
+  flex: 0 1 auto;
+  grid-template-columns: 92px minmax(210px, 230px) 112px 112px 142px;
+  gap: 12px;
 }
 
 .match-filter-fields .field-group {
@@ -1169,20 +1424,71 @@ function toErrorMessage(value) {
   min-width: 0;
 }
 
+.league-combobox {
+  position: relative;
+}
+
+.league-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: 240px;
+  padding: 4px;
+  overflow-y: auto;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
+  border-radius: var(--admin-control-radius);
+  box-shadow: 0 8px 20px rgb(15 23 42 / 12%);
+}
+
+.league-option {
+  display: block;
+  width: 100%;
+  padding: 8px 9px;
+  color: var(--admin-color-text-control);
+  font: inherit;
+  font-size: var(--admin-font-size-description);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.league-option:hover,
+.league-option.active {
+  background: var(--admin-color-table-row-hover);
+  color: var(--admin-color-primary);
+}
+
+.league-option-empty {
+  padding: 10px 9px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
+}
+
+.field-error {
+  color: #c53c46;
+  font-size: var(--admin-font-size-table-heading);
+  line-height: 1.35;
+}
+
 .match-table {
   --match-row-height: 64px;
 }
 
-.col-match-id { width: 118px; }
-.col-sport { width: 76px; }
-.col-data { width: 110px; }
-.col-league { width: 170px; }
+.col-match-id { width: 84px; }
+.col-sport { width: 64px; }
+.col-data { width: 82px; }
+.col-league { width: 160px; }
 .col-type { width: 64px; }
-.col-date-time { width: 280px; }
+.col-date-time { width: 156px; }
 .col-status { width: 118px; }
-.col-save { width: 92px; }
+.col-save { width: 82px; }
 .col-team { width: 120px; }
-.col-exposure { width: 116px; }
+.col-exposure { width: 82px; }
 .col-detail-actions { width: 330px; }
 
 th.action-area-start,
@@ -1204,7 +1510,7 @@ td.action-area-start {
 }
 
 .match-id {
-  max-width: 120px;
+  max-width: 84px;
   color: #111827;
   font-weight: 600;
   white-space: normal;
@@ -1222,53 +1528,52 @@ td.action-area-start {
 }
 
 .exposure-cell {
-  padding-right: 16px;
-  padding-left: 16px;
+  padding-right: 8px;
+  padding-left: 8px;
 }
 
-.data-mode-toggle,
-.exposure-mode-toggle {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px;
-  width: 92px;
-  padding: 2px;
-  background: #f1f4f8;
-  border: 0;
-  border-radius: 7px;
-}
-
-.data-mode-option,
-.exposure-mode-option {
+.mode-toggle-button {
+  width: 56px;
   height: 26px;
-  padding: 0;
-  color: var(--admin-color-text-muted);
+  padding: 0 8px;
+  color: var(--admin-color-text-body);
   font-family: inherit;
   font-size: 11px;
   font-weight: 700;
-  background: transparent;
-  border: none;
+  background: var(--admin-color-surface);
+  border: 1px solid var(--admin-color-control-border);
   border-radius: 5px;
   cursor: pointer;
 }
 
-.data-mode-option:hover,
-.exposure-mode-option:hover {
+.mode-toggle-button:hover:not(:disabled) {
   color: var(--admin-color-text-title);
-  background: #e8ecf2;
+  background: var(--admin-color-table-row-hover);
+  border-color: #c4cad3;
 }
 
-.data-mode-option:disabled,
-.exposure-mode-option:disabled {
+.mode-toggle-button:focus-visible {
+  outline: 2px solid var(--admin-color-primary);
+  outline-offset: 2px;
+}
+
+.mode-toggle-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
-.data-mode-option.active,
-.exposure-mode-option.active {
-  color: var(--admin-color-primary);
-  background: #fff;
-  box-shadow: 0 1px 4px rgb(15 23 42 / 12%);
+.mode-toggle-button.manual,
+.mode-toggle-button.exposure-hidden {
+  color: #fff;
+  background: #FF0000;
+  border-color: #FF0000;
+}
+
+.mode-toggle-button.manual:hover:not(:disabled),
+.mode-toggle-button.exposure-hidden:hover:not(:disabled) {
+  color: #fff;
+  background: #d90000;
+  border-color: #d90000;
 }
 
 .center {
@@ -1276,10 +1581,47 @@ td.action-area-start {
 }
 
 .date-time-editor {
+  position: relative;
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(140px, 1fr) 108px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+
+.date-time-editor.locked .row-input {
+  color: var(--admin-color-text-subtle);
+  background: var(--admin-color-table-heading-surface);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.date-time-lock {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: not-allowed;
+}
+
+.date-time-lock:focus-visible {
+  outline: 2px solid var(--admin-color-primary);
+  outline-offset: 1px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
 }
 
 .row-input,
@@ -1288,11 +1630,11 @@ td.action-area-start {
 }
 
 .row-input[type='date'] {
-  min-width: 140px;
+  min-width: 0;
 }
 
 .row-input[type='time'] {
-  min-width: 108px;
+  min-width: 0;
 }
 
 .team-cell {
@@ -1321,7 +1663,7 @@ td.action-area-start {
 
 .save-cell,
 .exposure-cell {
-  width: 92px;
+  width: 82px;
   text-align: center;
 }
 
@@ -1373,6 +1715,19 @@ td.action-area-start {
   border-color: #f1c6ca;
 }
 
+.confirm-message {
+  margin: 0;
+  color: var(--admin-color-text-body);
+  font-size: var(--admin-font-size-description);
+  line-height: 1.6;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--admin-action-gap);
+}
+
 @container admin-content (min-width: 601px) and (max-width: 960px) {
   .match-filter-fields {
     max-width: none;
@@ -1382,7 +1737,7 @@ td.action-area-start {
 
   :deep(.filter-actions) {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin-left: 0;
   }
 }

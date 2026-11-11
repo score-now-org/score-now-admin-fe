@@ -75,7 +75,7 @@
 | 컴포넌트 | 책임 |
 |---|---|
 | `AdminListPage` | 페이지 제목, 전체 여백, 요약·헤더 액션 슬롯 |
-| `AdminFilterCard` | 조회 필드와 초기화·조회·등록 액션 배치 |
+| `AdminFilterCard` | 조회 필드와 필드 바로 뒤의 초기화·조회 액션 배치 |
 | `AdminTableCard` | 결과 요약, 툴바, 테이블 내부 가로 스크롤 |
 | `AdminTablePagination` | 페이지 크기, 현재 페이지, 이전·다음 이동 |
 | `AdminTableState` | 로딩, 오류, 빈 결과 행 |
@@ -126,6 +126,10 @@
 
 ```vue
 <AdminListPage title="페이지 제목">
+  <template #header-actions>
+    <BaseButton variant="success">+ 등록</BaseButton>
+  </template>
+
   <AdminFilterCard aria-label="조회 조건">
     <div class="field-group">
       <label for="keyword">검색어</label>
@@ -135,7 +139,6 @@
     <template #actions>
       <BaseButton variant="secondary">초기화</BaseButton>
       <BaseButton variant="primary">조회</BaseButton>
-      <BaseButton variant="success">+ 등록</BaseButton>
     </template>
   </AdminFilterCard>
 
@@ -156,10 +159,12 @@
 
 - 필드는 `field-group` 안에 레이블과 컨트롤을 세로로 배치한다.
 - 필드 폭은 데이터 성격에 맞게 페이지에서 지정하되, 작은 화면에서는 폭을 `100%`로 전환한다.
-- 액션 순서는 기본적으로 `초기화 → 조회 → 등록`이다.
-- 액션 영역은 넓은 화면에서 오른쪽, 작은 화면에서 다음 줄에 배치한다.
+- 조회 액션 순서는 기본적으로 `초기화 → 조회`다.
+- 조회 액션은 마지막 조회 필드 바로 뒤에 배치하며, 남는 공간을 채우기 위해 카드 오른쪽 끝으로 밀지 않는다.
+- 등록처럼 검색 조건과 무관한 페이지 주요 액션은 `AdminListPage`의 `header-actions`에 배치한다.
+- 조회 액션 영역은 작은 화면에서 다음 줄에 배치할 수 있다.
 - 날짜·시간·일반 검색에는 `BaseInput`, 선택에는 `BaseSelect`를 사용한다.
-- 필터와 관련 없는 화면 주요 액션은 `header-actions` 사용을 검토한다.
+- 필터와 관련 없는 화면 주요 액션은 `header-actions`를 사용한다.
 - 비슷하게 보인다는 이유만으로 서로 다른 의미의 필드를 하나의 컴포넌트로 합치지 않는다.
 
 ## 9. 버튼 우선순위

@@ -1,5 +1,11 @@
 <template>
   <AdminListPage title="캐스터 관리">
+    <template #header-actions>
+      <BaseButton variant="success" size="md" @click="openCreateModal">
+        + 캐스터 등록
+      </BaseButton>
+    </template>
+
     <AdminFilterCard aria-label="캐스터 검색 조건">
       <div class="field-group name-search">
         <label for="caster-name">캐스터 이름</label>
@@ -18,9 +24,6 @@
         </BaseButton>
         <BaseButton variant="primary" size="md" :disabled="loading" @click="searchCasters">
           {{ loading ? '검색 중' : '검색' }}
-        </BaseButton>
-        <BaseButton variant="success" size="md" @click="openCreateModal">
-          + 캐스터 등록
         </BaseButton>
       </template>
     </AdminFilterCard>

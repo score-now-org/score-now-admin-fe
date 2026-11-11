@@ -2,6 +2,20 @@ import client from './client';
 
 const unwrapData = (response) => response.data?.data ?? response.data;
 
+const buildLeagueMultipartForm = (payload, image) => {
+  const formData = new FormData();
+  formData.append(
+    'request',
+    new Blob([JSON.stringify(payload)], { type: 'application/json' }),
+  );
+
+  if (image) {
+    formData.append('image', image);
+  }
+
+  return formData;
+};
+
 // 리그 검색 옵션 조회 API
 export const getLeagueAdminOptions = async () => {
   const response = await client.get('/api/v1/admin/leagues/search-options');
@@ -24,15 +38,21 @@ export const getAdminLeague = async (leagueId) => {
 };
 
 // 리그 등록 API
-export const createAdminLeague = async (payload) => {
-  const response = await client.post('/api/v1/admin/leagues', payload);
+export const createAdminLeague = async (payload, image = null) => {
+  const response = await client.post(
+    '/api/v1/admin/leagues',
+    buildLeagueMultipartForm(payload, image),
+  );
 
   return unwrapData(response);
 };
 
 // 리그 정보 수정 API
-export const updateAdminLeague = async (leagueId, payload) => {
-  const response = await client.put(`/api/v1/admin/leagues/${leagueId}`, payload);
+export const updateAdminLeague = async (leagueId, payload, image = null) => {
+  const response = await client.put(
+    `/api/v1/admin/leagues/${leagueId}`,
+    buildLeagueMultipartForm(payload, image),
+  );
 
   return unwrapData(response);
 };
