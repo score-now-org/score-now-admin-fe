@@ -12,7 +12,6 @@
         <BaseInput id="featured-date" v-model="searchDate" type="date" />
       </div>
       <template #actions>
-        <BaseButton variant="secondary" size="md" :disabled="matchesLoading" @click="resetSearch">초기화</BaseButton>
         <BaseButton variant="primary" size="md" :disabled="matchesLoading" @click="applySearch">
           {{ matchesLoading ? '조회 중' : '조회' }}
         </BaseButton>
@@ -311,11 +310,6 @@ async function applySearch() {
   } finally {
     matchesLoading.value = false
   }
-}
-
-async function resetSearch() {
-  searchDate.value = defaultDate
-  await applySearch()
 }
 
 function typeMatches(match) {

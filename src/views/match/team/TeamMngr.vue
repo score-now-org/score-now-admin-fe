@@ -16,7 +16,6 @@
         <BaseInput id="team-name" v-model="searchForm.keyword" placeholder="한글명, 영문명, 숏네임" @enter="searchTeams" />
       </div>
       <template #actions>
-        <BaseButton variant="secondary" size="md" :disabled="loading" @click="resetSearch">초기화</BaseButton>
         <BaseButton variant="primary" size="md" :disabled="loading" @click="searchTeams">검색</BaseButton>
       </template>
     </AdminFilterCard>

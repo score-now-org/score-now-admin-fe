@@ -73,15 +73,6 @@
 
       <template #actions>
         <BaseButton
-          variant="secondary"
-          size="md"
-          :disabled="loading"
-          @click="resetSearch"
-        >
-          초기화
-        </BaseButton>
-
-        <BaseButton
           variant="primary"
           size="md"
           :disabled="loading"
@@ -844,18 +835,6 @@ async function searchPlayers() {
     leagueId: searchForm.leagueId,
     playerKeyword: searchForm.playerKeyword.trim(),
     teamKeyword: searchForm.teamKeyword.trim(),
-  })
-
-  page.value = 1
-
-  await fetchPlayers()
-}
-
-// 검색 초기화
-async function resetSearch() {
-  Object.keys(searchForm).forEach((key) => {
-    searchForm[key] = ''
-    appliedSearch[key] = ''
   })
 
   page.value = 1
