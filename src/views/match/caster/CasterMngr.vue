@@ -19,9 +19,6 @@
       </div>
 
       <template #actions>
-        <BaseButton variant="secondary" size="md" :disabled="loading" @click="resetSearch">
-          초기화
-        </BaseButton>
         <BaseButton variant="primary" size="md" :disabled="loading" @click="searchCasters">
           {{ loading ? '검색 중' : '검색' }}
         </BaseButton>

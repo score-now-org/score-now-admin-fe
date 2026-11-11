@@ -65,9 +65,6 @@
         </div>
 
         <template #actions>
-          <BaseButton variant="secondary" size="md" :disabled="leagueLoading" @click="resetLeagueSearch">
-            초기화
-          </BaseButton>
           <BaseButton variant="primary" size="md" :disabled="leagueLoading" @click="fetchLeagues">
             {{ leagueLoading ? '검색중' : '검색' }}
           </BaseButton>
@@ -222,9 +219,6 @@
         </div>
 
         <template #actions>
-          <BaseButton variant="secondary" size="md" :disabled="seasonLoading" @click="resetSeasonSearch">
-            초기화
-          </BaseButton>
           <BaseButton variant="primary" size="md" :disabled="seasonLoading" @click="searchLeagueSeasons">
             {{ seasonLoading ? '검색중' : '검색' }}
           </BaseButton>
@@ -343,9 +337,6 @@
         </div>
 
         <template #actions>
-          <BaseButton variant="secondary" size="md" :disabled="standingsLoading" @click="resetStandingsSearch">
-            초기화
-          </BaseButton>
           <BaseButton variant="primary" size="md" :disabled="standingsLoading" @click="searchStandings">
             {{ standingsLoading ? '검색중' : '검색' }}
           </BaseButton>
@@ -1373,11 +1364,6 @@ async function fetchLeagues() {
   }
 }
 
-async function resetLeagueSearch() {
-  leagueSearch.value = { leagueId: '', keyword: '' }
-  await fetchLeagues()
-}
-
 async function openCreateLeagueModal() {
   leagueForm.value = defaultLeagueForm()
   if (createLeagueEmblemInput.value) createLeagueEmblemInput.value.value = ''
@@ -1728,12 +1714,6 @@ async function fetchLeagueSeasons() {
   }
 }
 
-async function resetSeasonSearch() {
-  seasonSearch.value = { leagueId: '', leagueName: '' }
-  seasonPage.value = 1
-  clearSeasonResults()
-}
-
 async function changeSeasonPage(nextPage) {
   if (nextPage < 1 || nextPage > seasonMaxPage.value || nextPage === seasonPage.value) return
   if (!seasonSearched.value || !hasSeasonSearchCondition()) return
@@ -1987,12 +1967,6 @@ async function fetchStandings() {
   } finally {
     standingsLoading.value = false
   }
-}
-
-async function resetStandingsSearch() {
-  standingsSearch.value = { leagueId: '', leagueName: '' }
-  standingsPage.value = 1
-  clearStandingsResults()
 }
 
 async function changeStandingsPage(nextPage) {

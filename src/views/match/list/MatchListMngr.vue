@@ -107,14 +107,6 @@
 
       <template #actions>
         <BaseButton
-          variant="secondary"
-          size="md"
-          :disabled="matchesLoading"
-          @click="resetSearch"
-        >
-          초기화
-        </BaseButton>
-        <BaseButton
           variant="primary"
           size="md"
           :disabled="matchesLoading"
@@ -603,16 +595,6 @@ async function doSearch() {
   if (!validateLeagueSelection()) return
 
   appliedFilter.value = { ...searchForm.value }
-  page.value = 1
-  await fetchMatches()
-}
-
-async function resetSearch() {
-  searchForm.value = defaultSearchForm()
-  appliedFilter.value = defaultSearchForm()
-  leagueDropdownOpen.value = false
-  activeLeagueOptionIndex.value = -1
-  leagueSearchError.value = ''
   page.value = 1
   await fetchMatches()
 }

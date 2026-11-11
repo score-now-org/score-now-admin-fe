@@ -16,7 +16,6 @@
         <BaseInput id="stadium-name" v-model="searchForm.name" placeholder="경기장명 입력" @enter="searchStadiums" />
       </div>
       <template #actions>
-        <BaseButton variant="secondary" size="md" :disabled="loading" @click="resetSearch">초기화</BaseButton>
         <BaseButton variant="primary" size="md" :disabled="loading" @click="searchStadiums">검색</BaseButton>
       </template>
     </AdminFilterCard>
