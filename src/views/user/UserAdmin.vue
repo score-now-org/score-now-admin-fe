@@ -11,6 +11,8 @@
 
         <div v-else-if="activeSidebar === '채팅'" class="chat-content"><ChatSection /></div>
 
+        <div v-else-if="activeSidebar === '금칙어'" class="chat-content"><ForbiddenWordSection /></div>
+
         <!-- 버전 관리 -->
         <VersionSection  v-else-if="activeSidebar === '버전 관리'" />
 
@@ -29,6 +31,7 @@ import { ref } from 'vue'
 import MemberSection  from './base/UserMngr.vue'
 import VersionSection from './version/VersionMngr.vue'
 import ChatSection from './chat/ChatMngr.vue'
+import ForbiddenWordSection from './forbidden-word/ForbiddenWordMngr.vue'
 
 const activeSidebar = ref('회원')
 </script>
