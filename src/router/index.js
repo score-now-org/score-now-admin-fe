@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import Login from '@/views/login/Login.vue';
 import UserAdmin from '@/views/user/UserAdmin.vue'
 import MatchAdmin from '@/views/match/MatchAdmin.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const routes = [
   { path: '/', name: 'login', component: Login },
@@ -79,5 +80,16 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 });
+
+router.beforeEach(async (to) => {
+  if (!to.path.startsWith('/admin')) return true
+  const auth = useAuthStore()
+  if (!auth.token) return { name: 'login' }
+  try {
+    return await auth.verifySession() ? true : { name: 'login' }
+  } catch (error) {
+    return { name: 'login', query: error.response?.status === 401 ? {} : { reason: 'unavailable' } }
+  }
+})
 
 export default router;
