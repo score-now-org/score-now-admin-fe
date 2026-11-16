@@ -14,9 +14,11 @@ test('search and tab filters are sent to the server before pagination', async ()
   client.defaults.adapter = async (config) => { sent = config; return response(config, { totalElements: 27, totalPages: 2 }) }
   page.pagination.value.currentPage = 1
   page.filter.value.nickname = 'fan'
+  page.filter.value.socialId = 'social-id'
   await page.doSearch()
   assert.equal(sent.url, '/api/v1/admin/members')
   assert.equal(sent.params.nickname, 'fan')
+  assert.equal(sent.params.socialId, 'social-id')
   assert.equal(sent.params.page, 0)
   assert.equal(page.pagination.value.totalElements, 27)
   page.pagination.value.currentPage = 1
@@ -24,6 +26,9 @@ test('search and tab filters are sent to the server before pagination', async ()
   assert.equal(sent.params.status, 'deleted')
   assert.equal(sent.params.page, 0)
   assert.equal(sent.params.nickname, undefined)
+  assert.equal(sent.params.socialId, undefined)
+  await page.onTabChange('영구탈퇴회원')
+  assert.equal(sent.params.status, 'permanently_withdrawn')
 })
 
 test('a slow old response cannot overwrite a newer search', async () => {

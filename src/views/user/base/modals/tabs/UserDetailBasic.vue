@@ -126,11 +126,11 @@ watch(() => props.userId, async (id, _, onCleanup) => {
 
 function statusLabel(status) {
   return (
-    { active: "활동중", inactive: "비활동", banned: "정지" }[status] || status
+    { active: "활동중", inactive: "비활동", banned: "정지", deleted: "탈퇴", permanently_withdrawn: "영구탈퇴" }[status] || status
   );
 }
 function statusVariant(status) {
-  return { active: "green", inactive: "gray", banned: "red" }[status] || "gray";
+  return { active: "green", inactive: "gray", banned: "red", permanently_withdrawn: "red" }[status] || "gray";
 }
 </script>
 

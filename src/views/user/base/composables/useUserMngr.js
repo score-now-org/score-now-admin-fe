@@ -20,7 +20,7 @@ export function useUserMngr() {
       minWarningCnt: 1,
     },
     '영구탈퇴회원': {
-      status: 'banned',
+      status: 'permanently_withdrawn',
       minWarningCnt: 0,
     },
     '탈퇴 회원': {
@@ -31,6 +31,7 @@ export function useUserMngr() {
 
   const filter = ref({
     nickname: '',
+    socialId: '',
     memberId: '',
     provider: '',
     createdFrom: '',
@@ -80,6 +81,7 @@ export function useUserMngr() {
         memberId: u.memberId,
         provider: u.provider?.toLowerCase(),
         nickname: u.nickname,
+        socialId: u.socialId,
         warningCnt: u.warningCnt,
         countryCode: u.countryCode,
         createdAt: u.createdAt?.slice(0, 10),
@@ -115,12 +117,19 @@ export function useUserMngr() {
   return fetchUsers();
 }
 
+  function changePageSize(size) {
+    pagination.value.size = size;
+    pagination.value.currentPage = 0;
+    return fetchUsers();
+  }
+
   // 탭 변경
   function onTabChange(tab) {
     activeTab.value = tab;
 
     filter.value = {
       nickname: '',
+      socialId: '',
       memberId: '',
       provider: '',
       createdFrom: '',
@@ -136,6 +145,7 @@ export function useUserMngr() {
   function resetFilter() {
     filter.value = {
       nickname: '',
+      socialId: '',
       memberId: '',
       provider: '',
       createdFrom: '',
@@ -159,6 +169,7 @@ export function useUserMngr() {
       inactive: '비활동',
       deleted: '탈퇴',
       banned: '정지',
+      permanently_withdrawn: '영구탈퇴',
     }[status] || status;
   }
 
@@ -168,6 +179,7 @@ export function useUserMngr() {
       inactive: 'gray',
       deleted: 'gray',
       banned: 'red',
+      permanently_withdrawn: 'red',
     }[status] || 'gray';
   }
 
@@ -180,6 +192,7 @@ export function useUserMngr() {
     filter,
     pagination,
     changePage,
+    changePageSize,
     fetchUsers,
     onTabChange,
     resetFilter,

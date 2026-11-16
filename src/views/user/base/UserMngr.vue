@@ -16,7 +16,7 @@
 
         <MemberTable :users="users" :loading="loading" :error="error" :pagination="pagination"
           :status-label="statusLabel" :status-variant="statusVariant"
-          @select="openDetailModal" @change-page="changePage" />
+          @select="openDetailModal" @change-page="changePage" @change-page-size="changePageSize" />
   <UserDetailModal v-model="detailModal.visible" :userId="detailModal.userId" />
 </template>
 
@@ -40,6 +40,7 @@ const {
   doSearch,
   fetchUsers,
   changePage,
+  changePageSize,
   statusLabel,
   statusVariant,
 } = useUserMngr();
