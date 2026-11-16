@@ -77,6 +77,10 @@ export function useUserMngr() {
 
       if (requestId !== latestRequest) return;
       const pageData = response.data.data;
+      if (pageData.totalPages > 0 && pageData.number >= pageData.totalPages) {
+        pagination.value.currentPage = pageData.totalPages - 1;
+        return await fetchUsers();
+      }
       const raw = pageData.content;
 
       // 백엔드 데이터를 화면에서 사용할 형태로 변환
@@ -102,7 +106,7 @@ export function useUserMngr() {
       pagination.value = {
         totalElements: pageData.totalElements,
         totalPages: pageData.totalPages,
-        currentPage: pageData.number,
+        currentPage: Math.min(pageData.number, Math.max(0, pageData.totalPages - 1)),
         size: pageData.size,
       };
 
