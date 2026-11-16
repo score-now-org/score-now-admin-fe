@@ -13,6 +13,8 @@
 
         <div v-else-if="activeSidebar === '금칙어'" class="chat-content"><ForbiddenWordSection /></div>
 
+        <div v-else-if="activeSidebar === '게시판/댓글'" class="chat-content"><CommunitySection /></div>
+
         <!-- 버전 관리 -->
         <VersionSection  v-else-if="activeSidebar === '버전 관리'" />
 
@@ -27,11 +29,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { defineAsyncComponent, h, ref } from 'vue'
 import MemberSection  from './base/UserMngr.vue'
 import VersionSection from './version/VersionMngr.vue'
 import ChatSection from './chat/ChatMngr.vue'
 import ForbiddenWordSection from './forbidden-word/ForbiddenWordMngr.vue'
+const CommunitySection = defineAsyncComponent({
+  loader: () => import('./community/CommunityMngr.vue'),
+  loadingComponent: { render: () => h('div', { class: 'coming-soon', role: 'status' }, '게시판을 불러오는 중입니다.') },
+  errorComponent: { render: () => h('div', { class: 'coming-soon', role: 'alert' }, '게시판을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.') },
+})
 
 const activeSidebar = ref('회원')
 </script>
