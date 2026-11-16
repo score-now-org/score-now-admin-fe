@@ -27,7 +27,7 @@ import { computed, ref, watch } from 'vue'
 import { applyMemberAction, getMemberDetail, updateMember } from '@/api/admin'
 const props = defineProps({ modelValue: Boolean, userId: Number, action: { type: String, default: '' } })
 const emit = defineEmits(['update:modelValue', 'completed'])
-const labels = { EDIT: '회원 정보 수정', WARN: '경고', BAN: '이용정지', PERMANENT_WITHDRAWAL: '영구탈퇴', RESTORE: '복구' }
+const labels = { EDIT: '회원 정보 수정', WARN: '경고', BAN: '이용정지', PERMANENT_WITHDRAWAL: '영구탈퇴', RESTORE: '복구', DELETE_PROFILE_IMAGE: '프로필 사진 삭제' }
 const title = computed(() => labels[props.action] || '회원 처리')
 const name = ref(''), countryCode = ref(''), reason = ref(''), saving = ref(false), loading = ref(false), ready = ref(false), error = ref('')
 watch(() => [props.modelValue, props.userId, props.action], async ([open, id, action], _, onCleanup) => {
