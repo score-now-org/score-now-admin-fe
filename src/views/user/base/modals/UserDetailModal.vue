@@ -34,6 +34,7 @@ import UserDetailWarning from "./tabs/UserDetailWarning.vue";
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   userId: { type: Number, default: null },
+  initialTab: { type: String, default: "basic" },
 });
 const emit = defineEmits(["update:modelValue"]);
 
@@ -56,7 +57,7 @@ const activeTab = ref("basic");
 watch(
   () => props.modelValue,
   (val) => {
-    if (val) activeTab.value = "basic";
+    if (val) activeTab.value = props.initialTab;
   },
 );
 </script>

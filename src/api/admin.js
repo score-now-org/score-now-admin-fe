@@ -15,3 +15,7 @@ export const getMembersList = (params) => {
 };
 export const getMemberDetail = (id) => client.get(`${baseUrl}/${id}`);
 export const getMemberSecurity = (id) => client.get(`${baseUrl}/${id}/security`);
+
+export const getMemberModerationHistory = (id) => client.get(`${baseUrl}/${id}/moderation-history`);
+export const updateMember = (id, data) => client.patch(`${baseUrl}/${id}`, data);
+export const applyMemberAction = (id, data) => client.post(`${baseUrl}/${id}/actions`, data);

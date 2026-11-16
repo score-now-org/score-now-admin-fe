@@ -14,10 +14,10 @@
 
         <MemberSearchFilters v-model:filter="filter" @search="doSearch" @reset="resetFilter" />
 
-        <MemberTable :users="users" :loading="loading" :error="error" :pagination="pagination"
-          :status-label="statusLabel" :status-variant="statusVariant"
-          @select="openDetailModal" @change-page="changePage" @change-page-size="changePageSize" />
-  <UserDetailModal v-model="detailModal.visible" :userId="detailModal.userId" />
+        <MemberTable :tab="activeTab" :users="users" :loading="loading" :error="error" :pagination="pagination"
+          @detail="openDetailModal" @action="openAction" @change-page="changePage" @change-page-size="changePageSize" />
+  <UserDetailModal v-model="detailModal.visible" :userId="detailModal.userId" :initial-tab="detailModal.tab" />
+  <MemberActionModal v-model="actionModal.visible" :user-id="actionModal.userId" :action="actionModal.action" @completed="fetchUsers" />
 </template>
 
 <script setup>
@@ -25,6 +25,7 @@ import { ref, onMounted } from 'vue';
 import UserDetailModal from "./modals/UserDetailModal.vue";
 import MemberSearchFilters from "./MemberSearchFilters.vue";
 import MemberTable from "./MemberTable.vue";
+import MemberActionModal from "../components/MemberActionModal.vue";
 import { useUserMngr } from "./composables/useUserMngr";
 
 const {
@@ -41,8 +42,6 @@ const {
   fetchUsers,
   changePage,
   changePageSize,
-  statusLabel,
-  statusVariant,
 } = useUserMngr();
 
 
@@ -51,10 +50,13 @@ onMounted(() => {
   fetchUsers();
 });
 
-const detailModal = ref({ visible: false, userId: null });
-
-function openDetailModal(user) {
-  detailModal.value = { visible: true, userId: user.memberId };
+const detailModal = ref({ visible: false, userId: null, tab: 'basic' });
+const actionModal = ref({ visible: false, userId: null, action: '' });
+function openDetailModal(user, tab = 'basic') {
+  detailModal.value = { visible: true, userId: user.memberId, tab };
+}
+function openAction(user, action) {
+  actionModal.value = { visible: true, userId: user.memberId, action };
 }
 </script>
 

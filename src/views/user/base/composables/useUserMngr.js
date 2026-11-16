@@ -12,10 +12,12 @@ export function useUserMngr() {
 
   const tabFilterMap = {
     '회원': {
+      excludeWithdrawn: true,
       status: '',
       minWarningCnt: 0,
     },
     '경고회원': {
+      excludeWithdrawn: true,
       status: '',
       minWarningCnt: 1,
     },
@@ -30,6 +32,7 @@ export function useUserMngr() {
   };
 
   const filter = ref({
+    excludeWithdrawn: true,
     nickname: '',
     socialId: '',
     memberId: '',
@@ -83,6 +86,11 @@ export function useUserMngr() {
         nickname: u.nickname,
         socialId: u.socialId,
         warningCnt: u.warningCnt,
+        warningReason: u.warningReason,
+        warnedAt: u.warnedAt,
+        permanentlyWithdrawnAt: u.permanentlyWithdrawnAt,
+        permanentWithdrawalReason: u.permanentWithdrawalReason,
+        deletedAt: u.deletedAt,
         countryCode: u.countryCode,
         createdAt: u.createdAt?.slice(0, 10),
         updatedAt: u.updatedAt?.slice(0, 10),
