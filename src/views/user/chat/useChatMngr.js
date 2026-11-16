@@ -21,8 +21,12 @@ export function useChatMngr() {
       const response = profile.value ? await getMembersList(params) : await getAdminChatMessages(params)
       if (current !== requestId) return
       const page = response.data.data
+      if (page.totalPages > 0 && page.number >= page.totalPages) {
+        pagination.value.currentPage = page.totalPages - 1
+        return fetchItems()
+      }
       items.value = page.content
-      pagination.value = { currentPage: page.number, size: page.size, totalPages: page.totalPages, totalElements: page.totalElements }
+      pagination.value = { currentPage: page.totalPages ? page.number : 0, size: page.size, totalPages: page.totalPages, totalElements: page.totalElements }
     } catch (err) { if (current === requestId) error.value = '목록을 불러오지 못했습니다.' }
     finally { if (current === requestId) loading.value = false }
   }

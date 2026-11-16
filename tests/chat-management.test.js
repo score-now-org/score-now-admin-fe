@@ -27,3 +27,17 @@ test('photo deletion uses a separate endpoint from deleting the whole chat', asy
   await deleteAdminChatMessage(7, 'message reason')
   assert.deepEqual(urls, ['/api/v1/admin/chat/messages/7/image/delete', '/api/v1/admin/chat/messages/7/delete'])
 })
+
+test('removing the last photo on a page returns to the previous page', async () => {
+  const page = useChatMngr(); const requested = []
+  client.defaults.adapter = async config => {
+    requested.push(config.params.page)
+    const result = response(config)
+    Object.assign(result.data.data, { number: config.params.page, totalPages: 2, totalElements: 16 })
+    return result
+  }
+  page.pagination.value.currentPage = 2
+  await page.fetchItems()
+  assert.deepEqual(requested, [2, 1])
+  assert.equal(page.pagination.value.currentPage, 1)
+})
