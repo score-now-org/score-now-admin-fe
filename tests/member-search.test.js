@@ -48,3 +48,16 @@ test('a slow old response cannot overwrite a newer search', async () => {
   assert.equal(page.users.value[0].memberId, 2)
   assert.equal(page.loading.value, false)
 })
+
+test('removing the last result on a page returns to the previous page', async () => {
+  const page = useUserMngr()
+  const requested = []
+  client.defaults.adapter = async config => {
+    requested.push(config.params.page)
+    return response(config, { number: config.params.page, totalPages: 2, totalElements: 16 })
+  }
+  page.pagination.value.currentPage = 2
+  await page.fetchUsers()
+  assert.deepEqual(requested, [2, 1])
+  assert.equal(page.pagination.value.currentPage, 1)
+})
