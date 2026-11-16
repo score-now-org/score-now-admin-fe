@@ -17,7 +17,7 @@
     <UserDetailBasic v-if="activeTab === 'basic'" :userId="userId" />
     <UserDetailSecurity v-if="activeTab === 'security'" :userId="userId" />
     <UserDetailWarning v-if="activeTab === 'warning'" :userId="userId" />
-    <UserDetailActivity v-if="activeTab === 'activity'" :userId="userId" />
+    <p v-if="activeTab === 'activity'">활동 정보 조회 기능은 아직 지원되지 않습니다.</p>
 
     <template #footer>
       <BaseButton variant="outline" @click="visible = false">닫기</BaseButton>
@@ -30,7 +30,6 @@ import { ref, watch } from "vue";
 import UserDetailBasic from "./tabs/UserDetailBasic.vue";
 import UserDetailSecurity from "./tabs/UserDetailSecurity.vue";
 import UserDetailWarning from "./tabs/UserDetailWarning.vue";
-//import UserDetailActivity from './tabs/UserDetailActivity.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

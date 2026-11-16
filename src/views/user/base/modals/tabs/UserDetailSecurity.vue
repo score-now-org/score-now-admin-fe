@@ -2,6 +2,7 @@
   <div>
     <div v-if="loading" class="tab-loading">불러오는 중...</div>
 
+    <div v-else-if="error" class="tab-loading" role="alert">{{ error }}</div>
     <div v-else>
       <!-- 계정 보안 정보 -->
       <table class="detail-table">
@@ -34,16 +35,14 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(log, idx) in data?.loginHistory" :key="idx">
-            <td class="muted">{{ log.datetime }}</td>
+          <tr v-for="(log, idx) in data?.loginHistories" :key="idx">
+            <td class="muted">{{ log.lastLoginAt }}</td>
             <td>
-              <BaseBadge :variant="log.result === '성공' ? 'green' : 'red'">
-                {{ log.result }}
-              </BaseBadge>
+              <BaseBadge variant="green">성공</BaseBadge>
             </td>
-            <td class="mono">{{ log.ip }}</td>
+            <td class="mono">{{ log.lastLoginIp }}</td>
           </tr>
-          <tr v-if="!data?.loginHistory?.length">
+          <tr v-if="!data?.loginHistories?.length">
             <td colspan="3" class="empty">이력이 없습니다.</td>
           </tr>
         </tbody>
@@ -54,47 +53,35 @@
 
 <script setup>
 import { ref, watch } from "vue";
+import { getMemberDetail, getMemberSecurity } from "@/api/admin";
 
 const props = defineProps({
   userId: { type: Number, default: null },
 });
 
 const loading = ref(false);
+const error = ref('');
 const data = ref(null);
 
-watch(
-  () => props.userId,
-  async (id) => {
-    if (!id) return;
-    loading.value = true;
-    try {
-      // TODO: 실제 API 연결 시 교체
-      // const res = await api.get(`/admin/users/${id}/security`)
-      // data.value = res.data
-      await new Promise((r) => setTimeout(r, 300));
-      data.value = {
-        status: "active",
-        lastLoginAt: "2026-06-14 08:32:00",
-        passwordChangedAt: "2026-03-01 14:22:00",
-        loginHistory: [
-          { datetime: "2026-06-14 08:32", result: "성공", ip: "211.234.12.1" },
-          { datetime: "2026-06-13 21:10", result: "실패", ip: "211.234.12.1" },
-          { datetime: "2026-06-13 20:58", result: "실패", ip: "211.234.12.1" },
-          { datetime: "2026-06-12 17:44", result: "성공", ip: "125.131.77.4" },
-          { datetime: "2026-06-11 09:01", result: "성공", ip: "125.131.77.4" },
-          { datetime: "2026-06-10 22:15", result: "성공", ip: "211.234.12.1" },
-          { datetime: "2026-06-09 13:30", result: "실패", ip: "59.6.45.200" },
-          { datetime: "2026-06-08 08:05", result: "성공", ip: "125.131.77.4" },
-          { datetime: "2026-06-07 19:22", result: "성공", ip: "211.234.12.1" },
-          { datetime: "2026-06-06 11:48", result: "성공", ip: "125.131.77.4" },
-        ],
-      };
-    } finally {
-      loading.value = false;
+watch(() => props.userId, async (id, _, onCleanup) => {
+  data.value = null;
+  error.value = '';
+  if (!id) return;
+  let cancelled = false;
+  onCleanup(() => { cancelled = true; });
+  loading.value = true;
+  try {
+    const [securityResponse, memberResponse] = await Promise.all([getMemberSecurity(id), getMemberDetail(id)]);
+    if (!cancelled) {
+      const history = securityResponse.data.data.loginHistories || [];
+      data.value = { status: memberResponse.data.data.status?.toLowerCase(), lastLoginAt: history[0]?.lastLoginAt, loginHistories: history };
     }
-  },
-  { immediate: true },
-);
+  } catch {
+    if (!cancelled) error.value = '보안 정보를 불러오지 못했습니다.';
+  } finally {
+    if (!cancelled) loading.value = false;
+  }
+}, { immediate: true });
 
 function statusLabel(status) {
   return (

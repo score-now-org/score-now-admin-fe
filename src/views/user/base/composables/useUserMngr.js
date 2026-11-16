@@ -1,10 +1,11 @@
-import { ref, computed, onMounted } from 'vue';
-import { getMembersList } from '@/api/admin';
+import { ref } from 'vue';
+import { getMembersList } from '../../../../api/admin.js';
 
 export function useUserMngr() {
   const users = ref([]);
   const loading = ref(false);
   const error = ref(null);
+  let latestRequest = 0;
 
   const tabs = ['회원', '경고회원', '영구탈퇴회원', '탈퇴 회원'];
   const activeTab = ref('회원');
@@ -23,7 +24,7 @@ export function useUserMngr() {
       minWarningCnt: 0,
     },
     '탈퇴 회원': {
-      status: 'inactive',
+      status: 'deleted',
       minWarningCnt: 0,
     },
   };
@@ -47,6 +48,7 @@ export function useUserMngr() {
 
   // 회원 목록 조회
   async function fetchUsers() {
+    const requestId = ++latestRequest;
     loading.value = true;
     error.value = null;
 
@@ -69,6 +71,7 @@ export function useUserMngr() {
 
       const response = await getMembersList(params);
 
+      if (requestId !== latestRequest) return;
       const pageData = response.data.data;
       const raw = pageData.content;
 
@@ -93,13 +96,14 @@ export function useUserMngr() {
         size: pageData.size,
       };
 
-            console.log('보낸 page:', params.page, '/ 받은 number:', pageData.number);
+
 
     } catch (e) {
+      if (requestId !== latestRequest) return;
       error.value = '목록을 불러오지 못했습니다.';
       console.error('회원목록 조회 실패:', e);
     } finally {
-      loading.value = false;
+      if (requestId === latestRequest) loading.value = false;
     }
   }
 
@@ -108,7 +112,7 @@ export function useUserMngr() {
   if (page < 0 || page > pagination.value.totalPages - 1) return;
 
   pagination.value.currentPage = page;   // ref 이므로 .value 필수!
-  fetchUsers();
+  return fetchUsers();
 }
 
   // 탭 변경
@@ -117,40 +121,43 @@ export function useUserMngr() {
 
     filter.value = {
       nickname: '',
-      id: '',
+      memberId: '',
       provider: '',
       createdFrom: '',
       createdTo: '',
       ...tabFilterMap[tab],
     };
 
-    fetchUsers();
+    pagination.value.currentPage = 0;
+    return fetchUsers();
   }
 
   // 검색조건 초기화
   function resetFilter() {
     filter.value = {
       nickname: '',
-      id: '',
+      memberId: '',
       provider: '',
       createdFrom: '',
       createdTo: '',
       ...tabFilterMap[activeTab.value],
     };
 
-    fetchUsers();
+    pagination.value.currentPage = 0;
+    return fetchUsers();
   }
 
   // 검색
   function doSearch() {
     pagination.value.currentPage = 0;
-    fetchUsers();
+    return fetchUsers();
   }
 
   function statusLabel(status) {
     return {
       active: '활동중',
       inactive: '비활동',
+      deleted: '탈퇴',
       banned: '정지',
     }[status] || status;
   }
@@ -159,6 +166,7 @@ export function useUserMngr() {
     return {
       active: 'green',
       inactive: 'gray',
+      deleted: 'gray',
       banned: 'red',
     }[status] || 'gray';
   }

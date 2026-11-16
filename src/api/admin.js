@@ -1,4 +1,4 @@
-import client from './client';
+import client from './client.js';
 
 const baseUrl = '/api/v1/admin/members';
 
@@ -13,3 +13,5 @@ export const logoutApi = () => client.post('/api/v1/admin/logout');
 export const getMembersList = (params) => {
   return client.get(baseUrl, { params });
 };
+export const getMemberDetail = (id) => client.get(`${baseUrl}/${id}`);
+export const getMemberSecurity = (id) => client.get(`${baseUrl}/${id}/security`);
