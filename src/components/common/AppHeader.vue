@@ -31,8 +31,7 @@
       <span class="header-user">
         👤 {{ userInfo?.name || userInfo?.id || '관리자' }}
       </span>
-      <span v-if="logoutError" class="logout-error" role="alert">{{ logoutError }}</span>
-      <BaseButton variant="primary" size="md" :disabled="loggingOut" @click="handleLogout">
+      <BaseButton variant="primary" size="md" @click="handleLogout">
         로그아웃
       </BaseButton>
     </div>
@@ -40,9 +39,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { logoutApi } from '@/api/admin'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
 
@@ -51,22 +48,9 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { userInfo } = storeToRefs(authStore)
 
-const loggingOut = ref(false)
-const logoutError = ref('')
-
-async function handleLogout() {
-  if (loggingOut.value) return
-  loggingOut.value = true
-  logoutError.value = ''
-  try {
-    await logoutApi()
-    authStore.logout()
-    await router.replace({ name: 'login' })
-  } catch (error) {
-    if (error.response?.status !== 401) logoutError.value = '로그아웃에 실패했습니다. 다시 시도해주세요.'
-  } finally {
-    loggingOut.value = false
-  }
+function handleLogout() {
+  authStore.logout()
+  router.push('/')
 }
 </script>
 
@@ -152,8 +136,6 @@ async function handleLogout() {
   gap: 12px;
 }
 
-.logout-error { color: #ef4444; font-size: 12px; }
-
 .header-user {
   color: #333;
   font-size: 13px;
@@ -175,9 +157,7 @@ async function handleLogout() {
   }
 
   .header-logo-full,
-  .logout-error { color: #ef4444; font-size: 12px; }
-
-.header-user {
+  .header-user {
     display: none;
   }
 
