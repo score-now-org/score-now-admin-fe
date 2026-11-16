@@ -7,23 +7,21 @@
       <div class="logo">SCORE NOW</div>
 
       <!-- Form -->
-      <form class="form" @submit.prevent="handleLogin">
+      <div class="form">
 
         <!-- BaseInput 적용 -->
         <BaseInput
           v-model="form.id"
           type="text"
           placeholder="아이디를 입력하세요."
-          autocomplete="username"
-          aria-label="아이디"
+          @enter="handleLogin"
         />
 
         <BaseInput
           v-model="form.password"
           type="password"
           placeholder="비밀번호를 입력하세요."
-          autocomplete="current-password"
-          aria-label="비밀번호"
+          @enter="handleLogin"
         />
 
         <!-- BaseButton 적용 -->
@@ -31,14 +29,14 @@
           variant="secondary"
           :disabled="loading"
           class="login-btn"
-          type="submit"
+          @click="handleLogin"
         >
           {{ loading ? '로그인 중...' : '로그인' }}
         </BaseButton>
 
-        <p v-if="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</p>
+        <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
-      </form>
+      </div>
 
     </div>
 
@@ -47,24 +45,18 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { loginApi } from '@/api/admin'
-import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const route = useRoute()
-const auth = useAuthStore()
 
 const form    = ref({ id: '', password: '' })
 const loading = ref(false)
-const errorMsg = ref(route.query.reason === 'unavailable' ? '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.' : '')
+const errorMsg = ref('')
 
 async function handleLogin() {
   errorMsg.value = ''
 
-  if (loading.value) return
-
-  if (!form.value.id.trim() || !form.value.password) {
+  if (!form.value.id || !form.value.password) {
     errorMsg.value = '아이디와 비밀번호를 입력해주세요.'
     return
   }
@@ -72,16 +64,12 @@ async function handleLogin() {
   loading.value = true
 
   try {
-    const response = await loginApi({ id: form.value.id.trim(), password: form.value.password })
-    const token = response.data?.token
-    if (typeof token !== 'string' || !token) throw new Error('Invalid login response')
-    auth.setToken(token, { id: form.value.id.trim() })
-    form.value.password = ''
-    await router.replace({ name: 'admin-match-list' })
+    // TODO: 실제 API 연결 시 교체
+    // const res = await api.post('/auth/login', form.value)
+    await new Promise(resolve => setTimeout(resolve, 800))
+    router.replace({ name: 'admin-match-list' })
   } catch (e) {
-    if (e.response?.status === 401) errorMsg.value = '아이디 또는 비밀번호가 올바르지 않습니다.'
-    else if (e.response?.status === 400) errorMsg.value = '아이디와 비밀번호 입력값을 확인해주세요.'
-    else errorMsg.value = '로그인할 수 없습니다. 잠시 후 다시 시도해주세요.'
+    errorMsg.value = '아이디 또는 비밀번호가 올바르지 않습니다.'
   } finally {
     loading.value = false
   }
