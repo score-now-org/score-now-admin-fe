@@ -9,3 +9,15 @@ export const deleteNotice = id => client.delete(`${url}/${id}`)
 export const moveNotice = (id, sortOrder) => client.put(`${url}/${id}/order`, { sortOrder })
 export const setNoticeVisibility = (id, visible) => client.patch(`${url}/${id}/visibility`, { visible })
 export const publishNotices = () => client.post(`${url}/publish`)
+
+const newsUrl = '/api/v1/admin/news-tickers'
+export const newsApi = {
+  list: params => client.get(newsUrl, { params }),
+  status: () => client.get(`${newsUrl}/status`),
+  create: data => client.post(newsUrl, data),
+  update: (id, data) => client.put(`${newsUrl}/${id}`, data),
+  remove: id => client.delete(`${newsUrl}/${id}`),
+  move: (id, sortOrder) => client.put(`${newsUrl}/${id}/order`, { sortOrder }),
+  visibility: (id, visible) => client.patch(`${newsUrl}/${id}/visibility`, { visible }),
+  publish: () => client.post(`${newsUrl}/publish`),
+}

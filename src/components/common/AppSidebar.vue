@@ -24,7 +24,7 @@ const DEFAULT_ITEMS = [
   { label: '도움말' },
   { label: '버전 관리' },
   { label: '공지사항' },
-  { label: '티켜 공지' },
+  { label: '뉴스/알림' },
   { label: '약관' },
 ]
 
