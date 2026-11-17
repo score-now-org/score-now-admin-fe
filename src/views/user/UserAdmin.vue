@@ -25,9 +25,11 @@
         <VersionSection  v-else-if="activeSidebar === '버전 관리'" />
 
         <!-- 준비중 -->
-        <div v-else class="coming-soon">
+        <div v-else-if="activeSidebar !== '약관'" class="coming-soon">
           🚧 {{ activeSidebar }} 준비 중입니다.
         </div>
+
+        <div v-if="termsOpened" v-show="activeSidebar === '약관'" class="chat-content"><TermsSection /></div>
 
       </main>
     </div>
@@ -35,13 +37,14 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent, h, ref } from 'vue'
+import { defineAsyncComponent, h, ref, watch } from 'vue'
 import MemberSection  from './base/UserMngr.vue'
 import VersionSection from './version/VersionMngr.vue'
 import ChatSection from './chat/ChatMngr.vue'
 import ForbiddenWordSection from './forbidden-word/ForbiddenWordMngr.vue'
 import HelpSection from './help/HelpMngr.vue'
 import NoticeSection from './notice/NoticeMngr.vue'
+import TermsSection from './terms/TermsMngr.vue'
 const CommunitySection = defineAsyncComponent({
   loader: () => import('./community/CommunityMngr.vue'),
   loadingComponent: { render: () => h('div', { class: 'coming-soon', role: 'status' }, '게시판을 불러오는 중입니다.') },
@@ -49,6 +52,8 @@ const CommunitySection = defineAsyncComponent({
 })
 
 const activeSidebar = ref('회원')
+const termsOpened = ref(false)
+watch(activeSidebar, value => { if (value === '약관') termsOpened.value = true }, { flush: 'sync' })
 </script>
 
 <style scoped>
