@@ -46,8 +46,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { loginApi } from '@/api/admin'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const form    = ref({ id: '', password: '' })
 const loading = ref(false)
@@ -56,7 +59,8 @@ const errorMsg = ref('')
 async function handleLogin() {
   errorMsg.value = ''
 
-  if (!form.value.id || !form.value.password) {
+  if (loading.value) return
+  if (!form.value.id.trim() || !form.value.password) {
     errorMsg.value = '아이디와 비밀번호를 입력해주세요.'
     return
   }
@@ -64,12 +68,13 @@ async function handleLogin() {
   loading.value = true
 
   try {
-    // TODO: 실제 API 연결 시 교체
-    // const res = await api.post('/auth/login', form.value)
-    await new Promise(resolve => setTimeout(resolve, 800))
-    router.replace({ name: 'admin-match-list' })
+    const response = await loginApi({ id: form.value.id.trim(), password: form.value.password })
+    if (!response.data?.token) throw new Error('Invalid login response')
+    auth.setToken(response.data.token, { id: form.value.id.trim() })
+    form.value.password = ''
+    await router.replace({ name: 'admin-match-list' })
   } catch (e) {
-    errorMsg.value = '아이디 또는 비밀번호가 올바르지 않습니다.'
+    errorMsg.value = e.response?.status === 401 ? '아이디 또는 비밀번호가 올바르지 않습니다.' : '로그인할 수 없습니다. 잠시 후 다시 시도해주세요.'
   } finally {
     loading.value = false
   }
