@@ -7,11 +7,11 @@
         <h3>{{ item.nickname || '-' }} / {{ item.userId }}</h3>
         <label class="label" for="inquiry-title">제목</label><BaseInput id="inquiry-title" :model-value="item.title" disabled />
         <label class="label" for="inquiry-content">문의</label><BaseTextarea id="inquiry-content" :model-value="item.content" disabled :rows="5" />
-        <p class="label">첨부 이미지</p>
+        <p class="label">첨부파일</p>
         <div class="attachment">
-          <span v-if="!item.hasImage">첨부파일 없음</span><span v-else-if="imageLoading">이미지를 불러오는 중입니다.</span>
-          <div v-else-if="imageUrl"><img :src="imageUrl" alt="문의 첨부 이미지" /><p><a :href="imageUrl" :download="`inquiry-${id}.${imageExtension}`">이미지 내려받기</a></p></div>
-          <span v-else role="alert">{{ imageError }} <BaseButton variant="outline" size="sm" @click="loadImage">다시 조회</BaseButton></span>
+          <span v-if="!item.hasAttachment && !item.hasImage">첨부파일 없음</span><span v-else-if="imageLoading">첨부파일을 불러오는 중입니다.</span>
+          <div v-else-if="imageUrl"><img v-if="item.hasImage" :src="imageUrl" alt="문의 첨부 이미지" /><p><a :href="imageUrl" :download="item.attachmentName || `inquiry-${id}.${imageExtension}`">{{ item.attachmentName || '첨부파일' }} 내려받기</a></p></div>
+          <span v-else role="alert">{{ imageError }} <BaseButton variant="outline" size="sm" @click="loadAttachment">다시 조회</BaseButton></span>
         </div>
       </section>
       <section class="section">
@@ -32,7 +32,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseTextarea from '@/components/common/BaseTextarea.vue'
-import { getInquiry, getInquiryImage, saveInquiryAnswer } from '@/api/adminInquiry.js'
+import { getInquiry, getInquiryImage, getInquiryAttachment, saveInquiryAnswer } from '@/api/adminInquiry.js'
 const props = defineProps({ id: { type: Number, required: true } })
 const emit = defineEmits(['close', 'saved'])
 const item = ref(null), editor = ref(null), loading = ref(true), busy = ref(false), error = ref(''), dirty = ref(false), textLength = ref(0)
@@ -47,18 +47,18 @@ async function load() {
     if (!active || !editor.value) return
     if (item.value.answerHtml) editor.value.innerHTML = item.value.answerHtml
     else editor.value.textContent = item.value.answer || ''
-    initialHtml = editor.value.innerHTML; onInput(); if (item.value.hasImage) loadImage()
+    initialHtml = editor.value.innerHTML; onInput(); if (item.value.hasAttachment || item.value.hasImage) loadAttachment()
   } catch (e) { if (active) error.value = e.response?.status === 401 ? '관리자 로그인이 필요합니다.' : '문의 상세를 불러오지 못했습니다.' }
   finally { if (active) loading.value = false }
 }
-async function loadImage() {
+async function loadAttachment() {
   imageLoading.value = true; imageError.value = ''
   try {
-    const response = await getInquiryImage(props.id); if (!active) return
+    const response = await (item.value.hasImage ? getInquiryImage(props.id) : getInquiryAttachment(props.id)); if (!active) return
     imageExtension.value = response.data.type === 'image/png' ? 'png' : 'jpg'
     if (imageUrl.value) URL.revokeObjectURL(imageUrl.value)
     imageUrl.value = URL.createObjectURL(response.data)
-  } catch { if (active) imageError.value = '이미지를 불러오지 못했습니다.' }
+  } catch { if (active) imageError.value = '첨부파일을 불러오지 못했습니다.' }
   finally { if (active) imageLoading.value = false }
 }
 function onInput() { if (!editor.value) return; dirty.value = editor.value.innerHTML !== initialHtml; textLength.value = (editor.value.innerText || '').trim().length }
