@@ -10,7 +10,7 @@
         <p class="label">첨부파일</p>
         <div class="attachment">
           <span v-if="!item.hasAttachment && !item.hasImage">첨부파일 없음</span><span v-else-if="imageLoading">첨부파일을 불러오는 중입니다.</span>
-          <div v-else-if="imageUrl"><img v-if="item.hasImage" :src="imageUrl" alt="문의 첨부 이미지" /><p><a :href="imageUrl" :download="item.attachmentName || `inquiry-${id}.${imageExtension}`">{{ item.attachmentName || '첨부파일' }} 내려받기</a></p></div>
+          <div v-else-if="imageUrl"><img v-if="previewType" :src="imageUrl" alt="문의 첨부 이미지" /><p><a :href="imageUrl" :download="downloadName">{{ downloadName }} 내려받기</a></p></div>
           <span v-else role="alert">{{ imageError }} <BaseButton variant="outline" size="sm" @click="loadAttachment">다시 조회</BaseButton></span>
         </div>
       </section>
@@ -32,11 +32,12 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseTextarea from '@/components/common/BaseTextarea.vue'
-import { getInquiry, getInquiryImage, getInquiryAttachment, saveInquiryAnswer } from '@/api/adminInquiry.js'
+import { getInquiry, getInquiryAttachment, saveInquiryAnswer } from '@/api/adminInquiry.js'
+import { attachmentName, imageContentType } from './inquiryFile.js'
 const props = defineProps({ id: { type: Number, required: true } })
 const emit = defineEmits(['close', 'saved'])
 const item = ref(null), editor = ref(null), loading = ref(true), busy = ref(false), error = ref(''), dirty = ref(false), textLength = ref(0)
-const imageLoading = ref(false), imageError = ref(''), imageUrl = ref(''), imageExtension = ref('jpg')
+const imageLoading = ref(false), imageError = ref(''), imageUrl = ref(''), downloadName = ref(''), previewType = ref('')
 let initialHtml = '', active = true
 const tools = [ { command: 'bold', label: '굵게', text: 'B' }, { command: 'italic', label: '기울임', text: 'I' }, { command: 'underline', label: '밑줄', text: 'U' }, { command: 'strikeThrough', label: '취소선', text: 'S' }, { command: 'insertUnorderedList', label: '글머리 목록', text: '• 목록' }, { command: 'insertOrderedList', label: '번호 목록', text: '1. 목록' } ]
 async function load() {
@@ -54,10 +55,11 @@ async function load() {
 async function loadAttachment() {
   imageLoading.value = true; imageError.value = ''
   try {
-    const response = await (item.value.hasImage ? getInquiryImage(props.id) : getInquiryAttachment(props.id)); if (!active) return
-    imageExtension.value = response.data.type === 'image/png' ? 'png' : 'jpg'
+    const response = await getInquiryAttachment(props.id); if (!active) return
+    downloadName.value = attachmentName(response.headers['content-disposition'], `inquiry-${props.id}.bin`)
+    previewType.value = imageContentType(downloadName.value)
     if (imageUrl.value) URL.revokeObjectURL(imageUrl.value)
-    imageUrl.value = URL.createObjectURL(response.data)
+    imageUrl.value = URL.createObjectURL(new Blob([response.data], { type: previewType.value || 'application/octet-stream' }))
   } catch { if (active) imageError.value = '첨부파일을 불러오지 못했습니다.' }
   finally { if (active) imageLoading.value = false }
 }
