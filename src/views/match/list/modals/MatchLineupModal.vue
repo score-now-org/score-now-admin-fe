@@ -46,16 +46,15 @@
                 선수추가
               </button>
 
-              <span class="formation-label">
-                포메이션
-              </span>
+              <template v-if="team.side.formation">
+                <span class="formation-label">
+                  포메이션
+                </span>
 
-              <input
-                v-model="team.side.formation"
-                class="formation-input"
-                :disabled="saving"
-                :aria-label="`${team.name} 포메이션`"
-              />
+                <span class="formation-value">
+                  {{ team.side.formation }}
+                </span>
+              </template>
 
               <select
                 v-model="team.side.uniformColor"
@@ -89,7 +88,7 @@
               <button
                 type="button"
                 class="uniform-save-btn"
-                :disabled="saving || !hasColorChange(team.key)"
+                :disabled="saving || !hasColorChange(team.key) || !team.side.uniformColor"
                 @click="saveUniformColor(team.key)"
               >
                 유니폼변경
@@ -167,28 +166,15 @@
                     :title="player.kName || player.eName || ''"
                   />
 
-                  <!-- 득점 -->
-                  <select
-                    v-model.number="player.goals"
-                    class="goals-select"
-                    :disabled="saving || player.playerId == null"
-                    :aria-label="`${team.name} 선수 득점`"
+                  <!-- 선발·후보 변경 -->
+                  <button
+                    type="button"
+                    class="role-change-btn"
+                    :disabled="saving || player.playerId == null || team.side.teamId == null"
+                    @click="changePlayerRole(team, player, section.key)"
                   >
-                    <option
-                      v-if="player.goals > 30"
-                      :value="player.goals"
-                    >
-                      {{ player.goals }}
-                    </option>
-
-                    <option
-                      v-for="goal in goalOptions"
-                      :key="goal"
-                      :value="goal"
-                    >
-                      {{ goal }}
-                    </option>
-                  </select>
+                    {{ section.key === 'startingLineup' ? '후보로 변경' : '선발로 변경' }}
+                  </button>
                 </div>
 
                 <div
@@ -232,15 +218,6 @@
 
           <button
             type="button"
-            class="footer-btn formation-btn"
-            :disabled="saving || !hasFormationChanges"
-            @click="saveFormations"
-          >
-            포메이션 수정
-          </button>
-
-          <button
-            type="button"
             class="footer-btn close-btn"
             :disabled="saving"
             @click="visible = false"
@@ -270,6 +247,7 @@ import {
   getMatchLineup,
   updateMatchLineupTeam,
   updateMatchLineupPlayer,
+  updateMatchLineupPlayerRole,
 } from '@/api/match'
 
 import MatchLineupPlayerSearchModal from './MatchLineupPlayerSearchModal.vue'
@@ -298,6 +276,58 @@ async function handlePlayerSearchChanged() {
 
   await loadLineup(props.match.id)
 }
+
+
+ // 라인업 선수 선발·후보 변경
+async function changePlayerRole(team, player, sectionKey) {
+  if (saving.value) return
+
+  if (hasUnsavedChanges.value) {
+    window.alert('먼저 수정 중인 라인업 정보를 저장해주세요.')
+    return
+  }
+
+  const matchId = props.match?.id
+  const teamId = team.side.teamId
+  const playerId = player.playerId
+
+  if (matchId == null || teamId == null || playerId == null) return
+
+  const role =
+    sectionKey === 'startingLineup'
+      ? 'SUBSTITUTE'
+      : 'STARTER'
+
+  saving.value = true
+  saveError.value = ''
+  notice.value = ''
+
+  try {
+    await updateMatchLineupPlayerRole(
+      matchId,
+      teamId,
+      playerId,
+      role
+    )
+
+    // 변경된 선수 명단과 포메이션 재조회
+    await loadLineup(matchId)
+
+    if (!loadError.value) {
+      notice.value = '선수의 선발·후보 구분이 변경되었습니다.'
+    }
+  } catch (error) {
+    console.error('선수 역할 변경 실패', error)
+
+    saveError.value = getErrorMessage(
+      error,
+      '선발·후보 변경에 실패했습니다.'
+    )
+  } finally {
+    saving.value = false
+  }
+}
+
 
 // Props
 const props = defineProps({
@@ -364,12 +394,6 @@ const positionOptions = [
   'ST',
 ]
 
-// 득점
-const goalOptions = Array.from(
-  { length: 31 },
-  (_, index) => index
-)
-
 // 유니폼 색상
 const colorOptions = [
   { label: '빨간색', value: '#ef4444' },
@@ -428,7 +452,6 @@ function normalizeLineup(data) {
     const side = result[sideKey]
     if (!side) continue
 
-    side.formation ??= ''
     side.uniformColor ??= ''
 
     for (const section of lineupSections) {
@@ -441,7 +464,6 @@ function normalizeLineup(data) {
         kName: player.kName ?? player.kname ?? '',
         position: player.position ?? '',
         shirtNumber: player.shirtNumber ?? '',
-        goals: Number(player.goals ?? 0),
       }))
     }
   }
@@ -511,18 +533,6 @@ function hasColorChange(sideKey) {
   )
 }
 
-// 포메이션 변경 여부
-const hasFormationChanges = computed(() => {
-  if (!draft.value || !original.value) return false
-
-  return ['home', 'away'].some(sideKey => {
-    return (
-      draft.value?.[sideKey]?.formation !==
-      original.value?.[sideKey]?.formation
-    )
-  })
-})
-
 // 선수 정보 변경 내역
 const playerChanges = computed(() => {
   if (!draft.value || !original.value) return []
@@ -553,8 +563,7 @@ const playerChanges = computed(() => {
 
         const changed =
           player.position !== oldPlayer.position ||
-          player.shirtNumber !== oldPlayer.shirtNumber ||
-          Number(player.goals) !== Number(oldPlayer.goals)
+          player.shirtNumber !== oldPlayer.shirtNumber
 
         if (!changed) return
 
@@ -566,7 +575,6 @@ const playerChanges = computed(() => {
           playerId: player.playerId,
           position: player.position,
           shirtNumber: player.shirtNumber,
-          goals: Number(player.goals),
         })
       })
     }
@@ -584,7 +592,6 @@ const hasPlayerChanges = computed(
 const hasUnsavedChanges = computed(() => {
   return (
     hasPlayerChanges.value ||
-    hasFormationChanges.value ||
     ['home', 'away'].some(hasColorChange)
   )
 })
@@ -620,9 +627,7 @@ async function saveUniformColor(sideKey) {
       props.match.id,
       side.teamId,
       {
-        // 미저장 포메이션은 함께 저장하지 않음
-        formation: oldSide.formation,
-        uniformColor: side.uniformColor || null,
+        uniformColor: side.uniformColor,
       }
     )
 
@@ -641,56 +646,7 @@ async function saveUniformColor(sideKey) {
   }
 }
 
-// 포메이션 저장
-async function saveFormations() {
-  if (!hasFormationChanges.value) return
-
-  saving.value = true
-  saveError.value = ''
-  notice.value = ''
-
-  try {
-    for (const sideKey of ['home', 'away']) {
-      const side = draft.value?.[sideKey]
-      const oldSide = original.value?.[sideKey]
-
-      if (!side || !oldSide) continue
-
-      if (side.formation === oldSide.formation) {
-        continue
-      }
-
-      if (side.teamId == null) {
-        throw new Error(`${sideKey} 팀 ID가 없습니다.`)
-      }
-
-      await updateMatchLineupTeam(
-        props.match.id,
-        side.teamId,
-        {
-          formation: side.formation,
-          // 미저장 색상은 함께 저장하지 않음
-          uniformColor: oldSide.uniformColor || null,
-        }
-      )
-
-      oldSide.formation = side.formation
-    }
-
-    notice.value = '포메이션이 저장되었습니다.'
-  } catch (error) {
-    console.error('포메이션 수정 실패', error)
-
-    saveError.value = getErrorMessage(
-      error,
-      '포메이션 수정에 실패했습니다. 일부 팀만 저장되었을 수 있습니다.'
-    )
-  } finally {
-    saving.value = false
-  }
-}
-
-// 선수 포지션 / 등번호 / 득점 저장
+// 선수 포지션 / 등번호 저장
 async function savePlayerChanges() {
   if (!hasPlayerChanges.value) return
 
@@ -715,7 +671,6 @@ async function savePlayerChanges() {
         {
           position: change.position,
           shirtNumber: change.shirtNumber,
-          goals: change.goals,
         }
       )
 
@@ -728,11 +683,15 @@ async function savePlayerChanges() {
       if (savedPlayer) {
         savedPlayer.position = change.position
         savedPlayer.shirtNumber = change.shirtNumber
-        savedPlayer.goals = change.goals
       }
     }
 
-    notice.value = '선수 정보가 저장되었습니다.'
+    // 선수 정보 및 포메이션 최신 데이터 조회
+    await loadLineup(props.match.id)
+
+    if (!loadError.value) {
+      notice.value = '선수 정보가 저장되었습니다.'
+    }
   } catch (error) {
     console.error('선수 정보 저장 실패', error)
 
@@ -855,21 +814,12 @@ async function savePlayerChanges() {
   font-weight: 700;
 }
 
-.formation-input {
-  width: 58px;
-  min-width: 0;
-  padding: 3px 0;
-  border: 0;
-  outline: none;
-  background: transparent;
+.formation-value {
+  min-width: 58px;
   color: #ef4444;
   font-size: 11px;
   font-weight: 800;
   text-align: center;
-}
-
-.formation-input:focus {
-  outline: 1px solid #93c5fd;
 }
 
 .uniform-select {
@@ -929,13 +879,22 @@ async function savePlayerChanges() {
 
 .player-row {
   display: grid;
-  grid-template-columns:
-    54px
-    45px
-    minmax(70px, 1fr)
-    47px;
+  grid-template-columns: 54px 45px minmax(70px, 1fr) 78px;
   gap: 4px;
   align-items: center;
+}
+
+.role-change-btn {
+  height: 25px;
+  padding: 0 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 3px;
+  background: #f3f4f6;
+  color: #333;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .player-row input,
@@ -967,10 +926,6 @@ async function savePlayerChanges() {
   padding: 0 5px;
   background: #eee;
   text-overflow: ellipsis;
-}
-
-.goals-select {
-  text-align: center;
 }
 
 .empty-players {
@@ -1017,7 +972,6 @@ async function savePlayerChanges() {
   background: #0065d8;
 }
 
-.formation-btn,
 .close-btn {
   background: #333;
 }
