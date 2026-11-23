@@ -117,7 +117,7 @@
       </template>
     </AdminFilterCard>
 
-    <AdminTableCard scroll-label="경기 목록" table-min-width="1440px">
+    <AdminTableCard scroll-label="경기 목록" table-min-width="1660px">
       <template #summary>
         <strong>검색 결과</strong>
         <span>총 {{ totalMatches }}건</span>
@@ -136,6 +136,8 @@
         <table class="match-table">
           <colgroup>
             <col class="col-match-id" />
+            <col class="col-data-origin" />
+            <col class="col-api-match-id" />
             <col class="col-sport" />
             <col class="col-league" />
             <col class="col-type" />
@@ -151,6 +153,8 @@
           <thead>
             <tr>
               <th>경기 ID</th>
+              <th>원천</th>
+              <th>외부 API ID</th>
               <th>종목</th>
               <th>리그</th>
               <th>타입</th>
@@ -168,20 +172,20 @@
             <AdminTableState
               v-if="matchesLoading"
               type="loading"
-              :colspan="12"
+              :colspan="14"
               title="경기 목록을 불러오는 중입니다."
               compact
             />
             <AdminTableState
               v-else-if="matchListError"
               type="error"
-              :colspan="12"
+              :colspan="14"
               :title="matchListError"
               description="잠시 후 다시 검색해 주세요."
             />
             <AdminTableState
               v-else-if="visibleMatches.length === 0"
-              :colspan="12"
+              :colspan="14"
               title="검색 결과가 없습니다."
               description="검색 조건을 변경한 뒤 다시 검색해 주세요."
             />
@@ -192,6 +196,8 @@
                 class="match-row"
               >
               <td class="match-id">{{ match.id }}</td>
+              <td><AdminDataOriginBadge :data-origin="match.dataOrigin" /></td>
+              <td class="api-match-id">{{ match.apiMatchId || '-' }}</td>
               <td>
                 <AdminSportBadge
                   :sport-code="match.sportCode"
@@ -436,6 +442,7 @@ import AdminListPage from '@/components/admin/AdminListPage.vue'
 import AdminTableCard from '@/components/admin/AdminTableCard.vue'
 import AdminTablePagination from '@/components/admin/AdminTablePagination.vue'
 import AdminTableState from '@/components/admin/AdminTableState.vue'
+import AdminDataOriginBadge from '@/components/common/AdminDataOriginBadge.vue'
 import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import {
@@ -731,6 +738,8 @@ function mapMatchResponse(match) {
 
   return createMatch({
     id: String(match.id),
+    dataOrigin: match.dataOrigin,
+    apiMatchId: match.apiMatchId,
     sport,
     sportId: match.sportId,
     sportCode: match.sportCode,
@@ -1462,6 +1471,8 @@ function toErrorMessage(value) {
 }
 
 .col-match-id { width: 84px; }
+.col-data-origin { width: 80px; }
+.col-api-match-id { width: 120px; }
 .col-sport { width: 64px; }
 .col-data { width: 82px; }
 .col-league { width: 160px; }
@@ -1497,6 +1508,12 @@ td.action-area-start {
   font-weight: 600;
   white-space: normal;
   word-break: break-all;
+}
+
+.match-table .match-row .api-match-id {
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .league-cell {
