@@ -1,14 +1,25 @@
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="base-modal-overlay">
+    <component
+      :is="keyboard ? 'dialog' : 'div'"
+      v-if="modelValue"
+      ref="overlay"
+      class="base-modal-overlay"
+      :class="{ 'base-modal-overlay--keyboard': keyboard }"
+      :aria-labelledby="keyboard && title ? titleId : undefined"
+      :aria-label="keyboard && !title ? '모달' : undefined"
+      :aria-describedby="keyboard ? describedBy : undefined"
+      @cancel.prevent="close"
+      @keydown="handleKeydown"
+    >
       <div
         class="base-modal-box"
         :class="`base-modal-box--${size}`"
         :style="width ? { '--base-modal-width': width } : undefined"
-        role="dialog"
-        aria-modal="true"
-        :aria-labelledby="title ? titleId : undefined"
-        :aria-label="title ? undefined : '모달'"
+        :role="keyboard ? undefined : 'dialog'"
+        :aria-modal="keyboard ? undefined : 'true'"
+        :aria-labelledby="!keyboard && title ? titleId : undefined"
+        :aria-label="!keyboard && !title ? '모달' : undefined"
       >
         <header class="base-modal-header">
           <h2 :id="titleId">{{ title }}</h2>
@@ -31,12 +42,12 @@
           <slot name="footer" />
         </footer>
       </div>
-    </div>
+    </component>
   </Teleport>
 </template>
 
 <script setup>
-import { useId } from 'vue'
+import { onBeforeUnmount, ref, useId, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -60,14 +71,53 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  keyboard: {
+    type: Boolean,
+    default: false,
+  },
+  returnFocus: {
+    type: Object,
+    default: null,
+  },
+  describedBy: {
+    type: String,
+    default: undefined,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
 const titleId = useId()
+const overlay = ref(null)
+let trigger = null
 
-function close() {
+watch(overlay, (element) => {
+  if (!props.keyboard || !element) return
+  trigger = props.returnFocus || document.activeElement
+  element.showModal()
+}, { flush: 'post' })
+
+watch(() => props.modelValue, (visible) => {
+  if (!visible) closeKeyboardModal()
+})
+onBeforeUnmount(closeKeyboardModal)
+
+function closeKeyboardModal() {
+  if (!props.keyboard || !overlay.value?.open) return
+  overlay.value.close()
+  if (trigger?.isConnected) trigger.focus({ preventScroll: true })
+  trigger = null
+}
+
+function handleKeydown(event) {
+  if (!props.keyboard) return
+  if (event.key === 'Enter' && (event.repeat || event.isComposing)) {
+    event.preventDefault()
+  }
+}
+
+function close(event) {
   if (props.closeDisabled) return
-  emit('update:modelValue', false)
+  emit('update:modelValue', false, event)
 }
 </script>
 
@@ -82,6 +132,25 @@ function close() {
   justify-content: center;
   box-sizing: border-box;
   padding: 24px;
+  background: rgb(15 23 42 / 42%);
+}
+
+.base-modal-overlay--keyboard {
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.base-modal-overlay--keyboard:not([open]) {
+  display: none;
+}
+
+.base-modal-overlay--keyboard::backdrop {
   background: rgb(15 23 42 / 42%);
 }
 

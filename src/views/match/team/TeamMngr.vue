@@ -105,7 +105,7 @@
                     size="sm"
                     :disabled="team.dataOrigin !== 'MANUAL' || isRowBusy(team.id)"
                     :title="team.dataOrigin !== 'MANUAL' ? '수동 등록된 팀만 삭제할 수 있습니다.' : ''"
-                    @click="deleteTeam(team)"
+                    @click="deleteTeam(team, $event)"
                   >삭제</BaseButton>
                 </div>
               </td>
@@ -175,6 +175,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onMounted, reactive, ref } from 'vue'
 import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
 import AdminListPage from '@/components/admin/AdminListPage.vue'
@@ -360,9 +361,16 @@ async function saveTeam(team) {
   }
 }
 
-async function deleteTeam(team) {
+const requestConfirmation = useAdminConfirm()
+
+async function deleteTeam(team, event) {
   if (team.dataOrigin !== 'MANUAL') return
-  if (!window.confirm(`${team.kName || team.eName} 팀을 삭제하시겠습니까?`)) return
+  if (!await requestConfirmation({
+    title: '팀 삭제',
+    message: `${team.kName || team.eName} 팀을 삭제하시겠습니까?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   setIdBusy(rowBusyIds, team.id, true)
   try {

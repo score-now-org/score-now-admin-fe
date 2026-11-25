@@ -48,7 +48,7 @@
             variant="primary"
             size="sm"
             :disabled="isWorking('currentTime')"
-            @click="requestAction('currentTime')"
+            @click="requestAction('currentTime', $event)"
           >
             {{ buttonLabel('currentTime', '현재 시간 저장') }}
           </BaseButton>
@@ -57,7 +57,7 @@
             size="sm"
             class="panel-action-btn"
             :disabled="isWorking('manualTime')"
-            @click="requestAction('manualTime')"
+            @click="requestAction('manualTime', $event)"
           >
             {{ buttonLabel('manualTime', '수동시간 저장') }}
           </BaseButton>
@@ -95,7 +95,7 @@
             variant="primary"
             size="sm"
             :disabled="isWorking('status')"
-            @click="requestAction('status')"
+            @click="requestAction('status', $event)"
           >
             {{ buttonLabel('status', '경기 상태 저장') }}
           </BaseButton>
@@ -177,7 +177,7 @@
                 variant="primary"
                 size="sm"
                 :disabled="!clockInitialized || clockActionWorking"
-                @click="requestAction('clockCorrection')"
+                @click="requestAction('clockCorrection', $event)"
               >
                 {{ isWorking('clockCorrection') ? '보정중' : '시간 보정' }}
               </BaseButton>
@@ -190,7 +190,7 @@
               variant="warn"
               size="sm"
               :disabled="!clockInitialized || clockActionWorking"
-              @click="requestAction('clockPause')"
+              @click="requestAction('clockPause', $event)"
             >
               {{ isWorking('clockPause') ? '처리중' : '타이머 일시정지' }}
             </BaseButton>
@@ -200,7 +200,7 @@
               size="sm"
               class="panel-action-btn"
               :disabled="!canResumeClock || clockActionWorking"
-              @click="requestAction('clockResume')"
+              @click="requestAction('clockResume', $event)"
             >
               {{ isWorking('clockResume') ? '처리중' : '타이머 재개' }}
             </BaseButton>
@@ -255,7 +255,7 @@
               variant="primary"
               size="sm"
               :disabled="!canTransitionPhase || clockActionWorking"
-              @click="requestAction('clockState')"
+              @click="requestAction('clockState', $event)"
             >
               {{ isWorking('clockState') ? '전환중' : '선택 Phase 시작/전환' }}
             </BaseButton>
@@ -294,7 +294,7 @@
               variant="primary"
               size="sm"
               :disabled="isWorking('extraTime')"
-              @click="requestAction('extraTime')"
+              @click="requestAction('extraTime', $event)"
             >
               {{ buttonLabel('extraTime', '추가시간 저장') }}
             </BaseButton>
@@ -334,7 +334,7 @@
             variant="primary"
             size="sm"
             :disabled="isWorking('score')"
-            @click="requestAction('score')"
+            @click="requestAction('score', $event)"
           >
             {{ buttonLabel('score', '일반 점수 저장') }}
           </BaseButton>
@@ -361,7 +361,7 @@
               variant="primary"
               size="sm"
               :disabled="isWorking('shootOutScore')"
-              @click="requestAction('shootOutScore')"
+              @click="requestAction('shootOutScore', $event)"
             >
               {{ buttonLabel('shootOutScore', '승부차기 점수 저장') }}
             </BaseButton>
@@ -432,7 +432,7 @@
             variant="primary"
             size="sm"
             :disabled="isWorking('stats')"
-            @click="requestAction('stats')"
+            @click="requestAction('stats', $event)"
           >
             {{ buttonLabel('stats', '스탯 저장') }}
           </BaseButton>
@@ -453,18 +453,12 @@
       </template>
     </BaseModal>
 
-    <BaseModal v-model="confirmModal.visible" :title="confirmModal.title" size="sm">
-      <p class="confirm-message">{{ confirmModal.message }}</p>
-      <template #footer>
-        <BaseButton variant="outline" @click="closeConfirmModal">취소</BaseButton>
-        <BaseButton :variant="confirmModal.variant" @click="confirmAction">확인</BaseButton>
-      </template>
-    </BaseModal>
-    <AdminUnsavedChangesModal :action="pendingAction" @confirm="confirmDiscard" @cancel="cancelDiscard" />
+    <AdminUnsavedChangesModal :action="pendingAction" :return-focus="pendingTrigger" @confirm="confirmDiscard" @cancel="cancelDiscard" />
   </aside>
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import AdminUnsavedChangesModal from '@/components/admin/AdminUnsavedChangesModal.vue'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import MatchCommentarySection from './components/MatchCommentarySection.vue'
@@ -521,7 +515,8 @@ const scoreForm = ref(defaultScoreForm())
 const statsForm = ref(defaultStatsForm())
 const loading = ref({})
 const chatModalVisible = ref(false)
-const confirmModal = ref(defaultConfirmModal())
+const requestConfirmation = useAdminConfirm()
+const confirmationPending = ref(false)
 const chats = ref([])
 const currentCommentary = ref(null)
 const commentarySection = ref(null)
@@ -551,15 +546,15 @@ const snapshot = () => clone(Object.fromEntries(Object.entries(editorGroups).map
 const hasUnsavedChanges = computed(() => panelLoaded.value && (
   commentaryDirty.value || JSON.stringify(snapshot()) !== JSON.stringify(persisted.value)
 ))
-const { pendingAction, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, panelBusy)
-function closePanel() {
+const { pendingAction, pendingTrigger, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, panelBusy)
+function closePanel(event) {
   if (pendingAction.value) return cancelDiscard()
-  if (confirmModal.value.visible || chatModalVisible.value || commentaryModalOpen.value) return
-  return requestDiscard('close', () => emit('close'))
+  if (confirmationPending.value || chatModalVisible.value || commentaryModalOpen.value) return
+  return requestDiscard('close', () => emit('close'), event)
 }
-defineExpose({ requestSwitch: (work) => {
-  if (confirmModal.value.visible || chatModalVisible.value || commentaryModalOpen.value) return
-  return requestDiscard('switch', work)
+defineExpose({ requestSwitch: (work, event) => {
+  if (confirmationPending.value || chatModalVisible.value || commentaryModalOpen.value) return
+  return requestDiscard('switch', work, event)
 } })
 
 const homeTeamName = computed(() => props.match?.homeTeam?.name || '홈팀')
@@ -660,7 +655,6 @@ function resetPanelState() {
   commentaryBusy.value = false
   commentaryModalOpen.value = false
   detailError.value = ''
-  closeConfirmModal()
 }
 
 function defaultTimeForm() {
@@ -725,25 +719,15 @@ function defaultFootballStats() {
   }
 }
 
-function defaultConfirmModal() {
-  return {
-    visible: false,
-    action: null,
-    title: '',
-    message: '',
-    variant: 'primary',
-  }
-}
-
 function openChatModal() {
   chatModalVisible.value = true
 }
 
-function refreshMatch() {
+function refreshMatch(event) {
   return requestDiscard('refresh', () => {
     commentarySection.value?.resetDraft()
     return fetchMatchDetail('refresh', true)
-  })
+  }, event)
 }
 
 async function fetchMatchDetail(loadingKey = 'detail', showAlert = false, preserveEdits = false, affectedGroups = []) {
@@ -860,32 +844,48 @@ function normalizeCurrentComment(detail = {}) {
   }
 }
 
-function requestAction(action) {
-  if (panelBusy.value || pendingAction.value) return
+async function requestAction(action, event) {
+  if (panelBusy.value || pendingAction.value || confirmationPending.value) return
   const config = actionConfig(action)
-  if (!config) return
+  if (!config || !validateAction(action)) return
 
-  if (!validateAction(action)) return
+  const isScheduleAction = action === 'currentTime' || action === 'manualTime'
+  const savedDate = persisted.value.schedule?.startDate
+  const proposedDate = action === 'currentTime' ? getKstNowDateTime().date : timeForm.value.startDate
+  const changesDate = isScheduleAction && proposedDate !== savedDate
+  const dateWarning = '경기 날짜가 바뀌면 등록된 상단고정·핫매치 설정이 해제됩니다.'
+  const trigger = event.currentTarget
 
-  confirmModal.value = {
-    visible: true,
-    action,
-    title: config.title,
-    message: config.message,
-    variant: config.variant,
-  }
-}
-
-async function confirmAction() {
-  if (panelBusy.value) return
-  const action = confirmModal.value.action
-  if (!action) return
-
-  closeConfirmModal()
-  setLoading(action, true)
-
+  confirmationPending.value = true
+  let payload
   try {
-    await saveFootballDetail(action)
+    const confirmed = await requestConfirmation({
+      title: config.title,
+      message: changesDate ? config.message + '\n' + dateWarning : config.message,
+      confirmVariant: changesDate || action === 'clockState' ? 'warn' : config.variant,
+      initialFocus: changesDate || action === 'clockState' ? 'cancel' : 'confirm',
+    }, trigger)
+    if (!confirmed || panelBusy.value) return
+
+    payload = buildFootballDetailUpdatePayload(action)
+    if (!payload) return
+    // 확인창을 열어 둔 사이에 서울 기준 날짜가 바뀌었을 수 있다.
+    if (action === 'currentTime' && !changesDate && payload.startAt.slice(0, 10) !== savedDate) {
+      const acknowledged = await requestConfirmation({
+        title: '경기 시작일 변경',
+        message: dateWarning,
+        confirmLabel: '변경 후 저장',
+        confirmVariant: 'warn',
+      }, trigger)
+      if (!acknowledged || panelBusy.value) return
+    }
+  } finally {
+    confirmationPending.value = false
+  }
+
+  setLoading(action, true)
+  try {
+    await saveFootballDetail(action, payload)
   } catch (error) {
     console.error('중계 패널 작업 처리에 실패했습니다.', error)
     alert(extractApiErrorMessage(error, '작업 처리에 실패했습니다.'))
@@ -894,10 +894,7 @@ async function confirmAction() {
   }
 }
 
-async function saveFootballDetail(action) {
-  const payload = buildFootballDetailUpdatePayload(action)
-  if (!payload) return
-
+async function saveFootballDetail(action, payload) {
   await executeFootballDetailUpdate(action, payload)
   applyFootballDetailUpdatePayload(payload)
   const group = ['currentTime', 'manualTime'].includes(action) ? 'schedule' : action
@@ -1096,10 +1093,6 @@ function applyFootballDetailUpdatePayload(payload) {
       patch: listPatch,
     })
   }
-}
-
-function closeConfirmModal() {
-  confirmModal.value = defaultConfirmModal()
 }
 
 function validateAction(action) {
@@ -2410,13 +2403,6 @@ function makeMockChats() {
 .chat-message {
   color: #374151;
   font-size: 12px;
-}
-
-.confirm-message {
-  margin: 0;
-  color: #374151;
-  font-size: 13px;
-  line-height: 1.6;
 }
 
 @media (max-width: 960px) {

@@ -279,11 +279,12 @@
         </form>
       </fieldset>
     </fieldset>
-    <AdminUnsavedChangesModal :action="pendingAction" @confirm="confirmDiscard" @cancel="cancelDiscard" />
+    <AdminUnsavedChangesModal :action="pendingAction" :return-focus="pendingTrigger" @confirm="confirmDiscard" @cancel="cancelDiscard" />
   </aside>
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import AdminUnsavedChangesModal from '@/components/admin/AdminUnsavedChangesModal.vue'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import MatchCommentarySection from './components/MatchCommentarySection.vue'
@@ -360,10 +361,10 @@ const hasUnsavedChanges = computed(() => loaded.value && (
   commentaryDirty.value || JSON.stringify(snapshot()) !== JSON.stringify(persisted.value)
 ))
 
-const { pendingAction, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, panelBusy)
-defineExpose({ requestSwitch: (work) => {
+const { pendingAction, pendingTrigger, requestDiscard, confirmDiscard, cancelDiscard } = useUnsavedChangesGuard(hasUnsavedChanges, panelBusy)
+defineExpose({ requestSwitch: (work, event) => {
   if (commentaryModalOpen.value) return
-  return requestDiscard('switch', work)
+  return requestDiscard('switch', work, event)
 } })
 
 function inputValue(value) { return value == null ? '' : String(value) }
@@ -497,11 +498,11 @@ async function fetchDetail() {
     feedback.value = '중계 정보를 불러왔습니다.'
   })
 }
-function refreshMatch() {
+function refreshMatch(event) {
   return requestDiscard('refresh', () => {
     commentarySection.value?.resetDraft()
     return fetchDetail()
-  })
+  }, event)
 }
 
 async function loadDetailed(matchId, isCurrent) {
@@ -543,9 +544,19 @@ async function retryDetailed() {
   })
 }
 
-async function saveSchedule() {
+const requestConfirmation = useAdminConfirm()
+
+async function saveSchedule(event) {
+  if (panelBusy.value) return
+  const value = clone(schedule.value)
+  if (value.date && value.time && value.date !== persisted.value.schedule?.date && !await requestConfirmation({
+    title: '경기 시작일 변경',
+    message: '경기 날짜가 바뀌면 등록된 상단고정·핫매치 설정이 해제됩니다.',
+    confirmLabel: '변경 후 저장',
+    confirmVariant: 'warn',
+  }, event.submitter || document.activeElement)) return
+
   await run('schedule', async (matchId, isCurrent) => {
-    const value = clone(schedule.value)
     if (!value.date || !value.time) throw new Error('경기 예정일과 시각을 입력해 주세요.')
     await updateBaseballScheduledStartAt(matchId, { startAt: `${value.date}T${value.time}:00` })
     if (!isCurrent()) return
@@ -631,10 +642,10 @@ function toggleBase(index) {
   base.runnerOnBase = !base.runnerOnBase
   if (!base.runnerOnBase) base.runnerName = ''
 }
-function closePanel() {
+function closePanel(event) {
   if (pendingAction.value) return cancelDiscard()
   if (commentaryModalOpen.value) return
-  return requestDiscard('close', () => emit('close'))
+  return requestDiscard('close', () => emit('close'), event)
 }
 watch(() => props.match?.id, () => {
   generation += 1
