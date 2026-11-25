@@ -48,7 +48,7 @@
                   <BaseButton variant="outline" size="sm" @click="openEditModal(ver)">
                     수정
                   </BaseButton>
-                  <BaseButton variant="danger" size="sm" @click="deleteVersion(ver.id, $event)">
+                  <BaseButton variant="danger" size="sm" @click="deleteVersion(ver.id)">
                     삭제
                   </BaseButton>
                 </div>
@@ -100,7 +100,6 @@
 </template>
 
 <script setup>
-import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { ref } from 'vue'
 
 const versions = ref([
@@ -135,15 +134,8 @@ function saveVersion() {
   modal.value.visible = false
 }
 
-const requestConfirmation = useAdminConfirm()
-
-async function deleteVersion(id, event) {
-  if (!await requestConfirmation({
-    title: '버전 삭제',
-    message: '선택한 버전을 삭제하시겠습니까?',
-    confirmLabel: '삭제',
-    confirmVariant: 'danger',
-  }, event?.currentTarget)) return
+function deleteVersion(id) {
+  if (!confirm('삭제하시겠습니까?')) return
   versions.value = versions.value.filter(v => v.id !== id)
 }
 </script>

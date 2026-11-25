@@ -1,8 +1,7 @@
 
 <template>
   <BaseModal
-    :model-value="modelValue"
-    @update:model-value="(_, event) => requestClose(event)"
+    v-model="visible"
     title="경기 라인업 관리"
     size="xl"
     :close-disabled="saving"
@@ -221,7 +220,7 @@
             type="button"
             class="footer-btn close-btn"
             :disabled="saving"
-            @click="requestClose"
+            @click="visible = false"
           >
             닫기
           </button>
@@ -241,7 +240,6 @@
 </template>
 
 <script setup>
-import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 
@@ -345,19 +343,22 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const requestConfirmation = useAdminConfirm()
+// 모달 열기 / 닫기
+const visible = computed({
+  get: () => props.modelValue,
+  set: value => {
+    if (!value && saving.value) return
 
-async function requestClose(event) {
-  if (saving.value) return
-  if (hasUnsavedChanges.value && !await requestConfirmation({
-    title: '저장하지 않은 변경 사항',
-    message: '저장하지 않은 입력을 버리고 닫을까요?',
-    cancelLabel: '계속 편집',
-    confirmLabel: '버리고 닫기',
-  }, event?.currentTarget)) return
+    if (!value && hasUnsavedChanges.value) {
+      const confirmed = window.confirm(
+        '저장하지 않은 수정사항이 있습니다. 닫으시겠습니까?'
+      )
+      if (!confirmed) return
+    }
 
-  emit('update:modelValue', false)
-}
+    emit('update:modelValue', value)
+  },
+})
 
 // 상태
 const draft = ref(null)
