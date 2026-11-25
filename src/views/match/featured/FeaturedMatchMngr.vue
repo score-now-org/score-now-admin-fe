@@ -1,19 +1,16 @@
 <template>
   <AdminListPage title="상단고정/핫매치">
-    <template #header-actions>
-      <BaseButton variant="success" size="md" @click="openRegisterModal">
-        + 경기 등록
-      </BaseButton>
-    </template>
-
-    <AdminFilterCard aria-label="경기 조회 조건">
+    <AdminFilterCard aria-label="경기 검색 조건">
       <div class="field-group featured-date-field">
         <label for="featured-date">경기 시작일</label>
         <BaseInput id="featured-date" v-model="searchDate" type="date" />
       </div>
       <template #actions>
         <BaseButton variant="primary" size="md" :disabled="matchesLoading" @click="applySearch">
-          {{ matchesLoading ? '조회 중' : '조회' }}
+          {{ matchesLoading ? '검색 중' : '검색' }}
+        </BaseButton>
+        <BaseButton variant="success" size="md" @click="openRegisterModal">
+          + 경기 등록
         </BaseButton>
       </template>
     </AdminFilterCard>
@@ -451,7 +448,7 @@ function applyFeaturedMatchesResponse(response) {
     .map(normalizeFeaturedMatch)
     .sort((a, b) => a.displayOrder - b.displayOrder)
 
-  featuredMatches.value = [...pinnedMatches, ...hotMatches]
+  featuredMatches.value = [...hotMatches, ...pinnedMatches]
 }
 
 function normalizeFeaturedMatch(match) {
