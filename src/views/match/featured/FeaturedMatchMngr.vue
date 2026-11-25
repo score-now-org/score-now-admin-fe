@@ -86,7 +86,7 @@
                 </div>
               </td>
               <td>
-                <BaseButton variant="danger" size="sm" :disabled="deletingId === match.featuredMatchId" @click="removeMatch(match)">
+                <BaseButton variant="danger" size="sm" :disabled="deletingId !== null" @click="removeMatch(match, $event)">
                   {{ deletingId === match.featuredMatchId ? '삭제 중' : '삭제' }}
                 </BaseButton>
               </td>
@@ -227,6 +227,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onMounted, ref } from 'vue'
 import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
 import AdminListPage from '@/components/admin/AdminListPage.vue'
@@ -349,9 +350,16 @@ async function moveMatch(match, direction) {
   }
 }
 
-async function removeMatch(match) {
-  const confirmed = window.confirm(`${match.homeTeam} vs ${match.awayTeam} 경기의 ${featuredTypeLabel(match.featuredType)} 설정을 삭제할까요?`)
-  if (!confirmed) return
+const requestConfirmation = useAdminConfirm()
+
+async function removeMatch(match, event) {
+  if (deletingId.value !== null) return
+  if (!await requestConfirmation({
+    title: '노출 경기 설정 삭제',
+    message: `${match.homeTeam} vs ${match.awayTeam} 경기의 ${featuredTypeLabel(match.featuredType)} 설정을 삭제할까요?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   deletingId.value = match.featuredMatchId
   try {

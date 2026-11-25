@@ -98,7 +98,7 @@
         <button
           class="btn btn-primary"
           :disabled="isSending"
-          @click="sendPush('COMMON')"
+          @click="sendPush('COMMON', $event)"
         >
           공통 발송
         </button>
@@ -106,7 +106,7 @@
         <button
           class="btn btn-secondary"
           :disabled="isSending"
-          @click="sendPush('AOS')"
+          @click="sendPush('AOS', $event)"
         >
           ANDROID 발송
         </button>
@@ -114,7 +114,7 @@
         <button
           class="btn btn-secondary"
           :disabled="isSending"
-          @click="sendPush('IOS')"
+          @click="sendPush('IOS', $event)"
         >
           iOS 발송
         </button>
@@ -254,6 +254,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import {
   sendCommonPush,
@@ -318,8 +319,10 @@ function validateForm() {
   return null
 }
 
+const requestConfirmation = useAdminConfirm()
+
 // PUSH 발송
-async function sendPush(target) {
+async function sendPush(target, event) {
   if (isSending.value) return
 
   notice.value = null
@@ -340,11 +343,12 @@ async function sendPush(target) {
     IOS: 'iOS',
   }[target]
 
-  const confirmed = window.confirm(
-    `${targetName} 사용자에게 PUSH 알림을 발송하시겠습니까?`
-  )
-
-  if (!confirmed) return
+  if (!await requestConfirmation({
+    title: 'PUSH 발송',
+    message: `${targetName} 사용자에게 PUSH 알림을 발송하시겠습니까?`,
+    confirmLabel: '발송',
+    confirmVariant: 'warn',
+  }, event?.currentTarget)) return
 
   // PUSH 발송 데이터
   const payload = {

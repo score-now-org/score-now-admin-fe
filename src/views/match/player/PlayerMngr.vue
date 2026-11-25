@@ -237,7 +237,7 @@
     type="button"
     class="delete-button"
     :disabled="deletingDetailId !== null"
-    @click="deletePlayerTeamDetail(player)"
+    @click="deletePlayerTeamDetail(player, $event)"
   >
     {{ deletingDetailId === player.team.playerTeamDetailId
       ? '삭제 중...'
@@ -467,6 +467,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import AdminListPage from '@/components/admin/AdminListPage.vue'
@@ -1010,16 +1011,19 @@ async function toggleSquad(team) {
 
 
 // 선수 팀 소속 정보 삭제
-async function deletePlayerTeamDetail(player) {
+const requestConfirmation = useAdminConfirm()
+
+async function deletePlayerTeamDetail(player, event) {
   const detailId = player.team?.playerTeamDetailId
 
   if (detailId == null || deletingDetailId.value !== null) return
 
-  const confirmed = window.confirm(
-    `${player.kName || player.eName} 선수의 ${player.team.teamName} 팀 소속 정보를 삭제하시겠습니까?`
-  )
-
-  if (!confirmed) return
+  if (!await requestConfirmation({
+    title: '선수 팀 소속 삭제',
+    message: `${player.kName || player.eName} 선수의 ${player.team.teamName} 팀 소속 정보를 삭제하시겠습니까?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   deletingDetailId.value = detailId
 
