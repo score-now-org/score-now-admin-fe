@@ -4,7 +4,7 @@
     title="해외 배당률 관리"
     size="xl"
     :close-disabled="busy"
-    @update:model-value="requestClose"
+    @update:model-value="(_, event) => requestClose(event)"
   >
     <div class="odds-modal">
       <MatchContextSummary :match="match" />
@@ -32,7 +32,7 @@
               :class="{ active: displayMode === 'AUTOMATIC' }"
               :aria-pressed="displayMode === 'AUTOMATIC'"
               :disabled="busy"
-              @click="requestDisplayModeChange('AUTOMATIC')"
+              @click="requestDisplayModeChange('AUTOMATIC', $event)"
             >
               자동 배당률
             </button>
@@ -41,26 +41,12 @@
               :class="{ active: displayMode === 'MANUAL' }"
               :aria-pressed="displayMode === 'MANUAL'"
               :disabled="busy"
-              @click="requestDisplayModeChange('MANUAL')"
+              @click="requestDisplayModeChange('MANUAL', $event)"
             >
               수동 배당률
             </button>
           </div>
         </section>
-
-        <div v-if="pendingDisplayMode" class="mode-confirm" role="alert">
-          <div>
-            <strong>{{ pendingDisplayMode === 'MANUAL' ? '수동 배당률로 전환할까요?' : '자동 배당률로 전환할까요?' }}</strong>
-            <small v-if="pendingDisplayMode === 'MANUAL'">활성 수동 값이 없는 마켓은 앱에 표시되지 않습니다.</small>
-            <small v-else>현재 수집된 자동 배당률만 앱에 표시됩니다.</small>
-          </div>
-          <div>
-            <BaseButton variant="outline" size="sm" :disabled="modeSaving" @click="pendingDisplayMode = ''">취소</BaseButton>
-            <BaseButton variant="primary" size="sm" :disabled="modeSaving" @click="confirmDisplayModeChange">
-              {{ modeSaving ? '변경 중' : '노출 방식 변경' }}
-            </BaseButton>
-          </div>
-        </div>
 
         <p v-if="modeError" class="mode-error" role="alert">{{ modeError }}</p>
         <p v-if="overviewRefreshError" class="mode-error" role="alert">{{ overviewRefreshError }}</p>
@@ -143,12 +129,14 @@
 
   <AdminUnsavedChangesModal
     :action="pendingAction"
+    :return-focus="pendingTrigger"
     @confirm="confirmDiscard"
     @cancel="cancelDiscard"
   />
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, reactive, ref, watch } from 'vue'
 import {
   changeOverseasOddsDisplayMode,
@@ -178,7 +166,7 @@ const displayMode = ref('AUTOMATIC')
 const latestManualMarketOdds = ref([])
 const modeSaving = ref(false)
 const modeError = ref('')
-const pendingDisplayMode = ref('')
+const requestConfirmation = useAdminConfirm()
 const formTabRef = ref(null)
 const formState = reactive({ dirty: false, canSubmit: false, saving: false })
 const historyState = reactive({ deleting: false })
@@ -193,6 +181,7 @@ const busy = computed(() => (
 const hasUnsavedChanges = computed(() => formState.dirty)
 const {
   pendingAction,
+  pendingTrigger,
   requestDiscard,
   confirmDiscard,
   cancelDiscard,
@@ -203,7 +192,6 @@ watch(
   async ([visible]) => {
     if (visible && props.match?.id) {
       activeTab.value = 'form'
-      pendingDisplayMode.value = ''
       modeError.value = ''
       overviewRefreshError.value = ''
       overviewLoaded.value = false
@@ -244,33 +232,35 @@ async function loadOverview({ silent = false } = {}) {
   }
 }
 
-function requestClose() {
-  requestDiscard('close', closeModal)
+function requestClose(event) {
+  requestDiscard('close', closeModal, event)
 }
 
 function closeModal() {
-  pendingDisplayMode.value = ''
   formTabRef.value?.resetForm()
   emit('update:modelValue', false)
 }
 
-function requestDisplayModeChange(nextMode) {
-  if (nextMode === displayMode.value || modeSaving.value) return
+async function requestDisplayModeChange(nextMode, event) {
+  if (nextMode === displayMode.value || busy.value || !props.match?.id) return
   modeError.value = ''
-  pendingDisplayMode.value = nextMode
-}
+  const manual = nextMode === 'MANUAL'
+  const confirmed = await requestConfirmation({
+    title: manual ? '수동 배당률로 전환할까요?' : '자동 배당률로 전환할까요?',
+    message: manual
+      ? '활성 수동 값이 없는 마켓은 앱에 표시되지 않습니다.'
+      : '현재 수집된 자동 배당률만 앱에 표시됩니다.',
+    confirmLabel: '노출 방식 변경',
+    initialFocus: 'confirm',
+  }, event?.currentTarget)
+  if (!confirmed || busy.value) return
 
-async function confirmDisplayModeChange() {
-  if (!pendingDisplayMode.value || !props.match?.id) return
-
-  const nextMode = pendingDisplayMode.value
   modeSaving.value = true
   modeError.value = ''
 
   try {
     await changeOverseasOddsDisplayMode(props.match.id, nextMode)
     displayMode.value = nextMode
-    pendingDisplayMode.value = ''
   } catch (error) {
     console.error('해외 배당률 노출 방식 변경에 실패했습니다.', error)
     modeError.value = apiErrorMessage(error, '배당률 노출 방식 변경에 실패했습니다.')
@@ -411,39 +401,6 @@ function apiErrorMessage(error, fallback) {
 .display-mode-toggle button:disabled {
   cursor: not-allowed;
   opacity: .55;
-}
-
-.mode-confirm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 12px;
-  background: #fff9e8;
-  border: 1px solid #f0dca0;
-  border-radius: var(--admin-control-radius);
-}
-
-.mode-confirm strong,
-.mode-confirm small {
-  display: block;
-}
-
-.mode-confirm strong {
-  color: #7c5714;
-  font-size: 11px;
-}
-
-.mode-confirm small {
-  margin-top: 4px;
-  color: #9a711f;
-  font-size: 10px;
-}
-
-.mode-confirm > div:last-child {
-  display: flex;
-  gap: 6px;
 }
 
 .mode-error {
