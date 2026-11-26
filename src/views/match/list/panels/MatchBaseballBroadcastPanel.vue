@@ -22,7 +22,7 @@
         <div class="section-head">
           <div>
             <h4 id="detail-toggle-title" class="section-title">상세 중계</h4>
-            <p class="section-desc">카운트, 주자, 투수·타자와 H/E/B 정보를 관리합니다.</p>
+            <p class="section-desc">카운트, 주자, 투수·타자 편집 영역의 표시를 설정합니다.</p>
           </div>
           <label class="toggle-label">
             <input :checked="detailedBroadcastEnabled" type="checkbox" role="switch" aria-label="상세 중계" aria-controls="baseball-detail-editors" @change="changeDetailedBroadcast($event)" />
@@ -149,6 +149,30 @@
           <BaseButton type="submit" size="sm">이닝 점수 저장</BaseButton>
         </div>
       </form>
+      <form class="work-section" @submit.prevent="saveStatistics">
+        <div class="section-head">
+          <div>
+            <h4 class="section-title">팀별 H / E / B</h4>
+            <p class="section-desc">각 팀의 안타, 실책, 사사구 수치를 수동으로 보정합니다.</p>
+          </div>
+        </div>
+        <div class="stats-grid stats-heading">
+          <span>팀</span>
+          <span>H · 안타</span>
+          <span>E · 실책</span>
+          <span>B · 사사구</span>
+        </div>
+        <div v-for="team in teams" :key="team.side" class="stats-grid">
+          <strong class="stats-team">
+            {{ team.name }}
+            <small>{{ team.side === 'away' ? '원정' : '홈' }}</small>
+          </strong>
+          <input v-for="(label, stat) in statLabels" :key="stat" v-model="statistics[team.statsField][stat]" class="number-input" type="number" min="0" step="1" :aria-label="`${team.name} ${label}`" />
+        </div>
+        <div class="action-row">
+          <BaseButton type="submit" size="sm">H/E/B 저장</BaseButton>
+        </div>
+      </form>
       <MatchCommentarySection
         ref="commentarySection"
         :match-id="match?.id"
@@ -253,30 +277,6 @@
             </form>
           </div>
         </section>
-        <form class="work-section" @submit.prevent="saveStatistics">
-          <div class="section-head">
-            <div>
-              <h4 class="section-title">팀별 H / E / B</h4>
-              <p class="section-desc">각 팀의 안타, 실책, 사사구 수치를 수동으로 보정합니다.</p>
-            </div>
-          </div>
-          <div class="stats-grid stats-heading">
-            <span>팀</span>
-            <span>H · 안타</span>
-            <span>E · 실책</span>
-            <span>B · 사사구</span>
-          </div>
-          <div v-for="team in teams" :key="team.side" class="stats-grid">
-            <strong class="stats-team">
-              {{ team.name }}
-              <small>{{ team.side === 'away' ? '원정' : '홈' }}</small>
-            </strong>
-            <input v-for="stat in ['hits', 'errors', 'basesOnBalls']" :key="stat" v-model="statistics[team.statsField][stat]" class="number-input" type="number" min="0" step="1" :aria-label="`${team.name} ${statLabels[stat]}`" />
-          </div>
-          <div class="action-row">
-            <BaseButton type="submit" size="sm">H/E/B 저장</BaseButton>
-          </div>
-        </form>
       </fieldset>
     </fieldset>
     <AdminUnsavedChangesModal :action="pendingAction" :return-focus="pendingTrigger" @confirm="confirmDiscard" @cancel="cancelDiscard" />
@@ -337,7 +337,7 @@ const currentCommentary = ref(null)
 const commentaryDirty = ref(false)
 const commentaryBusy = ref(false)
 const commentaryModalOpen = ref(false)
-const detailFields = { counts, baseStates, pitcher, batter, statistics }
+const detailFields = { counts, baseStates, pitcher, batter }
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const zeroCounts = () => ({ balls: 0, strikes: 0, outs: 0 })
 const selectedHalfInning = computed({
@@ -354,8 +354,13 @@ const currentInningLabel = computed(() => savedProgress.value.currentInningNumbe
 const pitcherTeam = computed(() => !savedProgress.value.currentHalfInning ? '이닝 미설정' : savedProgress.value.currentHalfInning === 'TOP' ? homeTeamName.value : awayTeamName.value)
 const batterTeam = computed(() => !savedProgress.value.currentHalfInning ? '이닝 미설정' : savedProgress.value.currentHalfInning === 'TOP' ? awayTeamName.value : homeTeamName.value)
 const occupiedBases = computed(() => baseStates.value.filter((base) => base.runnerOnBase).length)
-const snapshot = () => clone({ progress: progress.value, schedule: schedule.value, inningScores: inningScores.value,
-  ...Object.fromEntries(Object.entries(detailFields).map(([key, field]) => [key, field.value])) })
+const snapshot = () => clone({
+  progress: progress.value,
+  schedule: schedule.value,
+  inningScores: inningScores.value,
+  statistics: statistics.value,
+  ...Object.fromEntries(Object.entries(detailFields).map(([key, field]) => [key, field.value])),
+})
 const panelBusy = computed(() => Boolean(busy.value) || commentaryBusy.value)
 const hasUnsavedChanges = computed(() => loaded.value && (
   commentaryDirty.value || JSON.stringify(snapshot()) !== JSON.stringify(persisted.value)
@@ -370,7 +375,7 @@ defineExpose({ requestSwitch: (work, event) => {
 function inputValue(value) { return value == null ? '' : String(value) }
 function teamStats(stats) {
   return Object.fromEntries(
-    ['hits', 'errors', 'basesOnBalls'].map((field) => [field, inputValue(stats?.[field])]),
+    Object.keys(statLabels).map((field) => [field, stats?.[field] ?? '']),
   )
 }
 
@@ -429,9 +434,8 @@ function inningScoresPayload(scores) {
 }
 
 function statisticsPayload(statistics) {
-  const labels = { hits: '안타', errors: '실책', basesOnBalls: '사사구' }
   return Object.fromEntries(['homeStats', 'awayStats'].map((team) => [team,
-    Object.fromEntries(Object.entries(labels).map(([field, label]) => [
+    Object.fromEntries(Object.entries(statLabels).map(([field, label]) => [
       field, nonNegativeInteger(statistics[team][field], label),
     ])),
   ]))
@@ -477,6 +481,7 @@ function applyFullDetail(response) {
   progress.value = clone(data.progress)
   savedProgress.value = clone(data.progress)
   inningScores.value = data.inningScores
+  statistics.value = data.statistics
   savedTotals.value = data.totals
   schedule.value = data.schedule
   detailedBroadcastEnabled.value = data.detailedBroadcastEnabled
@@ -605,15 +610,18 @@ async function saveScores() {
     feedback.value = '이닝별 점수를 저장했습니다.'
   })
 }
-async function saveDetailField(key, api, payload) {
-  if (!detailsReady.value || !detailedBroadcastEnabled.value) return
-  await run(key, async (matchId, isCurrent) => {
-    const value = clone(detailFields[key].value)
+function saveField(key, field, api, payload) {
+  return run(key, async (matchId, isCurrent) => {
+    const value = clone(field.value)
     await api(matchId, payload(value))
     if (!isCurrent()) return
     persisted.value[key] = value
     feedback.value = '변경 사항을 저장했습니다.'
   })
+}
+function saveDetailField(key, api, payload) {
+  if (!detailsReady.value || !detailedBroadcastEnabled.value) return
+  return saveField(key, detailFields[key], api, payload)
 }
 function saveCounts() {
   return saveDetailField('counts', updateBaseballCount, (value) => {
@@ -628,7 +636,10 @@ function saveCounts() {
 function saveBases() { return saveDetailField('baseStates', updateBaseballBaseStates, (baseStates) => ({ baseStates })) }
 function savePitcher() { return saveDetailField('pitcher', updateBaseballPitcher, (value) => ({ pitcher: value })) }
 function saveBatter() { return saveDetailField('batter', updateBaseballBatter, (value) => ({ batter: value })) }
-function saveStatistics() { return saveDetailField('statistics', updateBaseballStatistics, statisticsPayload) }
+function saveStatistics() {
+  if (!loaded.value) return
+  return saveField('statistics', statistics, updateBaseballStatistics, statisticsPayload)
+}
 function resetPitchCounts() {
   counts.value.balls = 0
   counts.value.strikes = 0
