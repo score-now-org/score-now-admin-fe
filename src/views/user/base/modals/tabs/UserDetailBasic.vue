@@ -4,11 +4,12 @@
     <div v-if="loading" class="tab-loading">불러오는 중...</div>
 
     <!-- 테이블 -->
+    <div v-else-if="error" class="tab-loading" role="alert">{{ error }}</div>
     <table v-else class="detail-table">
       <tbody>
         <tr>
           <th>회원번호</th>
-          <td>{{ data?.id }}</td>
+          <td>{{ data?.memberId }}</td>
           <th>제공자</th>
           <td>
             <BaseBadge
@@ -92,6 +93,7 @@
 
 <script setup>
 import { ref, watch } from "vue";
+import { getMemberDetail } from "@/api/admin";
 
 const previewImg = ref(null);
 const props = defineProps({
@@ -99,48 +101,36 @@ const props = defineProps({
 });
 
 const loading = ref(false);
+const error = ref('');
 const data = ref(null);
 
-// userId 바뀔 때마다 API 호출
-watch(
-  () => props.userId,
-  async (id) => {
-    if (!id) return;
-    loading.value = true;
-    try {
-      // TODO: 실제 API 연결 시 교체
-      // const res = await api.get(`/admin/users/${id}/basic`)
-      // data.value = res.data
-      await new Promise((r) => setTimeout(r, 300));
-      data.value = {
-        id,
-        provider: "google",
-        nickname: "playerOne",
-        name: "홍길동",
-        email: "test@gmail.com",
-        socialId: "google_123",
-        countryCode: "KR",
-        warningCnt: 0,
-        status: "active",
-        profileImageUrl: null,
-        createdAt: "2025-12-29 20:00:06",
-        updatedAt: "2026-01-05 10:12:00",
-        profileImageUrl: "https://i.pravatar.cc/36?img=8",
-      };
-    } finally {
-      loading.value = false;
+watch(() => props.userId, async (id, _, onCleanup) => {
+  data.value = null;
+  error.value = '';
+  if (!id) return;
+  let cancelled = false;
+  onCleanup(() => { cancelled = true; });
+  loading.value = true;
+  try {
+    const response = await getMemberDetail(id);
+    if (!cancelled) {
+      const member = response.data.data;
+      data.value = { ...member, status: member.status?.toLowerCase(), provider: member.provider?.toLowerCase() };
     }
-  },
-  { immediate: true },
-);
+  } catch {
+    if (!cancelled) error.value = '회원 정보를 불러오지 못했습니다.';
+  } finally {
+    if (!cancelled) loading.value = false;
+  }
+}, { immediate: true });
 
 function statusLabel(status) {
   return (
-    { active: "활동중", inactive: "비활동", banned: "정지" }[status] || status
+    { active: "활동중", inactive: "비활동", banned: "정지", deleted: "탈퇴", permanently_withdrawn: "영구탈퇴" }[status] || status
   );
 }
 function statusVariant(status) {
-  return { active: "green", inactive: "gray", banned: "red" }[status] || "gray";
+  return { active: "green", inactive: "gray", banned: "red", permanently_withdrawn: "red" }[status] || "gray";
 }
 </script>
 

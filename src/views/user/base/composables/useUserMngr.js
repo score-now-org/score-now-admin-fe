@@ -1,35 +1,40 @@
-import { ref, computed, onMounted } from 'vue';
-import { getMembersList } from '@/api/admin';
+import { ref } from 'vue';
+import { getMembersList } from '../../../../api/admin.js';
 
 export function useUserMngr() {
   const users = ref([]);
   const loading = ref(false);
   const error = ref(null);
+  let latestRequest = 0;
 
   const tabs = ['회원', '경고회원', '영구탈퇴회원', '탈퇴 회원'];
   const activeTab = ref('회원');
 
   const tabFilterMap = {
     '회원': {
+      excludeWithdrawn: true,
       status: '',
       minWarningCnt: 0,
     },
     '경고회원': {
+      excludeWithdrawn: true,
       status: '',
       minWarningCnt: 1,
     },
     '영구탈퇴회원': {
-      status: 'banned',
+      status: 'permanently_withdrawn',
       minWarningCnt: 0,
     },
     '탈퇴 회원': {
-      status: 'inactive',
+      status: 'deleted',
       minWarningCnt: 0,
     },
   };
 
   const filter = ref({
+    excludeWithdrawn: true,
     nickname: '',
+    socialId: '',
     memberId: '',
     provider: '',
     createdFrom: '',
@@ -47,6 +52,7 @@ export function useUserMngr() {
 
   // 회원 목록 조회
   async function fetchUsers() {
+    const requestId = ++latestRequest;
     loading.value = true;
     error.value = null;
 
@@ -69,7 +75,12 @@ export function useUserMngr() {
 
       const response = await getMembersList(params);
 
+      if (requestId !== latestRequest) return;
       const pageData = response.data.data;
+      if (pageData.totalPages > 0 && pageData.number >= pageData.totalPages) {
+        pagination.value.currentPage = pageData.totalPages - 1;
+        return await fetchUsers();
+      }
       const raw = pageData.content;
 
       // 백엔드 데이터를 화면에서 사용할 형태로 변환
@@ -77,7 +88,13 @@ export function useUserMngr() {
         memberId: u.memberId,
         provider: u.provider?.toLowerCase(),
         nickname: u.nickname,
+        socialId: u.socialId,
         warningCnt: u.warningCnt,
+        warningReason: u.warningReason,
+        warnedAt: u.warnedAt,
+        permanentlyWithdrawnAt: u.permanentlyWithdrawnAt,
+        permanentWithdrawalReason: u.permanentWithdrawalReason,
+        deletedAt: u.deletedAt,
         countryCode: u.countryCode,
         createdAt: u.createdAt?.slice(0, 10),
         updatedAt: u.updatedAt?.slice(0, 10),
@@ -89,17 +106,18 @@ export function useUserMngr() {
       pagination.value = {
         totalElements: pageData.totalElements,
         totalPages: pageData.totalPages,
-        currentPage: pageData.number,
+        currentPage: Math.min(pageData.number, Math.max(0, pageData.totalPages - 1)),
         size: pageData.size,
       };
 
-            console.log('보낸 page:', params.page, '/ 받은 number:', pageData.number);
+
 
     } catch (e) {
+      if (requestId !== latestRequest) return;
       error.value = '목록을 불러오지 못했습니다.';
       console.error('회원목록 조회 실패:', e);
     } finally {
-      loading.value = false;
+      if (requestId === latestRequest) loading.value = false;
     }
   }
 
@@ -108,8 +126,14 @@ export function useUserMngr() {
   if (page < 0 || page > pagination.value.totalPages - 1) return;
 
   pagination.value.currentPage = page;   // ref 이므로 .value 필수!
-  fetchUsers();
+  return fetchUsers();
 }
+
+  function changePageSize(size) {
+    pagination.value.size = size;
+    pagination.value.currentPage = 0;
+    return fetchUsers();
+  }
 
   // 탭 변경
   function onTabChange(tab) {
@@ -117,41 +141,47 @@ export function useUserMngr() {
 
     filter.value = {
       nickname: '',
-      id: '',
+      socialId: '',
+      memberId: '',
       provider: '',
       createdFrom: '',
       createdTo: '',
       ...tabFilterMap[tab],
     };
 
-    fetchUsers();
+    pagination.value.currentPage = 0;
+    return fetchUsers();
   }
 
   // 검색조건 초기화
   function resetFilter() {
     filter.value = {
       nickname: '',
-      id: '',
+      socialId: '',
+      memberId: '',
       provider: '',
       createdFrom: '',
       createdTo: '',
       ...tabFilterMap[activeTab.value],
     };
 
-    fetchUsers();
+    pagination.value.currentPage = 0;
+    return fetchUsers();
   }
 
   // 검색
   function doSearch() {
     pagination.value.currentPage = 0;
-    fetchUsers();
+    return fetchUsers();
   }
 
   function statusLabel(status) {
     return {
       active: '활동중',
       inactive: '비활동',
+      deleted: '탈퇴',
       banned: '정지',
+      permanently_withdrawn: '영구탈퇴',
     }[status] || status;
   }
 
@@ -159,7 +189,9 @@ export function useUserMngr() {
     return {
       active: 'green',
       inactive: 'gray',
+      deleted: 'gray',
       banned: 'red',
+      permanently_withdrawn: 'red',
     }[status] || 'gray';
   }
 
@@ -172,6 +204,7 @@ export function useUserMngr() {
     filter,
     pagination,
     changePage,
+    changePageSize,
     fetchUsers,
     onTabChange,
     resetFilter,
