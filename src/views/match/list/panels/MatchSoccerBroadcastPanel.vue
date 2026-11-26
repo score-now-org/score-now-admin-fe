@@ -379,7 +379,7 @@
         @modal-change="commentaryModalOpen = $event"
       />
 
-      <section class="work-section">
+      <form class="work-section" @submit.prevent>
         <div class="section-head">
           <div>
             <h4 class="section-title">경기 스탯</h4>
@@ -407,6 +407,8 @@
               type="number"
               min="0"
               :max="stat.max"
+              placeholder="-"
+              :aria-label="`${homeTeamName} ${stat.label}`"
             />
           </div>
           <div class="stats-row">
@@ -419,6 +421,8 @@
               type="number"
               min="0"
               :max="stat.max"
+              placeholder="-"
+              :aria-label="`${awayTeamName} ${stat.label}`"
             />
           </div>
         </div>
@@ -429,15 +433,16 @@
 
         <div class="action-row">
           <BaseButton
+            type="button"
             variant="primary"
             size="sm"
             :disabled="isWorking('stats')"
-            @click="requestAction('stats', $event)"
+            @click="requestStatsSave"
           >
             {{ buttonLabel('stats', '스탯 저장') }}
           </BaseButton>
         </div>
-      </section>
+      </form>
     </fieldset>
 
     <BaseModal v-model="chatModalVisible" title="채팅 보기" size="lg">
@@ -700,22 +705,8 @@ function defaultScoreForm() {
 
 function defaultStatsForm() {
   return {
-    home: defaultFootballStats(),
-    away: defaultFootballStats(),
-  }
-}
-
-function defaultFootballStats() {
-  return {
-    shots: 0,
-    shotsOnTarget: 0,
-    possession: null,
-    corners: 0,
-    freeKicks: 0,
-    offsides: 0,
-    fouls: 0,
-    yellowCards: 0,
-    redCards: 0,
+    home: toFootballStatsForm(),
+    away: toFootballStatsForm(),
   }
 }
 
@@ -769,7 +760,6 @@ function applyMatchDetail(detail = {}, preserveEdits = false, affectedGroups = [
   } else {
     timeForm.value = defaultTimeForm()
     scoreForm.value = defaultScoreForm()
-    statsForm.value = defaultStatsForm()
     clockCorrectionForm.value = defaultClockCorrectionForm()
   }
   statusOptions.value = detail.statusOptions ?? []
@@ -783,8 +773,6 @@ function applyMatchDetail(detail = {}, preserveEdits = false, affectedGroups = [
   const nextFootballClock = normalizeFootballClock(footballDetail, nextClockState)
   const nextExtraTime = mergeExtraTime(timeForm.value.extraTime, footballDetail.additionalTime)
   const nextPenaltyScore = pickPenaltyScore(footballDetail.shootOutScore)
-  const nextHomeStats = mergeStats(statsForm.value.home, footballDetail.homeStats)
-  const nextAwayStats = mergeStats(statsForm.value.away, footballDetail.awayStats)
 
   timeForm.value = {
     ...timeForm.value,
@@ -809,8 +797,8 @@ function applyMatchDetail(detail = {}, preserveEdits = false, affectedGroups = [
   }
 
   statsForm.value = {
-    home: nextHomeStats,
-    away: nextAwayStats,
+    home: toFootballStatsForm(footballDetail.homeStats),
+    away: toFootballStatsForm(footballDetail.awayStats),
   }
 
   currentCommentary.value = normalizeCurrentComment(detail)
@@ -842,6 +830,10 @@ function normalizeCurrentComment(detail = {}) {
     highlight: Boolean(detail.currentCommentaryHighlighted),
     recorded: true,
   }
+}
+
+function requestStatsSave(event) {
+  if (event.currentTarget.form.reportValidity()) return requestAction('stats', event)
 }
 
 async function requestAction(action, event) {
@@ -1074,17 +1066,11 @@ function applyFootballDetailUpdatePayload(payload) {
   }
 
   if (payload.homeStats) {
-    statsForm.value.home = {
-      ...statsForm.value.home,
-      ...payload.homeStats,
-    }
+    statsForm.value.home = toFootballStatsForm(payload.homeStats)
   }
 
   if (payload.awayStats) {
-    statsForm.value.away = {
-      ...statsForm.value.away,
-      ...payload.awayStats,
-    }
+    statsForm.value.away = toFootballStatsForm(payload.awayStats)
   }
 
   if (Object.keys(listPatch).length) {
@@ -1162,7 +1148,7 @@ function validateAction(action) {
   }
 
   if (action === 'stats' && !isValidNonPossessionStats()) {
-    alert('경기 스탯은 0 이상의 정수로 입력해주세요.')
+    alert('경기 스탯은 비워두거나 0 이상의 정수를 입력해 주세요.')
     return false
   }
 
@@ -1280,14 +1266,11 @@ function isValidShootOutScore() {
 }
 
 function isValidNonPossessionStats() {
-  return statFields
-    .filter((stat) => stat.key !== 'possession')
-    .every((stat) => (
-      isNonNegativeIntegerValue(statsForm.value.home[stat.key])
-        && isNonNegativeIntegerValue(statsForm.value.away[stat.key])
-        && (stat.max == null || Number(statsForm.value.home[stat.key]) <= stat.max)
-        && (stat.max == null || Number(statsForm.value.away[stat.key]) <= stat.max)
-    ))
+  return [statsForm.value.home, statsForm.value.away].every((stats) =>
+    statFields.every(({ key }) => (
+      key === 'possession' || isBlankStatValue(stats[key]) || isNonNegativeIntegerValue(stats[key])
+    )),
+  )
 }
 
 function isValidPossession() {
@@ -1331,7 +1314,7 @@ function getKstNowDateTime() {
 
 function buildStatsPayload(stats) {
   return statFields.reduce((payload, stat) => {
-    payload[stat.key] = stat.key === 'possession' && isBlankStatValue(stats[stat.key])
+    payload[stat.key] = isBlankStatValue(stats[stat.key])
       ? null
       : toNonNegativeInteger(stats[stat.key])
     return payload
@@ -1478,16 +1461,11 @@ function pickPenaltyScore(shootOutScore) {
   }
 }
 
-function mergeStats(currentStats, nextStats) {
-  if (!nextStats) return { ...currentStats }
-
-  return statFields.reduce((mergedStats, stat) => {
-    if (nextStats[stat.key] != null) {
-      mergedStats[stat.key] = Number(nextStats[stat.key])
-    }
-
-    return mergedStats
-  }, { ...currentStats })
+function toFootballStatsForm(stats) {
+  return Object.fromEntries(statFields.map(({ key }) => {
+    const value = stats?.[key]
+    return [key, isBlankStatValue(value) ? '' : Number(value)]
+  }))
 }
 
 function firstDefined(...values) {

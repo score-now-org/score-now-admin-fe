@@ -167,7 +167,17 @@
             {{ team.name }}
             <small>{{ team.side === 'away' ? '원정' : '홈' }}</small>
           </strong>
-          <input v-for="(label, stat) in statLabels" :key="stat" v-model="statistics[team.statsField][stat]" class="number-input" type="number" min="0" step="1" :aria-label="`${team.name} ${label}`" />
+          <input
+            v-for="(label, stat) in statLabels"
+            :key="stat"
+            v-model="statistics[team.statsField][stat]"
+            class="number-input"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="-"
+            :aria-label="`${team.name} ${label}`"
+          />
         </div>
         <div class="action-row">
           <BaseButton type="submit" size="sm">H/E/B 저장</BaseButton>
