@@ -1,19 +1,16 @@
 <template>
   <AdminListPage title="상단고정/핫매치">
-    <template #header-actions>
-      <BaseButton variant="success" size="md" @click="openRegisterModal">
-        + 경기 등록
-      </BaseButton>
-    </template>
-
-    <AdminFilterCard aria-label="경기 조회 조건">
+    <AdminFilterCard aria-label="경기 검색 조건">
       <div class="field-group featured-date-field">
         <label for="featured-date">경기 시작일</label>
         <BaseInput id="featured-date" v-model="searchDate" type="date" />
       </div>
       <template #actions>
         <BaseButton variant="primary" size="md" :disabled="matchesLoading" @click="applySearch">
-          {{ matchesLoading ? '조회 중' : '조회' }}
+          {{ matchesLoading ? '검색 중' : '검색' }}
+        </BaseButton>
+        <BaseButton variant="success" size="md" @click="openRegisterModal">
+          + 경기 등록
         </BaseButton>
       </template>
     </AdminFilterCard>
@@ -89,7 +86,7 @@
                 </div>
               </td>
               <td>
-                <BaseButton variant="danger" size="sm" :disabled="deletingId === match.featuredMatchId" @click="removeMatch(match)">
+                <BaseButton variant="danger" size="sm" :disabled="deletingId !== null" @click="removeMatch(match, $event)">
                   {{ deletingId === match.featuredMatchId ? '삭제 중' : '삭제' }}
                 </BaseButton>
               </td>
@@ -230,6 +227,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onMounted, ref } from 'vue'
 import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
 import AdminListPage from '@/components/admin/AdminListPage.vue'
@@ -352,9 +350,16 @@ async function moveMatch(match, direction) {
   }
 }
 
-async function removeMatch(match) {
-  const confirmed = window.confirm(`${match.homeTeam} vs ${match.awayTeam} 경기의 ${featuredTypeLabel(match.featuredType)} 설정을 삭제할까요?`)
-  if (!confirmed) return
+const requestConfirmation = useAdminConfirm()
+
+async function removeMatch(match, event) {
+  if (deletingId.value !== null) return
+  if (!await requestConfirmation({
+    title: '노출 경기 설정 삭제',
+    message: `${match.homeTeam} vs ${match.awayTeam} 경기의 ${featuredTypeLabel(match.featuredType)} 설정을 삭제할까요?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   deletingId.value = match.featuredMatchId
   try {
@@ -451,7 +456,7 @@ function applyFeaturedMatchesResponse(response) {
     .map(normalizeFeaturedMatch)
     .sort((a, b) => a.displayOrder - b.displayOrder)
 
-  featuredMatches.value = [...pinnedMatches, ...hotMatches]
+  featuredMatches.value = [...hotMatches, ...pinnedMatches]
 }
 
 function normalizeFeaturedMatch(match) {

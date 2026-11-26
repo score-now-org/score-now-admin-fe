@@ -40,22 +40,9 @@
           variant="danger"
           size="sm"
           :disabled="loading || deleting || allHistoryCount === 0"
-          @click="requestInvalidateAll"
+          @click="invalidateHistory(null, $event)"
         >
           전체 삭제
-        </BaseButton>
-      </div>
-    </div>
-
-    <div v-if="pendingInvalidation" class="invalidation-confirm" role="alert">
-      <div>
-        <strong>{{ invalidationConfirmTitle }}</strong>
-        <small>{{ invalidationConfirmDescription }}</small>
-      </div>
-      <div class="confirm-actions">
-        <BaseButton variant="outline" size="sm" :disabled="deleting" @click="pendingInvalidation = null">취소</BaseButton>
-        <BaseButton variant="danger" size="sm" :disabled="deleting" @click="confirmInvalidation">
-          {{ deleting ? '처리 중' : '삭제' }}
         </BaseButton>
       </div>
     </div>
@@ -135,7 +122,7 @@
                   variant="danger"
                   size="sm"
                   :disabled="deleting || history.status !== 'ACTIVE'"
-                  @click="requestInvalidateOne(history)"
+                  @click="invalidateHistory(history, $event)"
                 >
                   {{ history.status === 'ACTIVE' ? '삭제' : '삭제됨' }}
                 </BaseButton>
@@ -149,6 +136,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import {
   getOverseasManualOddsHistories,
@@ -182,7 +170,7 @@ const loadError = ref('')
 const actionError = ref('')
 const deleting = ref(false)
 const loaded = ref(false)
-const pendingInvalidation = ref(null)
+const requestConfirmation = useAdminConfirm()
 let requestSequence = 0
 
 const marketOptions = computed(() => [
@@ -193,17 +181,6 @@ const marketOptions = computed(() => [
 const allMarketsSelected = computed(() => selectedMarketTypes.value.length === allMarketTypes.length)
 const initialLoading = computed(() => loading.value && !loaded.value)
 const refreshing = computed(() => loading.value && loaded.value)
-const invalidationConfirmTitle = computed(() => (
-  pendingInvalidation.value?.type === 'all'
-    ? '모든 활성 수동 배당률을 삭제할까요?'
-    : '선택한 수동 배당률을 삭제할까요?'
-))
-const invalidationConfirmDescription = computed(() => (
-  pendingInvalidation.value?.type === 'all'
-    ? '수동 노출 중이라면 앱에서 배당률이 보이지 않을 수 있습니다. 내역은 삭제 상태로 보존됩니다.'
-    : '무효화된 내역은 앱에 노출되지 않으며 내역에는 삭제 상태로 보존됩니다.'
-))
-
 watch(
   () => props.active,
   (active) => {
@@ -280,29 +257,28 @@ async function changePage(nextPage) {
   await fetchHistories()
 }
 
-function requestInvalidateOne(history) {
+async function invalidateHistory(history, event) {
+  if (deleting.value || !props.matchId) return
   actionError.value = ''
-  pendingInvalidation.value = { type: 'one', history }
-}
-
-function requestInvalidateAll() {
-  actionError.value = ''
-  pendingInvalidation.value = { type: 'all' }
-}
-
-async function confirmInvalidation() {
-  if (!pendingInvalidation.value || deleting.value) return
+  const confirmed = await requestConfirmation({
+    title: history ? '선택한 수동 배당률을 삭제할까요?' : '모든 활성 수동 배당률을 삭제할까요?',
+    message: history
+      ? '무효화된 내역은 앱에 노출되지 않으며 내역에는 삭제 상태로 보존됩니다.'
+      : '수동 노출 중이라면 앱에서 배당률이 보이지 않을 수 있습니다. 내역은 삭제 상태로 보존됩니다.',
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)
+  if (!confirmed || deleting.value) return
 
   deleting.value = true
   actionError.value = ''
 
   try {
-    if (pendingInvalidation.value.type === 'all') {
-      await invalidateAllOverseasManualOddsHistories(props.matchId)
+    if (history) {
+      await invalidateOverseasManualOddsHistory(props.matchId, history.id)
     } else {
-      await invalidateOverseasManualOddsHistory(props.matchId, pendingInvalidation.value.history.id)
+      await invalidateAllOverseasManualOddsHistories(props.matchId)
     }
-    pendingInvalidation.value = null
     await fetchHistories()
     emit('changed')
   } catch (error) {
@@ -448,35 +424,6 @@ function apiErrorMessage(error, fallback) {
 .filter-option.disabled {
   cursor: not-allowed;
   opacity: .55;
-}
-
-.invalidation-confirm {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 12px;
-  color: #8e3b42;
-  background: #fff6f6;
-  border: 1px solid #f1c6ca;
-  border-radius: var(--admin-control-radius);
-}
-
-.invalidation-confirm strong,
-.invalidation-confirm small {
-  display: block;
-}
-
-.invalidation-confirm small {
-  margin-top: 4px;
-  color: #9d5a60;
-  font-size: 10px;
-}
-
-.confirm-actions {
-  display: flex;
-  gap: 6px;
 }
 
 .action-error {
