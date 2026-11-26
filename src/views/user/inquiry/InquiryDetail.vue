@@ -16,34 +16,36 @@
       </section>
       <section class="section">
         <h3>답변</h3>
-        <div class="editor-toolbar" aria-label="답변 서식">
-          <button v-for="tool in tools" :key="tool.command" type="button" :aria-label="tool.label" :disabled="busy" @mousedown.prevent @click="format(tool.command)">{{ tool.text }}</button>
-        </div>
-        <div ref="editor" class="editor" contenteditable="true" role="textbox" aria-label="답변 내용" aria-multiline="true" :aria-disabled="busy" @input="onInput" @paste.prevent="pasteText" />
-        <p class="help">굵게, 기울임, 밑줄, 취소선과 목록을 지원합니다. {{ textLength }} / 10000자</p>
+        <InquiryAnswerToolbar :editor="editor" :disabled="busy || unsupportedExistingFormat" :extended="formattingSupported" @change="onInput" @error="error = $event" />
+        <div ref="editor" class="editor" :contenteditable="!unsupportedExistingFormat" role="textbox" aria-label="답변 내용" aria-multiline="true" :aria-disabled="busy" :aria-readonly="unsupportedExistingFormat" @input="onInput" @paste.prevent="pasteText" />
+        <p class="help">서식을 적용할 텍스트를 선택해 주세요. {{ textLength }} / 10000자</p>
+        <p v-if="!formattingSupported" class="help" role="status">서버에서 확장 서식을 지원하지 않아 기본 서식만 사용할 수 있습니다.</p>
+        <p v-if="unsupportedExistingFormat" class="help" role="status">기존 확장 서식을 보존하기 위해 서버 업데이트 후 수정할 수 있습니다.</p>
         <p v-if="error" role="alert" class="error">{{ error }}</p>
       </section>
     </template>
-    <template #footer><BaseButton variant="outline" :disabled="busy" @click="close">취소</BaseButton><BaseButton :disabled="loading || busy || !item || !dirty || !textLength || textLength > 10000" @click="save">{{ busy ? '저장 중...' : item?.status === 'ANSWERED' ? '수정' : '답변완료' }}</BaseButton></template>
+    <template #footer><BaseButton variant="outline" :disabled="busy" @click="close">취소</BaseButton><BaseButton :disabled="loading || busy || unsupportedExistingFormat || !item || !dirty || !textLength || textLength > 10000" @click="save">{{ busy ? '저장 중...' : item?.status === 'ANSWERED' ? '수정' : '답변완료' }}</BaseButton></template>
   </BaseModal>
 </template>
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseTextarea from '@/components/common/BaseTextarea.vue'
-import { getInquiry, getInquiryAttachment, saveInquiryAnswer } from '@/api/adminInquiry.js'
+import InquiryAnswerToolbar from './InquiryAnswerToolbar.vue'
+import { getInquiry, getInquiryAttachment, getInquiryFormattingCapabilities, saveInquiryAnswer } from '@/api/adminInquiry.js'
 import { attachmentName, imageContentType } from './inquiryFile.js'
 const props = defineProps({ id: { type: Number, required: true } })
 const emit = defineEmits(['close', 'saved'])
-const item = ref(null), editor = ref(null), loading = ref(true), busy = ref(false), error = ref(''), dirty = ref(false), textLength = ref(0)
+const item = ref(null), editor = ref(null), loading = ref(true), busy = ref(false), error = ref(''), dirty = ref(false), textLength = ref(0), formattingSupported = ref(false)
 const imageLoading = ref(false), imageError = ref(''), imageUrl = ref(''), downloadName = ref(''), previewType = ref('')
+const unsupportedExistingFormat = computed(() => !formattingSupported.value && /<(?:span|table|thead|tbody|tr|td|th)\b|\sstyle\s*=/i.test(item.value?.answerHtml || ''))
 let initialHtml = '', active = true
-const tools = [ { command: 'bold', label: '굵게', text: 'B' }, { command: 'italic', label: '기울임', text: 'I' }, { command: 'underline', label: '밑줄', text: 'U' }, { command: 'strikeThrough', label: '취소선', text: 'S' }, { command: 'insertUnorderedList', label: '글머리 목록', text: '• 목록' }, { command: 'insertOrderedList', label: '번호 목록', text: '1. 목록' } ]
 async function load() {
   loading.value = true; error.value = ''
   try {
-    const response = await getInquiry(props.id); if (!active) return
+    const [response, capabilities] = await Promise.all([getInquiry(props.id), getInquiryFormattingCapabilities().catch(() => null)]); if (!active) return
+    formattingSupported.value = capabilities?.data?.data?.richFormatting === true
     item.value = response.data.data; loading.value = false; await nextTick()
     if (!active || !editor.value) return
     if (item.value.answerHtml) editor.value.innerHTML = item.value.answerHtml
@@ -64,11 +66,10 @@ async function loadAttachment() {
   finally { if (active) imageLoading.value = false }
 }
 function onInput() { if (!editor.value) return; dirty.value = editor.value.innerHTML !== initialHtml; textLength.value = (editor.value.innerText || '').trim().length }
-function format(command) { editor.value?.focus(); document.execCommand(command, false); onInput() }
 function pasteText(event) { document.execCommand('insertText', false, event.clipboardData.getData('text/plain')); onInput() }
 function close() { if (busy.value) return; if (dirty.value && !window.confirm('작성 중인 답변을 버리시겠습니까?')) return; emit('close') }
 async function save() {
-  if (!editor.value || busy.value) return
+  if (!editor.value || busy.value || unsupportedExistingFormat.value) return
   const content = (editor.value.innerText || '').trim(), contentHtml = editor.value.innerHTML
   if (!content || content.length > 10000 || contentHtml.length > 10000) { error.value = '답변은 서식을 포함해 10,000자 이내로 입력해 주세요.'; return }
   busy.value = true; error.value = ''; editor.value.contentEditable = 'false'
@@ -87,10 +88,10 @@ h3 { margin: 0 0 12px; font-size: 13px; }
 .label { display: block; margin: 12px 0 6px; font-weight: 700; color: var(--admin-color-text-label); }
 .attachment { min-height: 70px; padding: 12px; text-align: center; border: 1px dashed var(--admin-color-control-border); }
 .attachment img { max-width: 100%; max-height: 260px; object-fit: contain; }
-.editor-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; background: var(--admin-color-table-heading-surface); border: 1px solid var(--admin-color-control-border); }
-.editor-toolbar button { padding: 4px 8px; background: white; border: 1px solid var(--admin-color-control-border); border-radius: 4px; cursor: pointer; }
 .editor { min-height: 200px; padding: 10px; overflow-wrap: anywhere; white-space: pre-wrap; border: 1px solid var(--admin-color-control-border); }
 .editor:focus-visible { outline: 2px solid var(--admin-color-primary); }
+.editor :deep(table) { border-collapse: collapse; width: 100%; }
+.editor :deep(td), .editor :deep(th) { border: 1px solid var(--admin-color-control-border); min-width: 50px; padding: 4px; }
 .help { color: var(--admin-color-text-muted); }
 .error { color: #c53c46; }
 </style>
