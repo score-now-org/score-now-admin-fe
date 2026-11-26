@@ -107,7 +107,7 @@
                       size="sm"
                       :disabled="stadium.dataOrigin !== 'MANUAL' || isRowBusy(stadium.id)"
                       :title="stadium.dataOrigin !== 'MANUAL' ? '수동 등록된 경기장만 삭제할 수 있습니다.' : ''"
-                      @click="deleteStadium(stadium)"
+                      @click="deleteStadium(stadium, $event)"
                     >삭제</BaseButton>
                   </div>
                 </td>
@@ -172,6 +172,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onMounted, reactive, ref } from 'vue'
 import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
 import AdminListPage from '@/components/admin/AdminListPage.vue'
@@ -352,9 +353,16 @@ async function saveStadium(stadium) {
   }
 }
 
-async function deleteStadium(stadium) {
+const requestConfirmation = useAdminConfirm()
+
+async function deleteStadium(stadium, event) {
   if (stadium.dataOrigin !== 'MANUAL') return
-  if (!window.confirm(`${stadium.name} 경기장을 삭제하시겠습니까?`)) return
+  if (!await requestConfirmation({
+    title: '경기장 삭제',
+    message: `${stadium.name} 경기장을 삭제하시겠습니까?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   setIdBusy(stadium.id, true)
   try {
