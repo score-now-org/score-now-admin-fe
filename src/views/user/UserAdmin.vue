@@ -9,6 +9,8 @@
         <!-- 회원 -->
         <MemberSection   v-if="activeSidebar === '회원'" />
 
+        <div v-else-if="activeSidebar === '채팅'" class="chat-content"><ChatSection /></div>
+
         <!-- 버전 관리 -->
         <VersionSection  v-else-if="activeSidebar === '버전 관리'" />
 
@@ -27,6 +29,7 @@
 import { ref, watch } from 'vue'
 import MemberSection  from './base/UserMngr.vue'
 import VersionSection from './version/VersionMngr.vue'
+import ChatSection from './chat/ChatMngr.vue'
 import InquirySection from './inquiry/InquiryMngr.vue'
 
 const activeSidebar = ref('회원')
@@ -55,7 +58,7 @@ watch(activeSidebar, value => { if (value === '문의하기') inquiryOpened.valu
   flex-direction: column;
   overflow: auto;
 }
-.inquiry-content { container-name: admin-content; container-type: inline-size; }
+.chat-content, .inquiry-content { container-name: admin-content; container-type: inline-size; }
 .coming-soon {
   display: flex;
   align-items: center;
