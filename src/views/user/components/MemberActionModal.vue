@@ -11,6 +11,14 @@
       </template>
       <template v-else>
         <p>{{ title }} 처리하시겠습니까?</p>
+        <template v-if="action === 'BAN'">
+          <label for="member-ban-duration">정지 기간</label>
+          <BaseSelect id="member-ban-duration" v-model="duration">
+            <option value="">직접 해제할 때까지</option>
+            <option value="WEEK">1주</option>
+            <option value="MONTH">1개월</option>
+          </BaseSelect>
+        </template>
         <label for="member-action-reason">사유{{ action === 'RESTORE' ? ' (선택)' : '' }}</label>
         <BaseTextarea id="member-action-reason" v-model="reason" maxlength="500" placeholder="사유를 입력하세요." />
       </template>
@@ -29,10 +37,10 @@ const props = defineProps({ modelValue: Boolean, userId: Number, action: { type:
 const emit = defineEmits(['update:modelValue', 'completed'])
 const labels = { EDIT: '회원 정보 수정', WARN: '경고', BAN: '이용정지', PERMANENT_WITHDRAWAL: '영구탈퇴', RESTORE: '복구', DELETE_PROFILE_IMAGE: '프로필 사진 삭제' }
 const title = computed(() => labels[props.action] || '회원 처리')
-const name = ref(''), countryCode = ref(''), reason = ref(''), saving = ref(false), loading = ref(false), ready = ref(false), error = ref('')
+const name = ref(''), countryCode = ref(''), reason = ref(''), duration = ref(''), saving = ref(false), loading = ref(false), ready = ref(false), error = ref('')
 watch(() => [props.modelValue, props.userId, props.action], async ([open, id, action], _, onCleanup) => {
   if (!open || !id) return
-  error.value = ''; reason.value = ''; name.value = ''; countryCode.value = ''; loading.value = false; ready.value = action !== 'EDIT'
+  error.value = ''; reason.value = ''; duration.value = ''; name.value = ''; countryCode.value = ''; loading.value = false; ready.value = action !== 'EDIT'
   if (action !== 'EDIT') return
   let cancelled = false
   onCleanup(() => { cancelled = true })
@@ -48,7 +56,8 @@ async function submit() {
   saving.value = true
   try {
     if (props.action === 'EDIT') await updateMember(props.userId, { name: name.value, countryCode: countryCode.value })
-    else await applyMemberAction(props.userId, { action: props.action, reason: reason.value })
+    // Older servers reject the new action instead of silently treating a timed ban as indefinite.
+    else await applyMemberAction(props.userId, { action: props.action === 'BAN' && duration.value ? `BAN_${duration.value}` : props.action, reason: reason.value })
     emit('update:modelValue', false); emit('completed')
   } catch (err) { error.value = err.response?.data?.error?.message || '처리하지 못했습니다. 다시 시도해 주세요.' }
   finally { saving.value = false }
