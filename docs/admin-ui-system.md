@@ -75,7 +75,7 @@
 | 컴포넌트 | 책임 |
 |---|---|
 | `AdminListPage` | 페이지 제목, 전체 여백, 요약·헤더 액션 슬롯 |
-| `AdminFilterCard` | 조회 필드와 필드 바로 뒤의 초기화·조회 액션 배치 |
+| `AdminFilterCard` | 검색 필드와 필드 바로 뒤의 액션 배치 |
 | `AdminTableCard` | 결과 요약, 툴바, 테이블 내부 가로 스크롤 |
 | `AdminTablePagination` | 페이지 크기, 현재 페이지, 이전·다음 이동 |
 | `AdminTableState` | 로딩, 오류, 빈 결과 행 |
@@ -92,6 +92,7 @@
 | `AdminSportBadge` | 종목 레이블과 종목별 색상 조합 |
 | `AdminDataOriginBadge` | 데이터 원천 레이블과 색상 조합 |
 | `BaseModal` | 오버레이, 헤더, 본문 스크롤, 하단 액션 |
+| `AdminConfirmModal` | 확인·취소 버튼과 초기 포커스 |
 
 `BaseButton`, `BaseInput`, `BaseSelect`, `BaseTextarea`, `BaseBadge`, `BaseModal`은 전역 등록되어 있다. 화면에서 명시적으로 import할지는 기존 파일의 작성 방식과 테스트 환경을 따른다.
 
@@ -130,7 +131,7 @@
     <BaseButton variant="success">+ 등록</BaseButton>
   </template>
 
-  <AdminFilterCard aria-label="조회 조건">
+  <AdminFilterCard aria-label="검색 조건">
     <div class="field-group">
       <label for="keyword">검색어</label>
       <BaseInput id="keyword" v-model="searchForm.keyword" />
@@ -138,7 +139,7 @@
 
     <template #actions>
       <BaseButton variant="secondary">초기화</BaseButton>
-      <BaseButton variant="primary">조회</BaseButton>
+      <BaseButton variant="primary">검색</BaseButton>
     </template>
   </AdminFilterCard>
 
@@ -159,12 +160,11 @@
 
 - 필드는 `field-group` 안에 레이블과 컨트롤을 세로로 배치한다.
 - 필드 폭은 데이터 성격에 맞게 페이지에서 지정하되, 작은 화면에서는 폭을 `100%`로 전환한다.
-- 조회 액션 순서는 기본적으로 `초기화 → 조회`다.
-- 조회 액션은 마지막 조회 필드 바로 뒤에 배치하며, 남는 공간을 채우기 위해 카드 오른쪽 끝으로 밀지 않는다.
-- 등록처럼 검색 조건과 무관한 페이지 주요 액션은 `AdminListPage`의 `header-actions`에 배치한다.
-- 조회 액션 영역은 작은 화면에서 다음 줄에 배치할 수 있다.
+- 목록의 검색 실행 버튼은 `검색`으로 표시한다. 진행 상태를 버튼에 표시할 때는 `검색 중`을 사용한다.
+- 검색 액션 순서는 기본적으로 `초기화 → 검색`이다. 마지막 검색 필드 바로 뒤에 배치하며, 카드 오른쪽 끝으로 밀지 않는다.
+- 등록처럼 검색 조건과 무관한 페이지 주요 액션의 기본 위치는 `AdminListPage`의 `header-actions`다. 경기 리스트와 상단고정/핫매치에서는 검색과 등록을 연이어 수행할 수 있도록 `AdminFilterCard`의 `actions`에 `검색 → + 경기 등록` 순서로 배치한다.
+- 작은 화면에서는 액션 영역을 다음 줄에 배치할 수 있다. 검색과 등록을 같은 영역에 둘 때는 두 버튼의 순서를 유지한다.
 - 날짜·시간·일반 검색에는 `BaseInput`, 선택에는 `BaseSelect`를 사용한다.
-- 필터와 관련 없는 화면 주요 액션은 `header-actions`를 사용한다.
 - 비슷하게 보인다는 이유만으로 서로 다른 의미의 필드를 하나의 컴포넌트로 합치지 않는다.
 
 ## 9. 버튼 우선순위
@@ -272,6 +272,8 @@
 - 필드는 `modal-field`, 레이블은 `modal-label`, 도움말은 `modal-help`, 오류는 `modal-error`를 우선 사용한다.
 - 작은 화면에서는 모달을 가용 폭에 맞추고 2열 폼을 1열로 전환한다.
 - 모달 하단에는 취소·확정처럼 모달 전체에 영향을 주는 액션만 둔다.
+- 공통 확인창은 `AdminConfirmModal`을 사용한다. 일반 저장·변경은 확인에, 삭제·해제·외부 동기화·미저장 입력 폐기는 취소 또는 계속 편집에 초기 포커스를 둔다. 경기 Phase 전환과 경기 시작일 변경에도 취소를 기본으로 둔다.
+- Enter는 포커스된 버튼을 실행하고 Escape는 확인창을 닫는다. 확인창을 닫으면 화면에 남아 있는 호출 버튼으로 포커스를 돌린다. 요청 처리 중에는 같은 작업을 다시 실행하지 않는다.
 
 ### 경기 대상 관리 모달
 
@@ -380,6 +382,7 @@ viewport 미디어 쿼리와 container query를 혼용해야 한다면 적용 �
 - 섹션 저장 버튼은 입력 아래 왼쪽에 둔다. 액션 행 상단 간격은 `12px`, 버튼 간격은 `8px`이며 좁은 화면에서 줄바꿈을 허용한다.
 - 이 규칙은 중계 패널의 섹션 액션에 적용한다. 모달 하단 버튼의 오른쪽 정렬 규칙과 구분한다.
 - 상태 입력이나 전광판처럼 관련 입력을 묶는 내부 편집 영역에는 제한적으로 배경·테두리를 사용할 수 있다.
+- 중계 멘트 입력칸에서 Enter로 등록하고 Shift+Enter로 줄바꿈한다. 멘트 저장 버튼도 같은 등록 동작을 실행한다. 한글 조합 중에는 Enter가 조합 입력에 사용되며, 저장이 실패하면 작성한 멘트를 유지한다.
 
 ### 종목별 편집 UI와 색상
 

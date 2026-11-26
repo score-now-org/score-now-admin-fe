@@ -451,8 +451,8 @@
                       variant="outline"
                       size="sm"
                       class="row-action-secondary"
-                      :disabled="standingTypeValue(standing) !== 'EXTERNAL_DATA'"
-                      @click="syncStandingsData(standing)"
+                      :disabled="standingsSyncing || standingTypeValue(standing) !== 'EXTERNAL_DATA'"
+                      @click="syncStandingsData(standing, $event)"
                     >
                       외부 동기화
                     </BaseButton>
@@ -1058,6 +1058,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onMounted, ref, watch } from 'vue'
 import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
 import AdminListPage from '@/components/admin/AdminListPage.vue'
@@ -1665,8 +1666,16 @@ async function saveLeagueSyncEnabled() {
   }
 }
 
-async function removeLeague(league) {
-  if (!confirm(`리그 ${displayLeagueName(league)}을 삭제하시겠습니까?`)) return
+const requestConfirmation = useAdminConfirm()
+const standingsSyncing = ref(false)
+
+async function removeLeague(league, event) {
+  if (!await requestConfirmation({
+    title: '리그 삭제',
+    message: `리그 ${displayLeagueName(league)}을 삭제하시겠습니까?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   try {
     await deleteAdminLeague(league.id)
@@ -1921,8 +1930,13 @@ function buildSeasonEditPayload() {
   }
 }
 
-async function removeLeagueSeason(season) {
-  if (!confirm(`리그 시즌 ${season.leagueSeasonName || season.leagueSeasonId}을 삭제하시겠습니까?`)) return
+async function removeLeagueSeason(season, event) {
+  if (!await requestConfirmation({
+    title: '리그 시즌 삭제',
+    message: `리그 시즌 ${season.leagueSeasonName || season.leagueSeasonId}을 삭제하시겠습니까?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   try {
     await deleteLeagueSeason(season.leagueSeasonId)
@@ -2086,8 +2100,16 @@ async function saveStandingImage() {
   }
 }
 
-async function syncStandingsData(standing) {
-  if (!confirm(`${standing.leagueName || standing.leagueSeasonId} 순위 데이터를 동기화하시겠습니까?`)) return
+async function syncStandingsData(standing, event) {
+  if (standingsSyncing.value) return
+  if (!await requestConfirmation({
+    title: '순위 데이터 동기화',
+    message: `${standing.leagueName || standing.leagueSeasonId} 순위 데이터를 동기화하시겠습니까?`,
+    confirmLabel: '동기화',
+    confirmVariant: 'warn',
+  }, event?.currentTarget)) return
+
+  standingsSyncing.value = true
 
   try {
     await syncLeagueSeasonStandingsData(standing.leagueSeasonId)
@@ -2095,6 +2117,8 @@ async function syncStandingsData(standing) {
   } catch (error) {
     console.error('순위 외부 데이터 동기화에 실패했습니다.', error)
     alert(extractApiErrorMessage(error, '순위 외부 데이터 동기화에 실패했습니다.'))
+  } finally {
+    standingsSyncing.value = false
   }
 }
 
@@ -2175,8 +2199,13 @@ async function saveGroupMappings() {
   }
 }
 
-async function removeStandings(standing) {
-  if (!confirm(`리그 시즌 ${standing.seasonName || standing.leagueSeasonId}의 순위 관리를 삭제하시겠습니까?`)) return
+async function removeStandings(standing, event) {
+  if (!await requestConfirmation({
+    title: '순위 관리 삭제',
+    message: `리그 시즌 ${standing.seasonName || standing.leagueSeasonId}의 순위 관리를 삭제하시겠습니까?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   try {
     await deleteLeagueSeasonStandings(standing.leagueSeasonId)
