@@ -69,6 +69,10 @@
           </td>
         </tr>
         <tr>
+          <th>정지 종료일</th>
+          <td colspan="3">{{ data?.banExpiresAt ? new Date(data.banExpiresAt).toLocaleString('ko-KR') : '-' }}</td>
+        </tr>
+        <tr>
           <th>가입일</th>
           <td>{{ data?.createdAt }}</td>
           <th>최근수정일</th>

@@ -3,7 +3,7 @@
     <p v-if="loading" role="status">이력을 불러오는 중입니다.</p>
     <p v-else-if="error" role="alert">{{ error }}</p>
     <p v-else-if="!items.length">기록된 제재 이력이 없습니다.</p>
-    <ul v-else class="history-list"><li v-for="item in items" :key="item.id"><strong>{{ label(item.action) }}</strong><span>{{ item.reason || '사유 없음' }}</span><small>{{ format(item.createdAt) }}</small></li></ul>
+    <ul v-else class="history-list"><li v-for="item in items" :key="item.id"><strong>{{ label(item.action, item.duration) }}</strong><span>{{ item.reason || '사유 없음' }}</span><small>{{ format(item.createdAt) }}</small></li></ul>
     <template #footer><BaseButton variant="outline" @click="$emit('update:modelValue', false)">닫기</BaseButton></template>
   </BaseModal>
 </template>
@@ -22,7 +22,10 @@ watch(() => [props.modelValue, props.userId], async ([open, userId], _, onCleanu
   catch { if (!cancelled) error.value = '제재 이력을 불러오지 못했습니다.' }
   finally { if (!cancelled) loading.value = false }
 }, { immediate: true })
-function label(action) { return ({ WARN: '경고', BAN: '정지', PERMANENT_WITHDRAWAL: '영구탈퇴', RESTORE: '복구', DELETE_PROFILE_IMAGE: '프로필 사진 삭제' })[action] || action }
+function label(action, duration) {
+  if (action === 'BAN' && duration) return `정지 (${duration === 'WEEK' ? '1주' : duration === 'MONTH' ? '1개월' : duration})`
+  return ({ WARN: '경고', BAN: '정지', PERMANENT_WITHDRAWAL: '영구탈퇴', RESTORE: '복구', DELETE_PROFILE_IMAGE: '프로필 사진 삭제' })[action] || action
+}
 function format(value) { return value ? value.replace('T', ' ').slice(0, 19) : '-' }
 </script>
 <style scoped>
