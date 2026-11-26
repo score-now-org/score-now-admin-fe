@@ -19,9 +19,10 @@
         <VersionSection  v-else-if="activeSidebar === '버전 관리'" />
 
         <!-- 준비중 -->
-        <div v-else class="coming-soon">
+        <div v-else-if="activeSidebar !== '문의하기'" class="coming-soon">
           🚧 {{ activeSidebar }} 준비 중입니다.
         </div>
+        <div v-if="inquiryOpened" v-show="activeSidebar === '문의하기'" class="inquiry-content"><InquirySection /></div>
 
       </main>
     </div>
@@ -29,11 +30,12 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent, h, ref } from 'vue'
+import { defineAsyncComponent, h, ref, watch } from 'vue'
 import MemberSection  from './base/UserMngr.vue'
 import VersionSection from './version/VersionMngr.vue'
 import ChatSection from './chat/ChatMngr.vue'
 import ForbiddenWordSection from './forbidden-word/ForbiddenWordMngr.vue'
+import InquirySection from './inquiry/InquiryMngr.vue'
 const CommunitySection = defineAsyncComponent({
   loader: () => import('./community/CommunityMngr.vue'),
   loadingComponent: { render: () => h('div', { class: 'coming-soon', role: 'status' }, '게시판을 불러오는 중입니다.') },
@@ -41,6 +43,8 @@ const CommunitySection = defineAsyncComponent({
 })
 
 const activeSidebar = ref('회원')
+const inquiryOpened = ref(false)
+watch(activeSidebar, value => { if (value === '문의하기') inquiryOpened.value = true }, { flush: 'sync' })
 </script>
 
 <style scoped>
@@ -64,7 +68,7 @@ const activeSidebar = ref('회원')
   flex-direction: column;
   overflow: auto;
 }
-.chat-content { container-name: admin-content; container-type: inline-size; }
+.chat-content, .inquiry-content { container-name: admin-content; container-type: inline-size; }
 .coming-soon {
   display: flex;
   align-items: center;
