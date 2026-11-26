@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import client from '../src/api/client.js'
 import { deleteAdminChatImage, deleteAdminChatMessage } from '../src/api/adminChat.js'
+import { deleteAdminCommunityImage } from '../src/api/adminCommunity.js'
 import { useChatMngr } from '../src/views/user/chat/useChatMngr.js'
 function response(config, content = []) { return { config, status: 200, statusText: 'OK', headers: {}, data: { data: { content, number: 0, size: 15, totalPages: 1, totalElements: content.length } } } }
 test('chat tabs request server filters and profile images from member API', async () => {
@@ -9,6 +10,7 @@ test('chat tabs request server filters and profile images from member API', asyn
   client.defaults.adapter = async config => { sent = config; return response(config) }
   await page.setTab('신고 채팅'); assert.equal(sent.params.reportedOnly, true); assert.equal(sent.url, '/api/v1/admin/chat/messages')
   await page.setTab('채팅 사진'); assert.equal(sent.params.imageOnly, true)
+  await page.setTab('게시판 사진'); assert.equal(sent.url, '/api/v1/admin/community/images'); assert.equal(sent.params.imageOnly, undefined)
   await page.setTab('프로필 사진'); assert.equal(sent.params.hasProfileImage, true); assert.equal(sent.url, '/api/v1/admin/members')
   page.filter.value.socialId = 'fan'; await page.search(); assert.equal(sent.params.socialId, 'fan')
 })
@@ -25,7 +27,8 @@ test('photo deletion uses a separate endpoint from deleting the whole chat', asy
   client.defaults.adapter = async config => { urls.push(config.url); return response(config) }
   await deleteAdminChatImage(7, 'image reason')
   await deleteAdminChatMessage(7, 'message reason')
-  assert.deepEqual(urls, ['/api/v1/admin/chat/messages/7/image/delete', '/api/v1/admin/chat/messages/7/delete'])
+  await deleteAdminCommunityImage(9)
+  assert.deepEqual(urls, ['/api/v1/admin/chat/messages/7/image/delete', '/api/v1/admin/chat/messages/7/delete', '/api/v1/admin/community/images/9'])
 })
 
 test('removing the last photo on a page returns to the previous page', async () => {
