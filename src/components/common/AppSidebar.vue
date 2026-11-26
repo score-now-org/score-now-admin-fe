@@ -22,6 +22,7 @@ const DEFAULT_ITEMS = [
   { label: '금칙어' },
   { label: '게시판/댓글' },
   { label: '도움말' },
+  { label: '문의하기' },
   { label: '버전 관리' },
   { label: '공지사항' },
   { label: '티켜 공지' },
