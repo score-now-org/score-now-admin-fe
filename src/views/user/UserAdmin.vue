@@ -15,6 +15,8 @@
 
         <div v-else-if="activeSidebar === '게시판/댓글'" class="chat-content"><CommunitySection /></div>
 
+        <div v-else-if="activeSidebar === '도움말'" class="chat-content"><HelpSection /></div>
+
         <!-- 버전 관리 -->
         <VersionSection  v-else-if="activeSidebar === '버전 관리'" />
 
@@ -35,6 +37,7 @@ import MemberSection  from './base/UserMngr.vue'
 import VersionSection from './version/VersionMngr.vue'
 import ChatSection from './chat/ChatMngr.vue'
 import ForbiddenWordSection from './forbidden-word/ForbiddenWordMngr.vue'
+import HelpSection from './help/HelpMngr.vue'
 import InquirySection from './inquiry/InquiryMngr.vue'
 const CommunitySection = defineAsyncComponent({
   loader: () => import('./community/CommunityMngr.vue'),
