@@ -175,9 +175,7 @@ async function handleLogout() {
   }
 
   .header-logo-full,
-  .logout-error { color: #ef4444; font-size: 12px; }
-
-.header-user {
+  .header-user {
     display: none;
   }
 

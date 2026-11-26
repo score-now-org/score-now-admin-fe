@@ -38,23 +38,10 @@
           variant="danger"
           size="sm"
           :disabled="submitting"
-          @click="releaseConfirmVisible = true"
+          @click="releaseTemporaryMapping"
         >
           임시 경기장 매핑 해제
         </BaseButton>
-      </div>
-
-      <div v-if="!initialLoading && !initialError && releaseConfirmVisible" class="release-confirm" role="alert">
-        <div>
-          <strong>임시 경기장 매핑을 해제할까요?</strong>
-          <small>할당된 경기장이 없는 상태가 되며, 이후 동기화에서 경기장이 다시 배정될 수 있습니다.</small>
-        </div>
-        <div>
-          <BaseButton variant="outline" size="sm" :disabled="submitting" @click="releaseConfirmVisible = false">취소</BaseButton>
-          <BaseButton variant="danger" size="sm" :disabled="submitting" @click="releaseTemporaryMapping">
-            {{ releasing ? '해제 중' : '매핑 해제' }}
-          </BaseButton>
-        </div>
       </div>
 
       <section v-if="!initialLoading && !initialError" class="mapping-section">
@@ -224,19 +211,6 @@
         </div>
       </section>
 
-      <div v-if="replaceConfirmVisible" class="replace-confirm" role="alert">
-        <div>
-          <strong>현재 등록 경기장 매핑이 제거됩니다.</strong>
-          <small>입력한 임시 경기장으로 교체할까요?</small>
-        </div>
-        <div>
-          <BaseButton variant="outline" size="sm" :disabled="submitting" @click="replaceConfirmVisible = false">취소</BaseButton>
-          <BaseButton variant="warn" size="sm" :disabled="submitting" @click="submitMapping">
-            {{ saving ? '저장 중' : '교체 후 저장' }}
-          </BaseButton>
-        </div>
-      </div>
-
       <div v-if="submitError" class="submit-error" role="alert">{{ submitError }}</div>
 
       <div v-if="!initialLoading && !initialError && selectionSummary" class="selection-summary">
@@ -258,6 +232,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, ref, watch } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import AdminDataOriginBadge from '@/components/common/AdminDataOriginBadge.vue'
@@ -300,8 +275,7 @@ const initialError = ref('')
 const saving = ref(false)
 const releasing = ref(false)
 const submitError = ref('')
-const releaseConfirmVisible = ref(false)
-const replaceConfirmVisible = ref(false)
+const requestConfirmation = useAdminConfirm()
 let modalRequestSequence = 0
 let candidateRequestSequence = 0
 
@@ -440,14 +414,10 @@ function resetModalState() {
   saving.value = false
   releasing.value = false
   submitError.value = ''
-  releaseConfirmVisible.value = false
-  replaceConfirmVisible.value = false
 }
 
 function selectMappingMode(mode) {
   mappingMode.value = mode
-  releaseConfirmVisible.value = false
-  replaceConfirmVisible.value = false
   submitError.value = ''
 }
 
@@ -542,13 +512,18 @@ function buildCandidateParams(page) {
   return params
 }
 
-function requestSaveMapping() {
+async function requestSaveMapping(event) {
   if (!canSave.value || submitting.value) return
   submitError.value = ''
 
   if (mappingMode.value === 'TEMPORARY' && currentMapping.value?.type === 'REGISTERED') {
-    replaceConfirmVisible.value = true
-    return
+    const confirmed = await requestConfirmation({
+      title: '임시 경기장으로 교체할까요?',
+      message: '현재 등록 경기장 매핑이 제거됩니다.',
+      confirmLabel: '교체 후 저장',
+      confirmVariant: 'warn',
+    }, event?.currentTarget)
+    if (!confirmed) return
   }
 
   submitMapping()
@@ -578,12 +553,19 @@ async function submitMapping() {
     submitError.value = extractApiErrorMessage(error, '경기장 매핑을 저장하지 못했습니다.')
   } finally {
     saving.value = false
-    replaceConfirmVisible.value = false
   }
 }
 
-async function releaseTemporaryMapping() {
+async function releaseTemporaryMapping(event) {
   if (currentMapping.value?.type !== 'TEMPORARY' || submitting.value || !props.match?.id) return
+  const confirmed = await requestConfirmation({
+    title: '임시 경기장 매핑을 해제할까요?',
+    message: '할당된 경기장이 없는 상태가 되며, 이후 동기화에서 경기장이 다시 배정될 수 있습니다.',
+    confirmLabel: '매핑 해제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)
+  if (!confirmed || submitting.value) return
+
   releasing.value = true
   submitError.value = ''
 
@@ -595,7 +577,6 @@ async function releaseTemporaryMapping() {
     })
     emit('update:modelValue', false)
   } catch (error) {
-    releaseConfirmVisible.value = false
     submitError.value = extractApiErrorMessage(error, '임시 경기장 매핑을 해제하지 못했습니다.')
   } finally {
     releasing.value = false
@@ -686,12 +667,6 @@ function sportKey(source = {}) {
 .current-meta { display: flex; align-items: center; gap: 7px; }
 .current-meta > span { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-table-heading); font-weight: 700; }
 .current-meta > .inactive-stadium { padding: 3px 6px; border-radius: 999px; color: #a43d46; background: #fdecee; }
-.release-confirm { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 10px; border: 1px solid #f0c7c9; border-radius: 7px; background: #fff7f7; }
-.release-confirm > div { display: flex; gap: 5px; }
-.release-confirm > div:first-child { flex-direction: column; }
-.release-confirm strong { color: #9e3f46; font-size: var(--admin-font-size-label); }
-.release-confirm small { color: #aa6b70; font-size: var(--admin-font-size-table-heading); }
-
 .mapping-section { display: flex; flex-direction: column; gap: 9px; }
 .section-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .section-title > div > span { display: block; margin-bottom: 3px; color: var(--admin-color-primary); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
@@ -750,11 +725,6 @@ function sportKey(source = {}) {
 .temporary-note small { color: var(--admin-color-text-muted); font-size: var(--admin-font-size-table-heading); }
 .temporary-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form-field label > small { margin-left: 3px; color: #9aa3b2; font-size: 8px; }
-.replace-confirm { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 10px; border: 1px solid #eed6aa; border-radius: 7px; background: #fffaf1; }
-.replace-confirm > div { display: flex; gap: 5px; }
-.replace-confirm > div:first-child { flex-direction: column; }
-.replace-confirm strong { color: #8d631d; font-size: var(--admin-font-size-label); }
-.replace-confirm small { color: #a27c3d; font-size: var(--admin-font-size-table-heading); }
 .submit-error { padding: 8px 10px; border: 1px solid #efc9cc; border-radius: var(--admin-control-radius); color: #a43d46; background: #fff6f7; font-size: var(--admin-font-size-table-heading); font-weight: 700; }
 .selection-summary { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 8px 10px; border: 1px solid var(--admin-color-border); border-radius: var(--admin-control-radius); background: var(--admin-color-surface-subtle); }
 .selection-summary > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #3864bd; background: #edf3ff; font-size: var(--admin-font-size-table-heading); font-weight: 800; }

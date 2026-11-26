@@ -55,6 +55,10 @@
         class="comment-textarea"
         placeholder="중계 멘트를 입력하세요."
         aria-label="중계 멘트"
+        :aria-describedby="shortcutHintId"
+        @compositionstart="composing = true"
+        @compositionend="composing = false"
+        @keydown.enter="handleCommentaryEnter"
         rows="4"
       />
       <div class="comment-tools">
@@ -65,10 +69,11 @@
       </div>
     </div>
 
+    <p :id="shortcutHintId" class="comment-shortcut">Enter로 등록 · Shift+Enter로 줄바꿈</p>
     <p v-if="saveError" class="comment-error" role="alert">{{ saveError }}</p>
 
     <div class="action-row">
-      <BaseButton variant="primary" size="sm" :disabled="saving" @click="requestSave">
+      <BaseButton variant="primary" size="sm" :disabled="saving" @click="saveCommentary()">
         {{ saving ? '저장 중…' : '멘트 저장' }}
       </BaseButton>
       <BaseButton variant="warn" size="sm" @click="notifyUnsupportedFeature('푸시 발송')">
@@ -77,7 +82,7 @@
     </div>
   </section>
 
-  <BaseModal v-model="historyModalVisible" title="중계글 모음" size="lg">
+  <BaseModal v-model="historyModalVisible" title="중계글 모음" size="lg" keyboard :return-focus="historyTrigger">
     <p v-if="historyLoading" class="modal-empty">
       중계글 모음을 불러오는 중입니다.
     </p>
@@ -99,23 +104,13 @@
       중계글 모음에 표시할 멘트가 없습니다.
     </p>
     <template #footer>
-      <BaseButton variant="outline" @click="historyModalVisible = false">닫기</BaseButton>
-    </template>
-  </BaseModal>
-
-  <BaseModal v-model="confirmModalVisible" title="멘트 저장" size="sm" :close-disabled="saving">
-    <p class="confirm-message">작성한 중계 멘트를 저장합니다.</p>
-    <template #footer>
-      <BaseButton variant="outline" :disabled="saving" @click="confirmModalVisible = false">취소</BaseButton>
-      <BaseButton variant="primary" :disabled="saving" @click="saveCommentary">
-        {{ saving ? '저장 중…' : '확인' }}
-      </BaseButton>
+      <BaseButton variant="outline" autofocus @click="historyModalVisible = false">닫기</BaseButton>
     </template>
   </BaseModal>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, useId, watch } from 'vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { createMatchCommentary, getMatchCommentaries } from '@/api/match'
 
@@ -131,20 +126,21 @@ const persistedForm = ref(defaultForm())
 const saving = ref(false)
 const saveError = ref('')
 const historyModalVisible = ref(false)
-const confirmModalVisible = ref(false)
+const historyTrigger = shallowRef(null)
 const historyLoading = ref(false)
 const historyError = ref('')
 const commentHistory = ref([])
+const shortcutHintId = useId()
+let composing = false
 let historyRequestId = 0
 
 const hasUnsavedChanges = computed(() => (
   JSON.stringify(form.value) !== JSON.stringify(persistedForm.value)
 ))
-const modalVisible = computed(() => historyModalVisible.value || confirmModalVisible.value)
 
 watch(hasUnsavedChanges, (value) => emit('dirty-change', value), { immediate: true })
 watch(saving, (value) => emit('busy-change', value), { immediate: true })
-watch(modalVisible, (value) => emit('modal-change', value), { immediate: true })
+watch(historyModalVisible, (value) => emit('modal-change', value), { immediate: true })
 watch(() => props.matchId, resetState, { immediate: true })
 
 onBeforeUnmount(() => {
@@ -167,7 +163,7 @@ function resetDraft() {
   form.value = defaultForm()
   persistedForm.value = clone(form.value)
   saveError.value = ''
-  confirmModalVisible.value = false
+  composing = false
 }
 
 function resetState() {
@@ -179,24 +175,29 @@ function resetState() {
   commentHistory.value = []
 }
 
-function requestSave() {
-  if (!props.matchId) {
-    alert('경기 정보를 확인할 수 없습니다.')
-    return
-  }
-  if (!form.value.message.trim()) {
-    alert('중계 멘트를 입력해주세요.')
-    return
-  }
-  saveError.value = ''
-  confirmModalVisible.value = true
+function handleCommentaryEnter(event) {
+  if (composing || event.isComposing || event.keyCode === 229) return
+  if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (!event.repeat) saveCommentary(event.currentTarget)
 }
 
-async function saveCommentary() {
-  if (saving.value || !props.matchId) return
+async function saveCommentary(input = null) {
+  if (saving.value || historyModalVisible.value || composing) return
 
+  const matchId = props.matchId
+  if (!matchId) {
+    saveError.value = '경기 정보를 확인할 수 없습니다.'
+    return
+  }
+  const content = form.value.message.trim()
+  if (!content) {
+    saveError.value = '중계 멘트를 입력해 주세요.'
+    return
+  }
   const requestPayload = {
-    content: form.value.message.trim(),
+    content,
     recordEnabled: form.value.recordEnabled,
     highlighted: form.value.highlight,
   }
@@ -204,7 +205,7 @@ async function saveCommentary() {
   saving.value = true
   saveError.value = ''
   try {
-    const response = await createMatchCommentary(props.matchId, requestPayload)
+    const response = await createMatchCommentary(matchId, requestPayload)
     const savedComment = normalizeSavedCommentary(response, requestPayload)
 
     emit('saved', savedComment)
@@ -216,17 +217,23 @@ async function saveCommentary() {
     }
     form.value.message = ''
     persistedForm.value = clone(form.value)
-    confirmModalVisible.value = false
   } catch (error) {
     console.error('중계 멘트 저장에 실패했습니다.', error)
     saveError.value = extractApiErrorMessage(error, '중계 멘트를 저장하지 못했습니다.')
-    confirmModalVisible.value = false
   } finally {
     saving.value = false
+    if (input) {
+      // 저장 중 상위 fieldset이 비활성화되면 입력 포커스가 풀릴 수 있다.
+      await nextTick()
+      if (input.isConnected && document.activeElement === document.body) {
+        input.focus({ preventScroll: true })
+      }
+    }
   }
 }
 
-async function openHistoryModal() {
+async function openHistoryModal(event) {
+  historyTrigger.value = event.currentTarget
   historyModalVisible.value = true
   await fetchCommentHistory()
 }
@@ -516,6 +523,12 @@ defineExpose({ resetDraft })
   font-size: 11px;
 }
 
+.comment-shortcut {
+  margin: 6px 0 0;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-label);
+}
+
 .modal-list {
   display: grid;
   gap: 8px;
@@ -554,11 +567,6 @@ defineExpose({ resetDraft })
 
 .modal-empty.error {
   color: #dc2626;
-}
-
-.confirm-message {
-  margin: 0;
-  line-height: 1.6;
 }
 
 @container admin-content (max-width: 600px) {
