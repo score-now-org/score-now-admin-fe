@@ -1,11 +1,5 @@
 <template>
   <AdminListPage title="경기 리스트">
-    <template #header-actions>
-      <BaseButton variant="success" size="md" @click="openCreateModal">
-        + 경기 등록
-      </BaseButton>
-    </template>
-
     <AdminFilterCard aria-label="경기 검색 조건">
       <div class="match-filter-fields">
         <div class="field-group filter-sport">
@@ -112,12 +106,15 @@
           :disabled="matchesLoading"
           @click="doSearch"
         >
-          {{ matchesLoading ? '검색중' : '검색' }}
+          {{ matchesLoading ? '검색 중' : '검색' }}
+        </BaseButton>
+        <BaseButton variant="success" size="md" @click="openCreateModal">
+          + 경기 등록
         </BaseButton>
       </template>
     </AdminFilterCard>
 
-    <AdminTableCard scroll-label="경기 목록" table-min-width="1440px">
+    <AdminTableCard scroll-label="경기 목록" table-min-width="1660px">
       <template #summary>
         <strong>검색 결과</strong>
         <span>총 {{ totalMatches }}건</span>
@@ -136,6 +133,8 @@
         <table class="match-table">
           <colgroup>
             <col class="col-match-id" />
+            <col class="col-data-origin" />
+            <col class="col-api-match-id" />
             <col class="col-sport" />
             <col class="col-league" />
             <col class="col-type" />
@@ -151,6 +150,8 @@
           <thead>
             <tr>
               <th>경기 ID</th>
+              <th>원천</th>
+              <th>외부 API ID</th>
               <th>종목</th>
               <th>리그</th>
               <th>타입</th>
@@ -168,20 +169,20 @@
             <AdminTableState
               v-if="matchesLoading"
               type="loading"
-              :colspan="12"
+              :colspan="14"
               title="경기 목록을 불러오는 중입니다."
               compact
             />
             <AdminTableState
               v-else-if="matchListError"
               type="error"
-              :colspan="12"
+              :colspan="14"
               :title="matchListError"
               description="잠시 후 다시 검색해 주세요."
             />
             <AdminTableState
               v-else-if="visibleMatches.length === 0"
-              :colspan="12"
+              :colspan="14"
               title="검색 결과가 없습니다."
               description="검색 조건을 변경한 뒤 다시 검색해 주세요."
             />
@@ -192,6 +193,8 @@
                 class="match-row"
               >
               <td class="match-id">{{ match.id }}</td>
+              <td><AdminDataOriginBadge :data-origin="match.dataOrigin" /></td>
+              <td class="api-match-id">{{ match.apiMatchId || '-' }}</td>
               <td>
                 <AdminSportBadge
                   :sport-code="match.sportCode"
@@ -267,7 +270,7 @@
                   :disabled="isSaving(match)"
                   type="button"
                   :aria-label="`${match.id} 데이터 관리: ${dataSourceTypeLabel(match)}. 클릭하여 변경`"
-                  @click="toggleDataSourceType(match)"
+                  @click="toggleDataSourceType(match, $event)"
                 >
                   {{ dataSourceTypeLabel(match) }}
                 </button>
@@ -279,7 +282,7 @@
                   :disabled="isSaving(match)"
                   type="button"
                   :aria-label="`${match.id} 앱 노출: ${useStatusLabel(match)}. 클릭하여 변경`"
-                  @click="toggleUseStatus(match)"
+                  @click="toggleUseStatus(match, $event)"
                 >
                   {{ useStatusLabel(match) }}
                 </button>
@@ -293,7 +296,7 @@
                     'match-action-btn',
                     saveButtonClass(match),
                   ]"
-                  @click="saveMatch(match)"
+                  @click="saveMatch(match, $event)"
                 >
                   {{ saveButtonLabel(match) }}
                 </BaseButton>
@@ -306,7 +309,7 @@
                     class="match-action-btn action-broadcast"
                     :disabled="!isBroadcastSupported(match)"
                     :title="isBroadcastSupported(match) ? '중계 패널 열기' : '중계를 지원하지 않는 종목입니다.'"
-                    @click="openBroadcastModal(match)"
+                    @click="openBroadcastModal(match, $event)"
                   >
                     중계
                   </BaseButton>
@@ -386,43 +389,6 @@
       :match="oddsModal.match"
     />
 
-    <BaseModal
-      :model-value="optionChangeConfirm.visible"
-      :title="optionChangeConfirm.title"
-      size="sm"
-      @update:model-value="handleOptionConfirmVisibility"
-    >
-      <p class="confirm-message">{{ optionChangeConfirm.message }}</p>
-      <template #footer>
-        <div class="confirm-actions">
-          <BaseButton variant="outline" size="md" @click="closeOptionChangeConfirm">
-            취소
-          </BaseButton>
-          <BaseButton variant="primary" size="md" @click="confirmOptionChange">
-            확인
-          </BaseButton>
-        </div>
-      </template>
-    </BaseModal>
-
-    <BaseModal
-      :model-value="dateTimeGuardVisible"
-      title="날짜·시간 변경 안내"
-      size="sm"
-      @update:model-value="dateTimeGuardVisible = $event"
-    >
-      <p class="confirm-message">
-        데이터 관리를 수동으로 변경하고 먼저 저장한 뒤 날짜와 시간을 수정해 주세요.
-      </p>
-      <template #footer>
-        <div class="confirm-actions">
-          <BaseButton variant="primary" size="md" @click="dateTimeGuardVisible = false">
-            확인
-          </BaseButton>
-        </div>
-      </template>
-    </BaseModal>
-
     <div v-if="stadiumToastMessage" class="toast" role="status">
       <span>✓</span>{{ stadiumToastMessage }}
     </div>
@@ -436,8 +402,9 @@ import AdminListPage from '@/components/admin/AdminListPage.vue'
 import AdminTableCard from '@/components/admin/AdminTableCard.vue'
 import AdminTablePagination from '@/components/admin/AdminTablePagination.vue'
 import AdminTableState from '@/components/admin/AdminTableState.vue'
+import AdminDataOriginBadge from '@/components/common/AdminDataOriginBadge.vue'
 import AdminSportBadge from '@/components/common/AdminSportBadge.vue'
-import BaseModal from '@/components/common/BaseModal.vue'
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import {
   createAdminMatch,
   getAdminMatches,
@@ -513,7 +480,7 @@ const defaultSearchForm = () => ({
   sport: '',
   leagueQuery: '',
   leagueId: '',
-  status: 'NOT_STARTED',
+  status: '',
   useStatus: 'active',
   matchDate: todayInSeoul(),
 })
@@ -550,8 +517,7 @@ const broadcastPanel = ref({ visible: false, match: null })
 const lineupModal = ref({ visible: false, match: null})
 const stadiumModal = ref({ visible: false, match: null })
 const oddsModal = ref({ visible: false, match: null })
-const optionChangeConfirm = ref(defaultOptionChangeConfirm())
-const dateTimeGuardVisible = ref(false)
+const requestConfirmation = useAdminConfirm()
 const stadiumToastMessage = ref('')
 let stadiumToastTimer
 
@@ -731,6 +697,8 @@ function mapMatchResponse(match) {
 
   return createMatch({
     id: String(match.id),
+    dataOrigin: match.dataOrigin,
+    apiMatchId: match.apiMatchId,
     sport,
     sportId: match.sportId,
     sportCode: match.sportCode,
@@ -908,7 +876,9 @@ function toLongId(value) {
   return numericValue
 }
 
-async function saveMatch(match) {
+async function saveMatch(match, event) {
+  if (isSaving(match)) return
+
   const normalizedDate = normalizeDate(match.editDate)
   const normalizedTime = normalizeTime(match.editTime)
 
@@ -926,6 +896,13 @@ async function saveMatch(match) {
     alert('경기 상태를 선택해주세요.')
     return
   }
+
+  if (normalizedDate !== match.startDate && !await requestConfirmation({
+    title: '경기 시작일 변경',
+    message: '경기 날짜가 바뀌면 등록된 상단고정·핫매치 설정이 해제됩니다.',
+    confirmLabel: '변경 후 저장',
+    confirmVariant: 'warn',
+  }, event?.currentTarget)) return
 
   setSaveState(match.id, 'saving')
 
@@ -1010,96 +987,44 @@ function scheduleSaveStateClear(matchId) {
   }, 1400)
 }
 
-function setDataSourceType(match, type) {
-  match.editDataSourceType = type
-}
-
-function toggleDataSourceType(match) {
+async function toggleDataSourceType(match, event) {
   const nextType = match.editDataSourceType === 'manual' ? 'external' : 'manual'
-  openOptionChangeConfirm({
-    match,
-    field: 'dataSource',
-    nextValue: nextType,
+  const confirmed = await requestConfirmation({
     title: '데이터 관리 변경',
     message: `데이터 관리를 ${nextType === 'manual' ? '수동' : '자동'}으로 변경하시겠습니까?`,
-  })
+    initialFocus: 'confirm',
+  }, event?.currentTarget)
+  if (confirmed) match.editDataSourceType = nextType
 }
 
 function dataSourceTypeLabel(match) {
   return match.editDataSourceType === 'manual' ? '수동' : '자동'
 }
 
-function setUseStatus(match, useStatus) {
-  match.editUseStatus = useStatus
-}
-
-function toggleUseStatus(match) {
+async function toggleUseStatus(match, event) {
   const nextStatus = match.editUseStatus === 'active' ? 'inactive' : 'active'
-  openOptionChangeConfirm({
-    match,
-    field: 'useStatus',
-    nextValue: nextStatus,
+  const confirmed = await requestConfirmation({
     title: '앱 노출 변경',
     message: `앱 노출을 ${nextStatus === 'active' ? '노출' : '숨김'}으로 변경하시겠습니까?`,
-  })
+    initialFocus: 'confirm',
+  }, event?.currentTarget)
+  if (confirmed) match.editUseStatus = nextStatus
 }
 
 function useStatusLabel(match) {
   return match.editUseStatus === 'active' ? '노출' : '숨김'
 }
 
-function defaultOptionChangeConfirm() {
-  return {
-    visible: false,
-    match: null,
-    field: '',
-    nextValue: '',
-    title: '',
-    message: '',
-  }
-}
-
-function openOptionChangeConfirm({ match, field, nextValue, title, message }) {
-  optionChangeConfirm.value = {
-    visible: true,
-    match,
-    field,
-    nextValue,
-    title,
-    message,
-  }
-}
-
-function closeOptionChangeConfirm() {
-  optionChangeConfirm.value = defaultOptionChangeConfirm()
-}
-
-function handleOptionConfirmVisibility(visible) {
-  if (!visible) closeOptionChangeConfirm()
-}
-
-function confirmOptionChange() {
-  const { match, field, nextValue } = optionChangeConfirm.value
-  if (!match) {
-    closeOptionChangeConfirm()
-    return
-  }
-
-  if (field === 'dataSource') {
-    setDataSourceType(match, nextValue)
-  } else if (field === 'useStatus') {
-    setUseStatus(match, nextValue)
-  }
-
-  closeOptionChangeConfirm()
-}
-
 function canEditDateTime(match) {
   return match.dataSource?.type === 'manual' && match.editDataSourceType === 'manual'
 }
 
-function showDateTimeGuard() {
-  dateTimeGuardVisible.value = true
+function showDateTimeGuard(event) {
+  return requestConfirmation({
+    title: '날짜·시간 변경 안내',
+    message: '데이터 관리를 수동으로 변경하고 먼저 저장한 뒤 날짜와 시간을 수정해 주세요.',
+    cancelLabel: '',
+  }, event?.currentTarget)
 }
 
 function revertMatchEdits(match) {
@@ -1110,12 +1035,12 @@ function revertMatchEdits(match) {
   match.editUseStatus = match.useStatus || 'inactive'
 }
 
-function openBroadcastModal(match) {
+function openBroadcastModal(match, event) {
   if (!isBroadcastSupported(match)) return
   if (broadcastPanel.value.visible && String(broadcastPanel.value.match?.id) === String(match.id)) return
   const open = () => { broadcastPanel.value = { visible: true, match } }
   if (broadcastPanelRef.value) {
-    broadcastPanelRef.value.requestSwitch(open)
+    broadcastPanelRef.value.requestSwitch(open, event)
   } else {
     open()
   }
@@ -1462,6 +1387,8 @@ function toErrorMessage(value) {
 }
 
 .col-match-id { width: 84px; }
+.col-data-origin { width: 80px; }
+.col-api-match-id { width: 120px; }
 .col-sport { width: 64px; }
 .col-data { width: 82px; }
 .col-league { width: 160px; }
@@ -1497,6 +1424,12 @@ td.action-area-start {
   font-weight: 600;
   white-space: normal;
   word-break: break-all;
+}
+
+.match-table .match-row .api-match-id {
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .league-cell {
@@ -1695,19 +1628,6 @@ td.action-area-start {
   color: #c53c46;
   background: #fff0f0;
   border-color: #f1c6ca;
-}
-
-.confirm-message {
-  margin: 0;
-  color: var(--admin-color-text-body);
-  font-size: var(--admin-font-size-description);
-  line-height: 1.6;
-}
-
-.confirm-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--admin-action-gap);
 }
 
 @container admin-content (min-width: 601px) and (max-width: 960px) {

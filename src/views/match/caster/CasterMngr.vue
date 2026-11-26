@@ -101,7 +101,7 @@
                   variant="danger"
                   size="sm"
                   :disabled="deletingIds.has(caster.id)"
-                  @click="deleteCaster(caster)"
+                  @click="deleteCaster(caster, $event)"
                 >
                   {{ deletingIds.has(caster.id) ? '삭제 중' : '삭제' }}
                 </BaseButton>
@@ -183,6 +183,7 @@
 </template>
 
 <script setup>
+import { useAdminConfirm } from '@/composables/useAdminConfirm'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { createAdminCaster, deleteAdminCaster, getAdminCasters } from '@/api/caster'
 import AdminFilterCard from '@/components/admin/AdminFilterCard.vue'
@@ -383,8 +384,15 @@ async function createCaster() {
   }
 }
 
-async function deleteCaster(caster) {
-  if (!window.confirm(`${caster.name} 캐스터를 삭제하시겠습니까?`)) return
+const requestConfirmation = useAdminConfirm()
+
+async function deleteCaster(caster, event) {
+  if (!await requestConfirmation({
+    title: '캐스터 삭제',
+    message: `${caster.name} 캐스터를 삭제하시겠습니까?`,
+    confirmLabel: '삭제',
+    confirmVariant: 'danger',
+  }, event?.currentTarget)) return
 
   setDeleting(caster.id, true)
   try {
