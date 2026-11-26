@@ -4,5 +4,6 @@ const base = '/api/v1/admin/inquiries'
 const config = () => ({ headers: { Authorization: localStorage.getItem('adminToken') || '' } })
 export const getInquiries = params => client.get(base, { ...config(), params })
 export const getInquiry = id => client.get(`${base}/${id}`, config())
+export const getInquiryFormattingCapabilities = () => client.get(`${base}/formatting-capabilities`, config())
 export const getInquiryAttachment = id => client.get(`${base}/${id}/attachment`, { ...config(), responseType: 'blob' })
 export const saveInquiryAnswer = (id, data) => client.put(`${base}/${id}/answer`, data, config())
