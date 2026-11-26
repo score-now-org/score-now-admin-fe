@@ -15,6 +15,15 @@
             "value": "noindex, nofollow, noarchive"
           }
         ]
+      },
+      {
+        "regex": "^/(index\\.html|admin(/.*)?)?$",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ],
     "rewrites": [
