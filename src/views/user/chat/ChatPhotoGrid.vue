@@ -5,20 +5,20 @@
     </div>
     <p v-if="loading" role="status" class="state">불러오는 중입니다.</p><p v-else-if="error" role="alert" class="state">{{ error }}</p><p v-else-if="!items.length" class="state">검색 결과가 없습니다.</p>
     <div v-else class="grid">
-      <article v-for="item in items" :key="profile ? item.memberId : item.chatId" class="card">
-        <img :src="profile ? item.profileImageUrl : item.imageUrl" :alt="profile ? '프로필 사진' : '채팅 사진'" />
+      <article v-for="item in items" :key="profile ? item.memberId : community ? item.imageId : item.chatId" class="card">
+        <img :src="profile ? item.profileImageUrl : item.imageUrl" :alt="profile ? '프로필 사진' : community ? '게시판 사진' : '채팅 사진'" />
         <div class="actions">
           <BaseButton variant="danger" size="sm" @click="profile ? $emit('action', item.memberId, 'DELETE_PROFILE_IMAGE') : $emit('delete', item)">삭제</BaseButton>
           <template v-if="item.memberId"><BaseButton variant="outline" size="sm" @click="$emit('action', item.memberId, 'PERMANENT_WITHDRAWAL')">영구탈퇴</BaseButton><BaseButton variant="outline" size="sm" @click="$emit('action', item.memberId, 'WARN')">경고</BaseButton><BaseButton variant="outline" size="sm" @click="$emit('action', item.memberId, 'BAN')">정지</BaseButton></template>
         </div>
-        <p>{{ item.socialId || item.nickname || '-' }}</p>
+        <p>{{ item.socialId || item.nickname || '-' }}<template v-if="community"> · 게시글 #{{ item.postId }}</template></p>
       </article>
     </div>
   </section>
 </template>
 <script setup>
 import AdminTablePagination from '@/components/admin/AdminTablePagination.vue'
-defineProps({ items: { type: Array, required: true }, profile: Boolean, loading: Boolean, error: { type: String, default: '' }, pagination: { type: Object, required: true } })
+defineProps({ items: { type: Array, required: true }, profile: Boolean, community: Boolean, loading: Boolean, error: { type: String, default: '' }, pagination: { type: Object, required: true } })
 defineEmits(['change-page', 'change-page-size', 'delete', 'action'])
 </script>
 <style scoped>
