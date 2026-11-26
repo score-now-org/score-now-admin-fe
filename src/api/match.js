@@ -170,7 +170,7 @@ export const getMatchLineup = async (matchId) => {
   return response.data?.data ?? response.data;
 };
 
-// 라인업 팀 설정 수정 API (포메이션, 유니폼 컬러)
+// 라인업 팀 유니폼 색상 수정 API
 export const updateMatchLineupTeam = async (matchId, teamId, payload) => {
   const response = await client.patch(
     `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}`,
@@ -180,7 +180,7 @@ export const updateMatchLineupTeam = async (matchId, teamId, payload) => {
   return response.data?.data ?? response.data;
 };
 
-// 라인업 선수 정보 수정 API (포지션, 등번호, 득점)
+// 라인업 선수 정보 수정 API (포지션, 등번호)
 export const updateMatchLineupPlayer = async (matchId, teamId, playerId, payload) => {
   const response = await client.patch(
     `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}/players/${playerId}`,
@@ -228,3 +228,18 @@ export const removeMatchLineupPlayer = async (matchId, teamId, playerId) => {
 
   return response.data?.data ?? response.data
 }
+
+// 라인업 선수 선발·후보 역할 변경 API
+export const updateMatchLineupPlayerRole = async (
+  matchId,
+  teamId,
+  playerId,
+  role
+) => {
+  const response = await client.patch(
+    `/api/v1/admin/matches/${matchId}/lineup/teams/${teamId}/players/${playerId}/role`,
+    { role }
+  );
+
+  return response.data?.data ?? response.data;
+};
