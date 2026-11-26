@@ -30,3 +30,13 @@ test('a late result cannot overwrite a newer filter', async () => {
   deferred[1](); await current; deferred[0](); await old
   assert.deepEqual(view.items.value, ['ANDROID'])
 })
+
+test('news mode uses independent API paths and preserves OS filtering', async () => {
+  const view = useNoticeMngr(true); const requests = []
+  client.defaults.adapter = async config => { requests.push(config); return result(config, config.url.endsWith('/status') ? { pending: true } : page(config)) }
+  await view.setPlatform('IOS')
+  assert.equal(requests.find(x => x.params).url, '/api/v1/admin/news-tickers')
+  assert.equal(requests.find(x => x.params).params.platform, 'IOS')
+  assert.equal(requests.find(x => x.url.endsWith('/status')).url, '/api/v1/admin/news-tickers/status')
+  assert.equal(view.pending.value, true)
+})

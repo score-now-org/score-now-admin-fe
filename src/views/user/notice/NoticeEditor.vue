@@ -1,5 +1,5 @@
 <template>
-  <BaseModal :model-value="modelValue" :title="item ? '공지 수정' : '공지 등록'" size="lg" :close-disabled="saving" @update:model-value="$emit('update:modelValue', $event)">
+  <BaseModal :model-value="modelValue" :title="`${news ? '뉴스·알림' : '공지'} ${item ? '수정' : '등록'}`" size="lg" :close-disabled="saving" @update:model-value="$emit('update:modelValue', $event)">
     <form id="notice-editor" class="modal-form" @submit.prevent="submit">
       <div class="modal-field"><label class="modal-label" for="notice-title">제목</label><BaseInput id="notice-title" v-model="form.title" maxlength="200" required /></div>
       <div class="modal-field"><label class="modal-label" for="notice-content">내용</label><BaseTextarea id="notice-content" v-model="form.content" maxlength="10000" rows="8" required /></div>
@@ -8,7 +8,11 @@
         <div class="modal-field"><label class="modal-label" for="notice-visible">앱 노출 설정</label><BaseSelect id="notice-visible" v-model="form.visibility"><option value="visible">노출</option><option value="hidden">미노출</option></BaseSelect></div>
       </div>
       <div class="modal-field"><label class="modal-label" for="notice-url">연결 링크 (선택)</label><BaseInput id="notice-url" v-model="form.url" type="url" maxlength="2048" placeholder="https://..." /></div>
-      <label class="ticker"><input v-model="form.ticker" type="checkbox" /> 공지 티커에도 표시</label>
+      <div v-if="news" class="modal-grid">
+        <div class="modal-field"><label class="modal-label" for="notice-title-color">제목 색상</label><div class="color-field"><BaseInput id="notice-title-color" v-model="form.titleColor" pattern="#[0-9a-fA-F]{6}" maxlength="7" required /><input v-model="form.titleColor" type="color" aria-label="제목 색상 선택" /></div></div>
+        <div class="modal-field"><label class="modal-label" for="notice-content-color">본문 색상</label><div class="color-field"><BaseInput id="notice-content-color" v-model="form.contentColor" pattern="#[0-9a-fA-F]{6}" maxlength="7" required /><input v-model="form.contentColor" type="color" aria-label="본문 색상 선택" /></div></div>
+      </div>
+      <label v-else class="ticker"><input v-model="form.ticker" type="checkbox" /> 공지 티커에도 표시</label>
       <p class="modal-help">저장한 변경사항은 목록의 등록하기 버튼을 눌러야 앱에 반영됩니다.</p>
       <p v-if="error" class="modal-error" role="alert">{{ error }}</p>
     </form>
@@ -18,21 +22,23 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { createNotice, updateNotice } from '@/api/adminNotices.js'
-const props = defineProps({ modelValue: Boolean, item: { type: Object, default: null } })
+import { createNotice, updateNotice, newsApi } from '@/api/adminNotices.js'
+const props = defineProps({ modelValue: Boolean, item: { type: Object, default: null }, news: Boolean })
 const emit = defineEmits(['update:modelValue', 'saved'])
-const empty = () => ({ title: '', content: '', platform: 'ALL', visibility: 'visible', ticker: false, url: '' })
+const empty = () => ({ title: '', content: '', platform: 'ALL', visibility: 'visible', ticker: false, url: '', titleColor: '#000000', contentColor: '#000000' })
 const form = ref(empty()), saving = ref(false), error = ref('')
 watch(() => props.modelValue, visible => {
-  if (visible) { const n = props.item; form.value = n ? { title: n.title, content: n.content, platform: n.platform, visibility: n.visible ? 'visible' : 'hidden', ticker: n.ticker, url: n.url || '' } : empty(); error.value = '' }
+  if (visible) { const n = props.item; form.value = n ? { title: n.title, content: n.content, platform: n.platform, visibility: n.visible ? 'visible' : 'hidden', ticker: n.ticker, url: n.url || '', titleColor: n.titleColor || '#000000', contentColor: n.contentColor || '#000000' } : empty(); error.value = '' }
 })
 async function submit() {
   if (saving.value) return
   const data = { title: form.value.title.trim(), content: form.value.content.trim(), platform: form.value.platform, visible: form.value.visibility === 'visible', ticker: form.value.ticker, url: form.value.url.trim() || null }
+  if (props.news) { delete data.ticker; data.titleColor = form.value.titleColor; data.contentColor = form.value.contentColor }
   if (!data.title || !data.content) { error.value = '제목과 내용을 입력해 주세요.'; return }
   saving.value = true; error.value = ''
   try {
-    if (props.item) await updateNotice(props.item.id, data); else await createNotice(data)
+    const create = props.news ? newsApi.create : createNotice, update = props.news ? newsApi.update : updateNotice
+    if (props.item) await update(props.item.id, data); else await create(data)
     emit('update:modelValue', false); emit('saved')
   } catch (e) { error.value = e.response?.data?.error?.message || '공지를 저장하지 못했습니다.' }
   finally { saving.value = false }
@@ -41,4 +47,6 @@ async function submit() {
 
 <style scoped>
 .ticker { display: flex; align-items: center; gap: 6px; }
+.color-field { display: flex; align-items: center; gap: 6px; }
+.color-field input[type='color'] { width: 38px; height: var(--admin-control-height); flex: none; padding: 2px; border: 1px solid var(--admin-color-control-border); border-radius: var(--admin-control-radius); background: var(--admin-color-surface); cursor: pointer; }
 </style>

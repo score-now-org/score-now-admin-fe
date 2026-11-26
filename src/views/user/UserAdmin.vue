@@ -19,6 +19,8 @@
 
         <div v-else-if="activeSidebar === '공지사항'" class="chat-content"><NoticeSection /></div>
 
+        <div v-else-if="activeSidebar === '뉴스/알림'" class="chat-content"><NoticeSection news /></div>
+
         <!-- 버전 관리 -->
         <VersionSection  v-else-if="activeSidebar === '버전 관리'" />
 
